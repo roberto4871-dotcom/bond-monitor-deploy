@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitor Sovranazionali & Governativi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --bg2: #1a1d27;
+      --bg3: #222636;
+      --border: #2e3347;
+      --text: #e8eaf0;
+      --text2: #9ba3bf;
+      --blue: #4f7ef7;
+      --green: #34d399;
+      --red: #f87171;
+      --amber: #fbbf24;
+      --purple: #a78bfa;
+      --teal: #22d3ee;
+      --shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* HEADER */
+    .header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700; color: white;
+    }
+    .header h1 { font-size: 17px; font-weight: 600; color: var(--text); }
+    .header-subtitle { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .status-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 10px;
+      font-size: 12px; color: var(--text2);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+    }
+    .status-dot.updating { background: var(--amber); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .btn {
+      padding: 6px 14px; border-radius: 6px; border: none;
+      cursor: pointer; font-size: 13px; font-weight: 500;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: var(--blue); color: white;
+    }
+    .btn-primary:hover { background: #3b6ef0; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: var(--bg3); color: var(--text2);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--blue); }
+
+    /* STATS BAR */
+    .stats-bar {
+      display: flex; gap: 12px; padding: 12px 20px;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 14px;
+      min-width: 120px;
+    }
+    .stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 20px; font-weight: 700; color: var(--text); margin-top: 2px; }
+    .stat-value.green { color: var(--green); }
+    .stat-value.amber { color: var(--amber); }
+    .stat-value.blue { color: var(--blue); }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      height: calc(100vh - 110px);
+    }
+
+    /* SIDEBAR FILTRI */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .sidebar-title {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--text2); margin-bottom: 14px;
+    }
+
+    .filter-group { margin-bottom: 16px; }
+    .filter-label {
+      font-size: 12px; color: var(--text2); margin-bottom: 6px;
+      display: block; font-weight: 500;
+    }
+
+    input[type="text"], input[type="date"], input[type="number"], select {
+      width: 100%; padding: 7px 10px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 13px;
+      outline: none; transition: border-color 0.15s;
+    }
+    input:focus, select:focus { border-color: var(--blue); }
+    input::placeholder { color: var(--text2); }
+    select option { background: var(--bg3); }
+
+    .range-row { display: flex; gap: 6px; align-items: center; }
+    .range-sep { color: var(--text2); font-size: 11px; }
+
+    .filter-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip {
+      padding: 3px 10px; border-radius: 20px;
+      background: var(--bg3); border: 1px solid var(--border);
+      font-size: 12px; color: var(--text2); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chip.active {
+      background: var(--blue); border-color: var(--blue); color: white;
+    }
+
+    .btn-reset {
+      width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--text2); cursor: pointer;
+      font-size: 12px; transition: all 0.15s; margin-top: 4px;
+    }
+    .btn-reset:hover { color: var(--red); border-color: var(--red); }
+
+    /* MAIN */
+    .main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+    .table-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--border);
+      flex-wrap: wrap; gap: 8px;
+    }
+    .results-count { font-size: 13px; color: var(--text2); }
+    .results-count strong { color: var(--text); }
+
+    .table-actions { display: flex; gap: 8px; }
+
+    /* TABLE */
+    .table-wrapper {
+      flex: 1; overflow: auto;
+    }
+
+    table {
+      width: 100%; border-collapse: collapse; white-space: nowrap;
+    }
+    thead {
+      position: sticky; top: 0; z-index: 10;
+    }
+    thead th {
+      background: var(--bg3);
+      padding: 9px 12px;
+      text-align: left;
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text2);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    thead th:hover { color: var(--text); }
+    thead th.sorted { color: var(--blue); }
+    .sort-icon { margin-left: 4px; font-size: 10px; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    tbody tr:hover { background: var(--bg3); }
+    tbody td {
+      padding: 8px 12px; font-size: 13px; color: var(--text);
+    }
+
+    .isin-cell {
+      font-family: 'Courier New', monospace;
+      font-size: 12px; color: var(--teal);
+      font-weight: 500;
+    }
+    .desc-cell {
+      max-width: 240px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+      font-weight: 500;
+    }
+    .emittente-cell { color: var(--text2); font-size: 12px; }
+
+    .yield-cell { font-weight: 700; }
+    .yield-high { color: var(--green); }
+    .yield-mid { color: var(--amber); }
+    .yield-low { color: var(--text); }
+    .yield-neg { color: var(--red); }
+    .yield-na { color: var(--text2); font-size: 12px; }
+
+    .divisa-badge {
+      display: inline-block; padding: 2px 7px;
+      border-radius: 4px; font-size: 11px; font-weight: 600;
+    }
+    .divisa-eur { background: rgba(79,126,247,0.2); color: var(--blue); }
+    .divisa-usd { background: rgba(52,211,153,0.2); color: var(--green); }
+    .divisa-gbp { background: rgba(167,139,250,0.2); color: var(--purple); }
+    .divisa-try { background: rgba(251,191,36,0.2); color: var(--amber); }
+    .divisa-other { background: rgba(156,163,175,0.2); color: var(--text2); }
+
+    .monitor-badge {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 4px; font-size: 11px; font-weight: 500;
+      background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+    }
+
+    .maturity-soon { color: var(--amber); }
+    .maturity-far { color: var(--text2); }
+
+    .na { color: var(--text2); font-style: italic; font-size: 12px; }
+
+    /* PAGINATION */
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--bg2); border-top: 1px solid var(--border);
+      flex-wrap: wrap; gap: 8px;
+    }
+    .page-info { font-size: 13px; color: var(--text2); }
+    .page-btns { display: flex; gap: 4px; }
+    .page-btn {
+      width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg3); color: var(--text2); cursor: pointer; font-size: 13px;
+      display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .page-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .page-btn.active { background: var(--blue); border-color: var(--blue); color: white; }
+    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* LOADING */
+    .loading-overlay {
+      display: none; position: absolute; inset: 0;
+      background: rgba(15,17,23,0.7); z-index: 50;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px;
+    }
+    .loading-overlay.show { display: flex; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--blue); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: var(--text2); font-size: 13px; }
+
+    /* ERROR */
+    .error-bar {
+      display: none; padding: 8px 16px;
+      background: rgba(248,113,113,0.1); border-bottom: 1px solid rgba(248,113,113,0.3);
+      color: var(--red); font-size: 13px;
+    }
+    .error-bar.show { display: block; }
+
+    /* COUNTDOWN */
+    .countdown { font-size: 12px; color: var(--text2); }
+    .countdown span { color: var(--blue); font-weight: 600; }
+
+    /* EMPTY */
+    .empty-state {
+      padding: 60px 20px; text-align: center; color: var(--text2);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-text { font-size: 15px; }
+
+    /* MOBILE */
+    @media (max-width: 768px) {
+      .layout { flex-direction: column; height: auto; }
+      .sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--border); }
+      .main { min-height: 60vh; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">B</div>
+    <div>
+      <h1>Sovranazionali & Governativi</h1>
+      <div class="header-subtitle">Monitor obbligazioni — simpletoolsforinvestors.eu</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="countdown">Prossimo aggiornamento: <span id="countdown">--:--</span></div>
+    <div class="status-badge">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Caricamento...</span>
+    </div>
+    <button class="btn btn-primary" id="refreshBtn" onclick="manualRefresh()">↻ Aggiorna</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="stat-label">Titoli totali</div>
+    <div class="stat-value blue" id="statTotal">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Filtrati</div>
+    <div class="stat-value" id="statFiltered">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Yield medio</div>
+    <div class="stat-value green" id="statAvgYield">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Yield max</div>
+    <div class="stat-value amber" id="statMaxYield">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Valute</div>
+    <div class="stat-value" id="statCurrencies">—</div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR FILTRI -->
+  <div class="sidebar">
+    <div class="sidebar-title">Filtri</div>
+
+    <div class="filter-group">
+      <label class="filter-label">Cerca (ISIN / Descrizione)</label>
+      <input type="text" id="filterSearch" placeholder="es. BTP, XS2408..." oninput="applyFilters()" />
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Categoria</label>
+      <select id="filterMonitor" onchange="applyFilters()">
+        <option value="">Tutte le categorie</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Paese emittente</label>
+      <div class="filter-chips" id="countryChips"></div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Valuta</label>
+      <div class="filter-chips" id="currencyChips"></div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Yield (%)</label>
+      <div class="range-row">
+        <input type="number" id="filterYieldMin" placeholder="Min" step="0.1" oninput="applyFilters()" />
+        <span class="range-sep">—</span>
+        <input type="number" id="filterYieldMax" placeholder="Max" step="0.1" oninput="applyFilters()" />
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Scadenza</label>
+      <div class="range-row">
+        <input type="date" id="filterMatFrom" onchange="applyFilters()" />
+        <span class="range-sep">—</span>
+        <input type="date" id="filterMatTo" onchange="applyFilters()" />
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Duration modificata</label>
+      <div class="range-row">
+        <input type="number" id="filterDurMin" placeholder="Min" step="0.1" oninput="applyFilters()" />
+        <span class="range-sep">—</span>
+        <input type="number" id="filterDurMax" placeholder="Max" step="0.1" oninput="applyFilters()" />
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Z-Spread</label>
+      <div class="range-row">
+        <input type="number" id="filterZMin" placeholder="Min" step="1" oninput="applyFilters()" />
+        <span class="range-sep">—</span>
+        <input type="number" id="filterZMax" placeholder="Max" step="1" oninput="applyFilters()" />
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Solo titoli con Yield</label>
+      <div class="filter-chips">
+        <div class="chip" id="chipWithYield" onclick="toggleYieldFilter()">Solo con Yield</div>
+      </div>
+    </div>
+
+    <button class="btn-reset" onclick="resetFilters()">✕ Azzera filtri</button>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main" style="position:relative;">
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div class="loading-text">Caricamento titoli...</div>
+    </div>
+
+    <div class="error-bar" id="errorBar"></div>
+
+    <!-- TOOLBAR -->
+    <div class="table-toolbar">
+      <div class="results-count" id="resultsCount">—</div>
+      <div class="table-actions">
+        <select id="pageSize" onchange="changePageSize()" style="width:auto;padding:5px 8px;">
+          <option value="50">50 per pagina</option>
+          <option value="100">100 per pagina</option>
+          <option value="200">200 per pagina</option>
+          <option value="999999">Tutti</option>
+        </select>
+        <button class="btn btn-secondary" onclick="exportCSV()">⬇ CSV</button>
+      </div>
+    </div>
+
+    <!-- TABELLA -->
+    <div class="table-wrapper">
+      <table id="bondsTable">
+        <thead>
+          <tr>
+            <th onclick="sortBy('isin')" title="Codice ISIN">ISIN <span class="sort-icon" id="sort-isin"></span></th>
+            <th onclick="sortBy('descrizione')" title="Descrizione">Descrizione <span class="sort-icon" id="sort-descrizione"></span></th>
+            <th onclick="sortBy('emittente')" title="Emittente">Emittente <span class="sort-icon" id="sort-emittente"></span></th>
+            <th onclick="sortBy('divisa')" title="Valuta">Valuta <span class="sort-icon" id="sort-divisa"></span></th>
+            <th onclick="sortBy('scadenza')" title="Data scadenza">Scadenza <span class="sort-icon" id="sort-scadenza"></span></th>
+            <th onclick="sortBy('prezzo')" title="Prezzo di riferimento">Prezzo <span class="sort-icon" id="sort-prezzo"></span></th>
+            <th onclick="sortBy('yield')" title="Rendimento">Yield % <span class="sort-icon" id="sort-yield"></span></th>
+            <th onclick="sortBy('duration')" title="Duration modificata">Duration <span class="sort-icon" id="sort-duration"></span></th>
+            <th onclick="sortBy('zSpread')" title="Z-Spread">Z-Spread <span class="sort-icon" id="sort-zSpread"></span></th>
+            <th onclick="sortBy('monitor')" title="Categoria">Categoria <span class="sort-icon" id="sort-monitor"></span></th>
+            <th onclick="sortBy('mercato')" title="Mercato">Mercato <span class="sort-icon" id="sort-mercato"></span></th>
+          </tr>
+        </thead>
+        <tbody id="bondsBody">
+          <tr><td colspan="11" class="empty-state">
+            <div class="empty-icon">📊</div>
+            <div class="empty-text">Caricamento dati in corso...</div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination">
+      <div class="page-info" id="pageInfo">—</div>
+      <div class="page-btns" id="pageBtns"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────
+  // STATO
+  // ─────────────────────────────────────────────
+  let allBonds = [];
+  let filteredBonds = [];
+  let sortField = 'yield';
+  let sortDir = 'desc';
+  let currentPage = 1;
+  let pageSize = 50;
+  let lastUpdate = null;
+  let nextUpdateTime = null;
+  let onlyWithYield = false;
+  let activeCurrencies = new Set();
+  let activeCountries = new Set();
+  let countdownInterval = null;
+
+  // ─────────────────────────────────────────────
+  // FETCH DATI
+  // ─────────────────────────────────────────────
+  async function fetchData() {
+    try {
+      const res = await fetch('/api/bonds');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      const changed = data.total !== allBonds.length || data.lastUpdate !== lastUpdate;
+
+      allBonds = data.bonds || [];
+      lastUpdate = data.lastUpdate;
+      nextUpdateTime = data.nextUpdate ? new Date(data.nextUpdate) : null;
+
+      updateStatusBadge(data.isUpdating, data.lastUpdate);
+      updateCountdown();
+
+      if (data.errors && data.errors.length > 0) {
+        const errBar = document.getElementById('errorBar');
+        errBar.textContent = `Errori scraping: ${data.errors.map(e => e.monitor).join(', ')}`;
+        errBar.classList.add('show');
+      } else {
+        document.getElementById('errorBar').classList.remove('show');
+      }
+
+      if (changed) {
+        populateFilters();
+        applyFilters();
+      }
+
+      updateStats();
+
+    } catch (err) {
+      console.error('Errore fetch:', err);
+      updateStatusBadge(false, lastUpdate, true);
+    }
+  }
+
+  async function manualRefresh() {
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled = true;
+    btn.textContent = '↻ Aggiornamento...';
+    try {
+      await fetch('/api/refresh');
+    } catch (e) {}
+    // Poll ogni 2s finché isUpdating diventa false
+    const poll = setInterval(async () => {
+      const res = await fetch('/api/status');
+      const s = await res.json();
+      if (!s.isUpdating) {
+        clearInterval(poll);
+        await fetchData();
+        btn.disabled = false;
+        btn.textContent = '↻ Aggiorna';
+      }
+    }, 2000);
+  }
+
+  // ─────────────────────────────────────────────
+  // STATUS & COUNTDOWN
+  // ─────────────────────────────────────────────
+  function updateStatusBadge(isUpdating, updateTime, hasError = false) {
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    if (isUpdating) {
+      dot.className = 'status-dot updating';
+      txt.textContent = 'Aggiornamento in corso...';
+    } else if (hasError) {
+      dot.style.background = 'var(--red)';
+      txt.textContent = 'Errore connessione';
+    } else if (updateTime) {
+      dot.className = 'status-dot';
+      dot.style.background = '';
+      const d = new Date(updateTime);
+      txt.textContent = `Aggiornato: ${d.toLocaleTimeString('it-IT')}`;
+    } else {
+      txt.textContent = 'In attesa...';
+    }
+  }
+
+  function updateCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+      if (!nextUpdateTime) { document.getElementById('countdown').textContent = '--:--'; return; }
+      const diff = Math.max(0, nextUpdateTime - Date.now());
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      document.getElementById('countdown').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+  }
+
+  // ─────────────────────────────────────────────
+  // POPOLA FILTRI
+  // ─────────────────────────────────────────────
+  function populateFilters() {
+    // Categorie
+    const monitors = [...new Set(allBonds.map(b => b.monitor))].sort();
+    const sel = document.getElementById('filterMonitor');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Tutte le categorie</option>';
+    monitors.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      if (m === prev) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    // Paesi chips — ordinati: prima i paesi "nominati", poi Sovranazionale, poi il resto
+    const PAESE_ORDER = ['Italia','Germania','Francia','Spagna','Portogallo','Grecia','Belgio','Paesi Bassi','Austria','Finlandia','Irlanda','Romania','Polonia','Ungheria','Rep. Ceca','Slovacchia','Slovenia','Croazia','Bulgaria','Lituania','Lettonia','Estonia','Svezia','Danimarca','Norvegia','Svizzera','Regno Unito','Stati Uniti','Giappone','Canada','Australia','Unione Europea','Sovranazionale','Altro'];
+    const allCountries = [...new Set(allBonds.map(b => b.paese).filter(Boolean))];
+    const sortedCountries = allCountries.sort((a, b) => {
+      const ia = PAESE_ORDER.indexOf(a), ib = PAESE_ORDER.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+    const countryContainer = document.getElementById('countryChips');
+    countryContainer.innerHTML = '';
+    sortedCountries.forEach(paese => {
+      const chip = document.createElement('div');
+      chip.className = 'chip' + (activeCountries.has(paese) ? ' active' : '');
+      chip.textContent = paese;
+      if (paese === 'Sovranazionale' || paese === 'Unione Europea') chip.style.borderColor = 'var(--purple)';
+      chip.onclick = () => toggleCountry(paese, chip);
+      countryContainer.appendChild(chip);
+    });
+
+    // Valute chips
+    const currencies = [...new Set(allBonds.map(b => b.divisa).filter(Boolean))].sort();
+    const container = document.getElementById('currencyChips');
+    container.innerHTML = '';
+    currencies.forEach(cur => {
+      const chip = document.createElement('div');
+      chip.className = 'chip' + (activeCurrencies.has(cur) ? ' active' : '');
+      chip.textContent = cur;
+      chip.onclick = () => toggleCurrency(cur, chip);
+      container.appendChild(chip);
+    });
+  }
+
+  function toggleCountry(paese, el) {
+    if (activeCountries.has(paese)) {
+      activeCountries.delete(paese);
+      el.classList.remove('active');
+    } else {
+      activeCountries.add(paese);
+      el.classList.add('active');
+    }
+    applyFilters();
+  }
+
+  function toggleCurrency(cur, el) {
+    if (activeCurrencies.has(cur)) {
+      activeCurrencies.delete(cur);
+      el.classList.remove('active');
+    } else {
+      activeCurrencies.add(cur);
+      el.classList.add('active');
+    }
+    applyFilters();
+  }
+
+  function toggleYieldFilter() {
+    onlyWithYield = !onlyWithYield;
+    document.getElementById('chipWithYield').classList.toggle('active', onlyWithYield);
+    applyFilters();
+  }
+
+  // ─────────────────────────────────────────────
+  // FILTRI
+  // ─────────────────────────────────────────────
+  function applyFilters() {
+    const search = document.getElementById('filterSearch').value.toLowerCase().trim();
+    const monitor = document.getElementById('filterMonitor').value;
+    const yieldMin = parseFloat(document.getElementById('filterYieldMin').value);
+    const yieldMax = parseFloat(document.getElementById('filterYieldMax').value);
+    const matFrom = document.getElementById('filterMatFrom').value;
+    const matTo = document.getElementById('filterMatTo').value;
+    const durMin = parseFloat(document.getElementById('filterDurMin').value);
+    const durMax = parseFloat(document.getElementById('filterDurMax').value);
+    const zMin = parseFloat(document.getElementById('filterZMin').value);
+    const zMax = parseFloat(document.getElementById('filterZMax').value);
+
+    filteredBonds = allBonds.filter(b => {
+      if (search && !b.isin.toLowerCase().includes(search) &&
+          !b.descrizione.toLowerCase().includes(search) &&
+          !b.emittente.toLowerCase().includes(search)) return false;
+      if (monitor && b.monitor !== monitor) return false;
+      if (activeCountries.size > 0 && !activeCountries.has(b.paese)) return false;
+      if (activeCurrencies.size > 0 && !activeCurrencies.has(b.divisa)) return false;
+      if (onlyWithYield && (b.yield === null || b.yield === undefined)) return false;
+      if (!isNaN(yieldMin) && (b.yield === null || b.yield < yieldMin)) return false;
+      if (!isNaN(yieldMax) && (b.yield === null || b.yield > yieldMax)) return false;
+      if (matFrom && b.scadenza && b.scadenza < matFrom) return false;
+      if (matTo && b.scadenza && b.scadenza > matTo) return false;
+      if (!isNaN(durMin) && (b.duration === null || b.duration < durMin)) return false;
+      if (!isNaN(durMax) && (b.duration === null || b.duration > durMax)) return false;
+      if (!isNaN(zMin) && (b.zSpread === null || b.zSpread < zMin)) return false;
+      if (!isNaN(zMax) && (b.zSpread === null || b.zSpread > zMax)) return false;
+      return true;
+    });
+
+    sortBonds();
+    currentPage = 1;
+    renderTable();
+    updateStats();
+  }
+
+  function resetFilters() {
+    document.getElementById('filterSearch').value = '';
+    document.getElementById('filterMonitor').value = '';
+    document.getElementById('filterYieldMin').value = '';
+    document.getElementById('filterYieldMax').value = '';
+    document.getElementById('filterMatFrom').value = '';
+    document.getElementById('filterMatTo').value = '';
+    document.getElementById('filterDurMin').value = '';
+    document.getElementById('filterDurMax').value = '';
+    document.getElementById('filterZMin').value = '';
+    document.getElementById('filterZMax').value = '';
+    activeCountries.clear();
+    activeCurrencies.clear();
+    onlyWithYield = false;
+    document.getElementById('chipWithYield').classList.remove('active');
+    document.querySelectorAll('#countryChips .chip, #currencyChips .chip').forEach(c => c.classList.remove('active'));
+    applyFilters();
+  }
+
+  // ─────────────────────────────────────────────
+  // ORDINAMENTO
+  // ─────────────────────────────────────────────
+  function sortBy(field) {
+    if (sortField === field) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField = field;
+      sortDir = field === 'yield' || field === 'prezzo' ? 'desc' : 'asc';
+    }
+    // Update icons
+    document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '');
+    const icon = document.getElementById(`sort-${field}`);
+    if (icon) icon.textContent = sortDir === 'asc' ? '▲' : '▼';
+    document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
+    // Mark sorted column
+    document.querySelectorAll('thead th').forEach(th => {
+      if (th.querySelector(`#sort-${field}`)) th.classList.add('sorted');
+    });
+    sortBonds();
+    renderTable();
+  }
+
+  function sortBonds() {
+    filteredBonds.sort((a, b) => {
+      let av = a[sortField], bv = b[sortField];
+      // Null values go to end
+      if (av === null || av === undefined) return 1;
+      if (bv === null || bv === undefined) return -1;
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  // ─────────────────────────────────────────────
+  // RENDER TABELLA
+  // ─────────────────────────────────────────────
+  function renderTable() {
+    const tbody = document.getElementById('bondsBody');
+    const total = filteredBonds.length;
+
+    if (total === 0) {
+      tbody.innerHTML = `<tr><td colspan="11">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-text">Nessun titolo corrisponde ai filtri selezionati</div>
+        </div>
+      </td></tr>`;
+      updatePagination(0);
+      document.getElementById('resultsCount').innerHTML = `<strong>0</strong> titoli trovati`;
+      return;
+    }
+
+    const start = (currentPage - 1) * pageSize;
+    const end = Math.min(start + pageSize, total);
+    const page = filteredBonds.slice(start, end);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = page.map(b => {
+      const yieldClass = b.yield === null ? 'yield-na' :
+        b.yield < 0 ? 'yield-neg' :
+        b.yield < 2 ? 'yield-low' :
+        b.yield < 5 ? 'yield-mid' : 'yield-high';
+
+      const yieldVal = b.yield !== null ? b.yield.toFixed(2) + '%' : '<span class="na">n.d.</span>';
+      const durVal = b.duration !== null ? b.duration.toFixed(2) : '<span class="na">—</span>';
+      const zVal = b.zSpread !== null ? b.zSpread.toFixed(0) : '<span class="na">—</span>';
+      const prezzoVal = b.prezzo !== null ? b.prezzo.toFixed(2) : '<span class="na">—</span>';
+
+      let scadenzaDisplay = '—';
+      let scadenzaClass = '';
+      if (b.scadenza) {
+        const d = new Date(b.scadenza);
+        scadenzaDisplay = d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
+        const yearsLeft = (d - new Date()) / (365.25 * 24 * 3600 * 1000);
+        scadenzaClass = yearsLeft < 3 ? 'maturity-soon' : 'maturity-far';
+      }
+
+      const divisaClass = {EUR:'divisa-eur',USD:'divisa-usd',GBP:'divisa-gbp',TRY:'divisa-try'}[b.divisa] || 'divisa-other';
+
+      return `<tr>
+        <td class="isin-cell">${b.isin}</td>
+        <td class="desc-cell" title="${escHtml(b.descrizione)}">${escHtml(b.descrizione)}</td>
+        <td class="emittente-cell">${escHtml(b.emittente)}</td>
+        <td><span class="divisa-badge ${divisaClass}">${b.divisa || '—'}</span></td>
+        <td class="${scadenzaClass}">${scadenzaDisplay}</td>
+        <td>${prezzoVal}</td>
+        <td class="yield-cell ${yieldClass}">${yieldVal}</td>
+        <td>${durVal}</td>
+        <td>${zVal}</td>
+        <td><span class="monitor-badge">${escHtml(b.monitor)}</span></td>
+        <td class="emittente-cell">${escHtml(b.mercato || '—')}</td>
+      </tr>`;
+    }).join('');
+
+    tbody.innerHTML = rows;
+
+    document.getElementById('resultsCount').innerHTML =
+      `<strong>${total.toLocaleString('it-IT')}</strong> titoli trovati — mostrati ${start+1}–${end}`;
+
+    updatePagination(total);
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ─────────────────────────────────────────────
+  // PAGINAZIONE
+  // ─────────────────────────────────────────────
+  function updatePagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const container = document.getElementById('pageBtns');
+    const info = document.getElementById('pageInfo');
+
+    info.textContent = `Pagina ${currentPage} di ${totalPages}`;
+
+    let html = '';
+    html += `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage<=1?'disabled':''}>‹</button>`;
+
+    const range = pageRange(currentPage, totalPages);
+    range.forEach(p => {
+      if (p === '...') {
+        html += `<span style="padding:0 4px;color:var(--text2)">…</span>`;
+      } else {
+        html += `<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+      }
+    });
+
+    html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''}>›</button>`;
+    container.innerHTML = html;
+  }
+
+  function pageRange(current, total) {
+    if (total <= 7) return Array.from({length:total}, (_,i)=>i+1);
+    if (current <= 4) return [1,2,3,4,5,'...',total];
+    if (current >= total-3) return [1,'...',total-4,total-3,total-2,total-1,total];
+    return [1,'...',current-1,current,current+1,'...',total];
+  }
+
+  function goPage(p) {
+    const totalPages = Math.ceil(filteredBonds.length / pageSize);
+    if (p < 1 || p > totalPages) return;
+    currentPage = p;
+    renderTable();
+    document.querySelector('.main').scrollTop = 0;
+  }
+
+  function changePageSize() {
+    pageSize = parseInt(document.getElementById('pageSize').value);
+    currentPage = 1;
+    renderTable();
+  }
+
+  // ─────────────────────────────────────────────
+  // STATISTICHE
+  // ─────────────────────────────────────────────
+  function updateStats() {
+    document.getElementById('statTotal').textContent = allBonds.length.toLocaleString('it-IT');
+    document.getElementById('statFiltered').textContent = filteredBonds.length.toLocaleString('it-IT');
+
+    const withYield = filteredBonds.filter(b => b.yield !== null);
+    if (withYield.length > 0) {
+      const avg = withYield.reduce((s,b) => s + b.yield, 0) / withYield.length;
+      const max = Math.max(...withYield.map(b => b.yield));
+      document.getElementById('statAvgYield').textContent = avg.toFixed(2) + '%';
+      document.getElementById('statMaxYield').textContent = max.toFixed(2) + '%';
+    } else {
+      document.getElementById('statAvgYield').textContent = '—';
+      document.getElementById('statMaxYield').textContent = '—';
+    }
+
+    const currencies = new Set(filteredBonds.map(b => b.divisa).filter(Boolean));
+    document.getElementById('statCurrencies').textContent = currencies.size;
+  }
+
+  // ─────────────────────────────────────────────
+  // EXPORT CSV
+  // ─────────────────────────────────────────────
+  function exportCSV() {
+    const headers = ['ISIN','Descrizione','Emittente','Paese','Valuta','Scadenza','Prezzo','Yield%','Duration','Z-Spread','Categoria','Mercato'];
+    const rows = filteredBonds.map(b => [
+      b.isin,
+      `"${(b.descrizione||'').replace(/"/g,'""')}"`,
+      `"${(b.emittente||'').replace(/"/g,'""')}"`,
+      `"${(b.paese||'').replace(/"/g,'""')}"`,
+      b.divisa||'',
+      b.scadenza||'',
+      b.prezzo !== null ? b.prezzo : '',
+      b.yield !== null ? b.yield : '',
+      b.duration !== null ? b.duration : '',
+      b.zSpread !== null ? b.zSpread : '',
+      `"${(b.monitor||'').replace(/"/g,'""')}"`,
+      `"${(b.mercato||'').replace(/"/g,'""')}"`,
+    ].join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `obbligazioni_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ─────────────────────────────────────────────
+  // INIT & POLLING
+  // ─────────────────────────────────────────────
+  document.getElementById('loadingOverlay').classList.add('show');
+
+  fetchData().then(() => {
+    document.getElementById('loadingOverlay').classList.remove('show');
+    // Imposta icona sort iniziale
+    sortBy('yield');
+  });
+
+  // Polling ogni 5 minuti per verificare aggiornamenti
+  setInterval(fetchData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
