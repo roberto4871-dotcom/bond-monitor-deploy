@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const path = require('path');
+const yahooFinance = require('yahoo-finance2').default;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -306,35 +307,24 @@ const chartCache = {};
 const CHART_CACHE_TTL = 30 * 60 * 1000; // 30 minuti
 
 async function fetchYahooSymbol(isin) {
-  const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(isin)}&quotesCount=5&newsCount=0&enableFuzzyQuery=false&lang=en-US`;
-  const resp = await axios.get(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json',
-    },
-    timeout: 10000,
-  });
-  const quotes = resp.data?.quotes || [];
+  const result = await yahooFinance.search(isin, { quotesCount: 5, newsCount: 0 }, { validateResult: false });
+  const quotes = result.quotes || [];
   if (quotes.length > 0) return quotes[0].symbol;
   return null;
 }
 
-async function fetchYahooChart(symbol, period1) {
-  const period2 = Math.floor(Date.now() / 1000);
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`;
-  const resp = await axios.get(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json',
-    },
-    timeout: 15000,
-  });
-  const result = resp.data?.chart?.result?.[0];
-  if (!result) return null;
-  const timestamps = result.timestamp || [];
-  const closes = result.indicators?.quote?.[0]?.close || [];
+async function fetchYahooChart(symbol, period1Secs) {
+  const startDate = new Date(period1Secs * 1000);
+  const result = await yahooFinance.chart(symbol, {
+    period1: startDate,
+    interval: '1d',
+  }, { validateResult: false });
+
+  const quotesData = result.quotes || [];
   const currency = result.meta?.currency || '';
-  const pairs = timestamps.map((t, i) => [t * 1000, closes[i]]).filter(([, p]) => p !== null && p !== undefined);
+  const pairs = quotesData
+    .filter(q => q.close !== null && q.close !== undefined)
+    .map(q => [new Date(q.date).getTime(), q.close]);
   return { symbol, currency, pairs };
 }
 
@@ -372,7 +362,7 @@ app.get('/api/chart/:isin', async (req, res) => {
     const period1 = calcPeriod1(range);
     const data = await fetchYahooChart(symbol, period1);
     if (!data || data.pairs.length === 0) {
-      return res.status(404).json({ error: 'Nessun dato storico disponibile', isin, symbol });
+      return res.status(404).json({ error: 'Nessun dato storico disponibile per questo periodo', isin, symbol });
     }
 
     chartCache[cacheKey] = { data, ts: Date.now() };
