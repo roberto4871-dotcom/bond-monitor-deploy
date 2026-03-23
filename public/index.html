@@ -8,19 +8,19 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0f1117;
-      --bg2: #1a1d27;
-      --bg3: #222636;
-      --border: #2e3347;
-      --text: #e8eaf0;
-      --text2: #9ba3bf;
-      --blue: #4f7ef7;
-      --green: #34d399;
-      --red: #f87171;
-      --amber: #fbbf24;
-      --purple: #a78bfa;
-      --teal: #22d3ee;
-      --shadow: 0 2px 12px rgba(0,0,0,0.4);
+      --bg: #f0f4f8;
+      --bg2: #ffffff;
+      --bg3: #e8eef5;
+      --border: #c8d4e0;
+      --text: #1a2332;
+      --text2: #5a6a7e;
+      --blue: #2563eb;
+      --green: #059669;
+      --red: #dc2626;
+      --amber: #d97706;
+      --purple: #7c3aed;
+      --teal: #0891b2;
+      --shadow: 0 2px 12px rgba(0,0,0,0.1);
     }
 
     body {
@@ -233,11 +233,11 @@
       display: inline-block; padding: 2px 7px;
       border-radius: 4px; font-size: 11px; font-weight: 600;
     }
-    .divisa-eur { background: rgba(79,126,247,0.2); color: var(--blue); }
-    .divisa-usd { background: rgba(52,211,153,0.2); color: var(--green); }
-    .divisa-gbp { background: rgba(167,139,250,0.2); color: var(--purple); }
-    .divisa-try { background: rgba(251,191,36,0.2); color: var(--amber); }
-    .divisa-other { background: rgba(156,163,175,0.2); color: var(--text2); }
+    .divisa-eur { background: rgba(37,99,235,0.12); color: var(--blue); }
+    .divisa-usd { background: rgba(5,150,105,0.12); color: var(--green); }
+    .divisa-gbp { background: rgba(124,58,237,0.12); color: var(--purple); }
+    .divisa-try { background: rgba(217,119,6,0.12); color: var(--amber); }
+    .divisa-other { background: rgba(90,106,126,0.12); color: var(--text2); }
 
     .monitor-badge {
       display: inline-block; padding: 2px 8px;
@@ -270,7 +270,7 @@
     /* LOADING */
     .loading-overlay {
       display: none; position: absolute; inset: 0;
-      background: rgba(15,17,23,0.7); z-index: 50;
+      background: rgba(240,244,248,0.8); z-index: 50;
       align-items: center; justify-content: center;
       flex-direction: column; gap: 12px;
     }
@@ -305,7 +305,7 @@
     /* CHART MODAL */
     .modal-overlay {
       display: none; position: fixed; inset: 0; z-index: 200;
-      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
       align-items: center; justify-content: center;
     }
     .modal-overlay.show { display: flex; }
@@ -1205,11 +1205,11 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1a1d27',
-            borderColor: '#2e3347',
+            backgroundColor: '#ffffff',
+            borderColor: '#c8d4e0',
             borderWidth: 1,
-            titleColor: '#9ba3bf',
-            bodyColor: '#e8eaf0',
+            titleColor: '#5a6a7e',
+            bodyColor: '#1a2332',
             callbacks: {
               label: ctx => `  ${label}: ${ctx.parsed.y.toFixed(decimals)}${suffix}`,
             },
@@ -1217,9 +1217,9 @@
         },
         scales: {
           x: {
-            grid: { color: '#2e3347' },
+            grid: { color: '#e2e8f0' },
             ticks: {
-              color: '#9ba3bf', maxTicksLimit: 8, maxRotation: 0,
+              color: '#5a6a7e', maxTicksLimit: 8, maxRotation: 0,
               callback: (val, idx) => {
                 const step = Math.max(1, Math.floor(chartLabels.length / 7));
                 return idx % step === 0 ? chartLabels[idx] : '';
@@ -1227,8 +1227,8 @@
             },
           },
           y: {
-            grid: { color: '#2e3347' },
-            ticks: { color: '#9ba3bf', callback: v => v.toFixed(decimals) + suffix },
+            grid: { color: '#e2e8f0' },
+            ticks: { color: '#5a6a7e', callback: v => v.toFixed(decimals) + suffix },
             position: 'right',
           },
         },
