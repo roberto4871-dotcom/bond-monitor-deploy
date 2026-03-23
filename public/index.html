@@ -554,16 +554,17 @@
       </div>
       <button class="modal-close" onclick="document.getElementById('chartModal').classList.remove('show')">✕</button>
     </div>
-    <div class="modal-periods" style="justify-content:space-between;">
+    <div class="modal-periods" style="justify-content:space-between;align-items:center;">
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="period-btn" onclick="loadChart('ytd')">YTD</button>
-        <button class="period-btn" onclick="loadChart('1y')">1 Anno</button>
-        <button class="period-btn" onclick="loadChart('2y')">2 Anni</button>
-        <button class="period-btn" onclick="loadChart('3y')">3 Anni</button>
-        <button class="period-btn" onclick="loadChart('5y')">5 Anni</button>
-        <button class="period-btn active" onclick="loadChart('max')">Storico</button>
+        <button class="period-btn" id="pb-ytd" onclick="loadChart('ytd')">YTD</button>
+        <button class="period-btn" id="pb-1y"  onclick="loadChart('1y')">1 Anno</button>
+        <button class="period-btn" id="pb-2y"  onclick="loadChart('2y')">2 Anni</button>
+        <button class="period-btn" id="pb-3y"  onclick="loadChart('3y')">3 Anni</button>
+        <button class="period-btn" id="pb-5y"  onclick="loadChart('5y')">5 Anni</button>
+        <button class="period-btn active" id="pb-max" onclick="loadChart('max')">Storico</button>
       </div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+        <span id="chartSourceBadge" style="font-size:11px;color:var(--text2);margin-right:6px;"></span>
         <button class="period-btn active" id="tabPrice" onclick="switchTab('price')">Prezzo</button>
         <button class="period-btn" id="tabYield" onclick="switchTab('yield')">Yield %</button>
         <button class="period-btn" id="tabZspread" onclick="switchTab('zspread')">Z-Spread</button>
@@ -1107,9 +1108,9 @@
   async function loadChart(range) {
     currentRange = range;
     // Aggiorna bottoni periodo
-    const labels = ['ytd','1y','2y','3y','5y','max'];
-    document.querySelectorAll('.modal-periods > div:first-child .period-btn').forEach((b, i) => {
-      b.classList.toggle('active', labels[i] === range);
+    ['ytd','1y','2y','3y','5y','max'].forEach(p => {
+      const btn = document.getElementById(`pb-${p}`);
+      if (btn) btn.classList.toggle('active', p === range);
     });
 
     const loading = document.getElementById('chartLoading');
@@ -1132,6 +1133,26 @@
       loading.classList.remove('show');
 
       currentChartData = data;
+
+      // Mostra fonte e anni disponibili
+      const badge = document.getElementById('chartSourceBadge');
+      if (data.source) {
+        const yrs = data.yearsAvailable ? ` · ${data.yearsAvailable > 1 ? data.yearsAvailable.toFixed(0) + ' anni' : '< 1 anno'}` : '';
+        badge.textContent = `📊 ${data.source}${yrs}`;
+      } else { badge.textContent = ''; }
+
+      // Abilita/disabilita pulsanti periodo in base ai dati disponibili
+      const years = data.yearsAvailable || 0;
+      const periodMap = { 'ytd': 0.1, '1y': 1, '2y': 2, '3y': 3, '5y': 5, 'max': 0 };
+      Object.entries(periodMap).forEach(([p, minYrs]) => {
+        const btn = document.getElementById(`pb-${p}`);
+        if (!btn) return;
+        const enabled = minYrs === 0 || years >= minYrs * 0.8;
+        btn.disabled = !enabled;
+        btn.style.opacity = enabled ? '1' : '0.35';
+        btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+      });
+
       renderChart(data);
     } catch (err) {
       loading.classList.remove('show');
