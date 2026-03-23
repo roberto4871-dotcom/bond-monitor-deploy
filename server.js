@@ -301,6 +301,88 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// Cache grafici: { [isin_range]: { data, ts } }
+const chartCache = {};
+const CHART_CACHE_TTL = 30 * 60 * 1000; // 30 minuti
+
+async function fetchYahooSymbol(isin) {
+  const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(isin)}&quotesCount=5&newsCount=0&enableFuzzyQuery=false&lang=en-US`;
+  const resp = await axios.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'application/json',
+    },
+    timeout: 10000,
+  });
+  const quotes = resp.data?.quotes || [];
+  if (quotes.length > 0) return quotes[0].symbol;
+  return null;
+}
+
+async function fetchYahooChart(symbol, period1) {
+  const period2 = Math.floor(Date.now() / 1000);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${period1}&period2=${period2}`;
+  const resp = await axios.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'application/json',
+    },
+    timeout: 15000,
+  });
+  const result = resp.data?.chart?.result?.[0];
+  if (!result) return null;
+  const timestamps = result.timestamp || [];
+  const closes = result.indicators?.quote?.[0]?.close || [];
+  const currency = result.meta?.currency || '';
+  const pairs = timestamps.map((t, i) => [t * 1000, closes[i]]).filter(([, p]) => p !== null && p !== undefined);
+  return { symbol, currency, pairs };
+}
+
+function calcPeriod1(range) {
+  const d = new Date();
+  switch (range) {
+    case 'ytd': return Math.floor(new Date(d.getFullYear(), 0, 1) / 1000);
+    case '1y': d.setFullYear(d.getFullYear() - 1); return Math.floor(d / 1000);
+    case '2y': d.setFullYear(d.getFullYear() - 2); return Math.floor(d / 1000);
+    case '3y': d.setFullYear(d.getFullYear() - 3); return Math.floor(d / 1000);
+    case '5y': d.setFullYear(d.getFullYear() - 5); return Math.floor(d / 1000);
+    default: return 0; // max (dal 1970)
+  }
+}
+
+// API: dati storici grafico
+app.get('/api/chart/:isin', async (req, res) => {
+  const isin = req.params.isin.toUpperCase();
+  const range = ['ytd','1y','2y','3y','5y','max'].includes(req.query.range) ? req.query.range : '1y';
+  const cacheKey = `${isin}_${range}`;
+
+  // Controlla cache
+  const cached = chartCache[cacheKey];
+  if (cached && Date.now() - cached.ts < CHART_CACHE_TTL) {
+    return res.json(cached.data);
+  }
+
+  try {
+    // Cerca il simbolo Yahoo Finance per questo ISIN
+    const symbol = await fetchYahooSymbol(isin);
+    if (!symbol) {
+      return res.status(404).json({ error: 'Titolo non trovato su Yahoo Finance', isin });
+    }
+
+    const period1 = calcPeriod1(range);
+    const data = await fetchYahooChart(symbol, period1);
+    if (!data || data.pairs.length === 0) {
+      return res.status(404).json({ error: 'Nessun dato storico disponibile', isin, symbol });
+    }
+
+    chartCache[cacheKey] = { data, ts: Date.now() };
+    res.json(data);
+  } catch (err) {
+    console.error(`[CHART] Errore per ${isin}:`, err.message);
+    res.status(500).json({ error: 'Errore nel recupero dati storici', detail: err.message });
+  }
+});
+
 // Caricamento iniziale
 refreshData();
 

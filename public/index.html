@@ -302,6 +302,62 @@
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
     .empty-text { font-size: 15px; }
 
+    /* CHART MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; width: 92vw; max-width: 860px;
+      max-height: 90vh; overflow: hidden;
+      display: flex; flex-direction: column;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    }
+    .modal-bond-info { flex: 1; min-width: 0; }
+    .modal-bond-isin { font-family: monospace; font-size: 13px; color: var(--teal); }
+    .modal-bond-desc { font-size: 15px; font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .modal-bond-meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
+    .modal-close {
+      background: none; border: none; color: var(--text2); cursor: pointer;
+      font-size: 22px; line-height: 1; padding: 2px 6px; flex-shrink: 0;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-periods {
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .period-btn {
+      padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border);
+      background: var(--bg3); color: var(--text2); cursor: pointer; font-size: 13px;
+      transition: all 0.15s;
+    }
+    .period-btn:hover { border-color: var(--blue); color: var(--text); }
+    .period-btn.active { background: var(--blue); border-color: var(--blue); color: white; }
+    .modal-chart-area {
+      flex: 1; padding: 16px 20px; position: relative; min-height: 300px;
+    }
+    .chart-loading {
+      position: absolute; inset: 0; display: none;
+      align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+    }
+    .chart-loading.show { display: flex; }
+    .chart-error {
+      position: absolute; inset: 0; display: none;
+      align-items: center; justify-content: center; flex-direction: column; gap: 8px;
+      color: var(--text2); text-align: center; padding: 20px;
+    }
+    .chart-error.show { display: flex; }
+    .chart-error-icon { font-size: 36px; }
+
+    tbody tr { cursor: pointer; }
+
     /* MOBILE */
     @media (max-width: 768px) {
       .layout { flex-direction: column; height: auto; }
@@ -487,6 +543,41 @@
   </div>
 </div>
 
+<!-- CHART MODAL -->
+<div class="modal-overlay" id="chartModal" onclick="closeChartModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-bond-info">
+        <div class="modal-bond-isin" id="modalIsin">—</div>
+        <div class="modal-bond-desc" id="modalDesc">—</div>
+        <div class="modal-bond-meta" id="modalMeta">—</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('chartModal').classList.remove('show')">✕</button>
+    </div>
+    <div class="modal-periods">
+      <button class="period-btn" onclick="loadChart('ytd')">YTD</button>
+      <button class="period-btn active" onclick="loadChart('1y')">1 Anno</button>
+      <button class="period-btn" onclick="loadChart('2y')">2 Anni</button>
+      <button class="period-btn" onclick="loadChart('3y')">3 Anni</button>
+      <button class="period-btn" onclick="loadChart('5y')">5 Anni</button>
+      <button class="period-btn" onclick="loadChart('max')">Storico</button>
+    </div>
+    <div class="modal-chart-area">
+      <div class="chart-loading" id="chartLoading">
+        <div class="spinner"></div>
+        <div style="color:var(--text2);font-size:13px;">Caricamento dati storici...</div>
+      </div>
+      <div class="chart-error" id="chartError">
+        <div class="chart-error-icon">📉</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">Dati non disponibili</div>
+        <div id="chartErrorMsg" style="font-size:13px;">Il titolo potrebbe non essere quotato su Yahoo Finance</div>
+      </div>
+      <canvas id="chartCanvas" style="width:100%;"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
   // ─────────────────────────────────────────────
   // STATO
@@ -794,7 +885,7 @@
     const page = filteredBonds.slice(start, end);
 
     const today = new Date().toISOString().slice(0, 10);
-    const rows = page.map(b => {
+    const rows = page.map((b, i) => {
       const yieldClass = b.yield === null ? 'yield-na' :
         b.yield < 0 ? 'yield-neg' :
         b.yield < 2 ? 'yield-low' :
@@ -816,7 +907,7 @@
 
       const divisaClass = {EUR:'divisa-eur',USD:'divisa-usd',GBP:'divisa-gbp',TRY:'divisa-try'}[b.divisa] || 'divisa-other';
 
-      return `<tr>
+      return `<tr data-idx="${start + i}" onclick="openChartByIdx(this)" title="Clicca per vedere il grafico storico">
         <td class="isin-cell">${b.isin}</td>
         <td class="desc-cell" title="${escHtml(b.descrizione)}">${escHtml(b.descrizione)}</td>
         <td class="emittente-cell">${escHtml(b.emittente)}</td>
@@ -956,6 +1047,153 @@
 
   // Polling ogni 5 minuti per verificare aggiornamenti
   setInterval(fetchData, 5 * 60 * 1000);
+
+  // ─────────────────────────────────────────────
+  // GRAFICO STORICO
+  // ─────────────────────────────────────────────
+  let chartInstance = null;
+  let currentChartIsin = null;
+  let currentRange = '1y';
+
+  function openChartByIdx(row) {
+    const idx = parseInt(row.getAttribute('data-idx'));
+    const bond = filteredBonds[idx];
+    if (bond) openChart(bond);
+  }
+
+  function openChart(bond) {
+    currentChartIsin = bond.isin;
+    document.getElementById('modalIsin').textContent = bond.isin;
+    document.getElementById('modalDesc').textContent = bond.descrizione || bond.isin;
+    const meta = [
+      bond.emittente ? `Emittente: ${bond.emittente}` : '',
+      bond.scadenza ? `Scadenza: ${new Date(bond.scadenza).toLocaleDateString('it-IT')}` : '',
+      bond.yield !== null ? `Yield: ${bond.yield.toFixed(2)}%` : '',
+      bond.divisa || '',
+    ].filter(Boolean).join('  ·  ');
+    document.getElementById('modalMeta').textContent = meta;
+
+    // Reset periodo buttons
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.period-btn')[1].classList.add('active'); // 1y default
+    currentRange = '1y';
+
+    document.getElementById('chartModal').classList.add('show');
+    loadChart('1y');
+  }
+
+  async function loadChart(range) {
+    currentRange = range;
+    // Aggiorna bottoni periodo
+    const labels = ['ytd','1y','2y','3y','5y','max'];
+    document.querySelectorAll('.period-btn').forEach((b, i) => {
+      b.classList.toggle('active', labels[i] === range);
+    });
+
+    const loading = document.getElementById('chartLoading');
+    const errEl = document.getElementById('chartError');
+    const canvas = document.getElementById('chartCanvas');
+
+    loading.classList.add('show');
+    errEl.classList.remove('show');
+    canvas.style.display = 'none';
+
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+    try {
+      const res = await fetch(`/api/chart/${currentChartIsin}?range=${range}`);
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e.error || 'Errore sconosciuto');
+      }
+      const data = await res.json();
+      loading.classList.remove('show');
+
+      if (!data.pairs || data.pairs.length === 0) throw new Error('Nessun dato disponibile');
+
+      canvas.style.display = 'block';
+
+      const chartLabels = data.pairs.map(([ts]) => {
+        const d = new Date(ts);
+        return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
+      });
+      const chartPrices = data.pairs.map(([, p]) => p);
+
+      const first = chartPrices[0];
+      const last = chartPrices[chartPrices.length - 1];
+      const isUp = last >= first;
+      const lineColor = isUp ? '#34d399' : '#f87171';
+      const fillColor = isUp ? 'rgba(52,211,153,0.08)' : 'rgba(248,113,113,0.08)';
+
+      chartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            label: `${data.symbol} (${data.currency})`,
+            data: chartPrices,
+            borderColor: lineColor,
+            backgroundColor: fillColor,
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            fill: true,
+            tension: 0.1,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1a1d27',
+              borderColor: '#2e3347',
+              borderWidth: 1,
+              titleColor: '#9ba3bf',
+              bodyColor: '#e8eaf0',
+              callbacks: {
+                label: ctx => `  Prezzo: ${ctx.parsed.y.toFixed(3)} ${data.currency}`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: '#2e3347' },
+              ticks: {
+                color: '#9ba3bf', maxTicksLimit: 8, maxRotation: 0,
+                callback: (val, idx) => {
+                  const step = Math.floor(chartLabels.length / 7);
+                  return idx % step === 0 ? chartLabels[idx] : '';
+                },
+              },
+            },
+            y: {
+              grid: { color: '#2e3347' },
+              ticks: { color: '#9ba3bf' },
+              position: 'right',
+            },
+          },
+        },
+      });
+    } catch (err) {
+      loading.classList.remove('show');
+      document.getElementById('chartErrorMsg').textContent = err.message;
+      errEl.classList.add('show');
+    }
+  }
+
+  function closeChartModal(e) {
+    if (e.target === document.getElementById('chartModal')) {
+      document.getElementById('chartModal').classList.remove('show');
+    }
+  }
+
+  // Chiudi con ESC
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('chartModal').classList.remove('show');
+  });
 </script>
 </body>
 </html>
