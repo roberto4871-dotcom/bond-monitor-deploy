@@ -169,6 +169,17 @@ function parseTable($, monitorName) {
       const durationRaw = get('duration');
       const zSpreadRaw = get('zSpread');
 
+      // Estrai bondid e marketcode dai link nella riga
+      let bondid = null;
+      let marketcode = 'MOT';
+      $(row).find('a[href]').each((_, a) => {
+        const href = $(a).attr('href') || '';
+        const m = href.match(/bondid=(\d+)/i);
+        if (m) { bondid = m[1]; }
+        const mc = href.match(/marketcode=([A-Z]+)/i);
+        if (mc) { marketcode = mc[1]; }
+      });
+
       bonds.push({
         isin,
         monitor: monitorName,
@@ -192,6 +203,8 @@ function parseTable($, monitorName) {
         durationRaw,
         zSpread: parseNumber(zSpreadRaw),
         zSpreadRaw,
+        bondid,
+        marketcode,
       });
     });
 
@@ -306,26 +319,31 @@ app.get('/api/status', (req, res) => {
 const chartCache = {};
 const CHART_CACHE_TTL = 30 * 60 * 1000; // 30 minuti
 
-async function fetchYahooSymbol(isin) {
-  const result = await yahooFinance.search(isin, { quotesCount: 5, newsCount: 0 }, { validateResult: false });
-  const quotes = result.quotes || [];
-  if (quotes.length > 0) return quotes[0].symbol;
-  return null;
-}
+async function fetchSiteChart(bondid, marketcode) {
+  const url = `https://www.simpletoolsforinvestors.eu/historicalgraph.php?bondid=${bondid}&marketcode=${marketcode}`;
+  const resp = await axios.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'it-IT,it;q=0.9',
+      'Referer': 'https://www.simpletoolsforinvestors.eu/',
+    },
+    timeout: 20000,
+  });
 
-async function fetchYahooChart(symbol, period1Secs) {
-  const startDate = new Date(period1Secs * 1000);
-  const result = await yahooFinance.chart(symbol, {
-    period1: startDate,
-    interval: '1d',
-  }, { validateResult: false });
+  const html = resp.data;
 
-  const quotesData = result.quotes || [];
-  const currency = result.meta?.currency || '';
-  const pairs = quotesData
-    .filter(q => q.close !== null && q.close !== undefined)
-    .map(q => [new Date(q.date).getTime(), q.close]);
-  return { symbol, currency, pairs };
+  // Cerca il JSON dei dati nel sorgente della pagina
+  // Il sito embeds i dati come oggetto JS con campo "data": [[ts, prezzo, yield, zspread], ...]
+  const match = html.match(/\{[^{}]*"isincode"\s*:\s*"[^"]+[^{}]*"data"\s*:\s*(\[\[[\s\S]*?\]\])/);
+  if (!match) {
+    // Prova pattern alternativo
+    const match2 = html.match(/"data"\s*:\s*(\[\[[\s\S]*?\]\])/);
+    if (!match2) return null;
+    const rawData = JSON.parse(match2[1]);
+    return rawData;
+  }
+  return JSON.parse(match[1]);
 }
 
 function calcPeriod1(range) {
@@ -343,35 +361,56 @@ function calcPeriod1(range) {
 // API: dati storici grafico
 app.get('/api/chart/:isin', async (req, res) => {
   const isin = req.params.isin.toUpperCase();
-  const range = ['ytd','1y','2y','3y','5y','max'].includes(req.query.range) ? req.query.range : '1y';
-  const cacheKey = `${isin}_${range}`;
+  const range = ['ytd','1y','2y','3y','5y','max'].includes(req.query.range) ? req.query.range : 'max';
+  const cacheKey = `${isin}_site`;
 
-  // Controlla cache
+  // Controlla cache (i dati del sito coprono tutto lo storico disponibile, indipendente dal range)
   const cached = chartCache[cacheKey];
   if (cached && Date.now() - cached.ts < CHART_CACHE_TTL) {
-    return res.json(cached.data);
+    return res.json(filterByRange(cached.data, range));
+  }
+
+  // Trova il bondid nei dati in memoria
+  const bond = state.bonds.find(b => b.isin === isin);
+  if (!bond || !bond.bondid) {
+    return res.status(404).json({ error: 'Titolo non trovato o bondid mancante. Riprova dopo il prossimo aggiornamento.', isin });
   }
 
   try {
-    // Cerca il simbolo Yahoo Finance per questo ISIN
-    const symbol = await fetchYahooSymbol(isin);
-    if (!symbol) {
-      return res.status(404).json({ error: 'Titolo non trovato su Yahoo Finance', isin });
+    const rawData = await fetchSiteChart(bond.bondid, bond.marketcode || 'MOT');
+    if (!rawData || rawData.length === 0) {
+      return res.status(404).json({ error: 'Nessun dato storico disponibile sul sito sorgente', isin });
     }
 
-    const period1 = calcPeriod1(range);
-    const data = await fetchYahooChart(symbol, period1);
-    if (!data || data.pairs.length === 0) {
-      return res.status(404).json({ error: 'Nessun dato storico disponibile per questo periodo', isin, symbol });
-    }
+    // rawData = [[ts_ms, prezzo, yield, zspread], ...]
+    const data = {
+      isin,
+      currency: bond.divisa || 'EUR',
+      // pairs per prezzo: [ts, prezzo]
+      price: rawData.map(([ts, p]) => [ts, p]).filter(([, p]) => p != null),
+      // pairs per yield: [ts, yield]
+      yieldData: rawData.map(([ts,, y]) => [ts, y]).filter(([, y]) => y != null),
+      // pairs per zspread: [ts,,, z]
+      zspreadData: rawData.map(([ts,,, z]) => [ts, z]).filter(([, z]) => z != null),
+    };
 
     chartCache[cacheKey] = { data, ts: Date.now() };
-    res.json(data);
+    res.json(filterByRange(data, range));
   } catch (err) {
     console.error(`[CHART] Errore per ${isin}:`, err.message);
     res.status(500).json({ error: 'Errore nel recupero dati storici', detail: err.message });
   }
 });
+
+function filterByRange(data, range) {
+  const cutoff = calcPeriod1(range) * 1000;
+  return {
+    ...data,
+    price: data.price.filter(([ts]) => ts >= cutoff),
+    yieldData: data.yieldData.filter(([ts]) => ts >= cutoff),
+    zspreadData: data.zspreadData.filter(([ts]) => ts >= cutoff),
+  };
+}
 
 // Caricamento iniziale
 refreshData();
