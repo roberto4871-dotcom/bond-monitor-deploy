@@ -22,13 +22,12 @@ const MONITORS = [
   { id: 13, name: 'Francia' },
   { id: 78, name: 'Romania' },
   { id: 58, name: 'Stati Uniti' },
-  { id: 68, name: 'Banche internazionali' },
-  { id: 70, name: 'Sovranazionali scad. 2026' },
 ];
 
 const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minuti
 
-// Mappa prefisso ISIN → paese
+// Mappa prefisso ISIN → paese (solo prefissi non ambigui)
+// XS NON è incluso: Euroclear registra bond di qualsiasi emittente, non implica "sovranazionale"
 const COUNTRY_MAP = {
   'IT': 'Italia',
   'DE': 'Germania',
@@ -61,16 +60,46 @@ const COUNTRY_MAP = {
   'JP': 'Giappone',
   'CA': 'Canada',
   'AU': 'Australia',
-  'XS': 'Sovranazionale',
-  'EU': 'Unione Europea',
-  'XF': 'Sovranazionale',
-  'XC': 'Sovranazionale',
-  'XB': 'Sovranazionale',
+  'EU': 'Unione Europea',  // prefisso usato da EFSF/ESM/EU Commission
 };
 
-function getCountry(isin) {
-  if (!isin || isin.length < 2) return 'Altro';
-  const prefix = isin.substring(0, 2).toUpperCase();
+// Parole chiave descrizione → paese sovranazionale
+// Usate per classificare bond XS quando il monitor non è esplicitamente sovranazionale
+const SUPRA_KEYWORDS = [
+  'BEI ', 'EIB ', 'EUROPEAN INVESTMENT BANK',
+  'WORLD BANK', 'IBRD ', 'IFC ',
+  'EBRD', 'EUROPEAN BANK FOR RECONSTRUCTION',
+  'EFSF', 'ESM ', 'EUROPEAN STABILITY',
+  'EUROPEAN UNION', 'UNIONE EUROPEA',
+  'ASIAN DEVELOPMENT', 'AFRICAN DEVELOPMENT',
+  'INTER-AMERICAN', 'IADB ',
+  'COUNCIL OF EUROPE', 'KFW ',
+  'NORDIC INVESTMENT', 'NIB ',
+];
+
+// Assegna paese considerando monitor + prefisso ISIN + descrizione emittente
+function getPaese(isin, monitorName, descrizione) {
+  const prefix = (isin || '').substring(0, 2).toUpperCase();
+  const desc = (descrizione || '').toUpperCase();
+
+  // I monitor 62 e 63 definiscono esplicitamente la categoria
+  if (monitorName === 'Sovranazionali') {
+    // Dentro monitor 62 ci sono anche alcuni bond EU (prefisso EU/EFSF)
+    if (prefix === 'EU') return 'Unione Europea';
+    return 'Sovranazionale';
+  }
+  if (monitorName === 'Unione Europea') return 'Unione Europea';
+
+  // Per tutti gli altri monitor: prefisso EU → sempre Unione Europea
+  if (prefix === 'EU') return 'Unione Europea';
+
+  // Per bond XS/XF/XC in altri monitor: guarda la descrizione
+  if (['XS','XF','XC','XB'].includes(prefix)) {
+    if (SUPRA_KEYWORDS.some(kw => desc.includes(kw))) return 'Sovranazionale';
+    // Non è un sovranazionale riconosciuto → "Altro" (bond bancario, corp, ecc.)
+    return 'Altro';
+  }
+
   return COUNTRY_MAP[prefix] || 'Altro';
 }
 
@@ -188,7 +217,7 @@ function parseTable($, monitorName) {
       bonds.push({
         isin,
         monitor: monitorName,
-        paese: getCountry(isin),
+        paese: getPaese(isin, monitorName, descrizione),
         descrizione,
         emittente: extractIssuer(descrizione),
         divisa: get('divisa') || 'EUR',
