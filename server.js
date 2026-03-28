@@ -63,8 +63,7 @@ const COUNTRY_MAP = {
   'EU': 'Unione Europea',  // prefisso usato da EFSF/ESM/EU Commission
 };
 
-// Parole chiave descrizione → paese sovranazionale
-// Usate per classificare bond XS quando il monitor non è esplicitamente sovranazionale
+// Parole chiave emittente → sovranazionale
 const SUPRA_KEYWORDS = [
   'BEI ', 'EIB ', 'EUROPEAN INVESTMENT BANK',
   'WORLD BANK', 'IBRD ', 'IFC ',
@@ -77,30 +76,104 @@ const SUPRA_KEYWORDS = [
   'NORDIC INVESTMENT', 'NIB ',
 ];
 
-// Assegna paese considerando monitor + prefisso ISIN + descrizione emittente
+// Parole chiave in descrizione → paese
+// Necessarie perché bond di stati non-UE vengono spesso emessi con ISIN XS o US
+const DESC_PAESE_MAP = [
+  // Europa extra-UE
+  [/\bTURCHIA\b|\bTURKEY\b/,          'Turchia'],
+  [/\bNORVEGIA\b|\bNORWAY\b/,         'Norvegia'],
+  [/\bSVEZIA\b|\bSWEDEN\b/,           'Svezia'],
+  [/\bSVIZZERA\b|\bSWITZERLAND\b/,    'Svizzera'],
+  [/\bREGNO UNITO\b|\bUNITED KINGDOM\b|\bUK GOV/,'Regno Unito'],
+  [/\bSERBIA\b/,                       'Serbia'],
+  [/\bUCRAINA\b|\bUKRAINE\b/,         'Ucraina'],
+  // Europa UE (bond con prefisso XS/US)
+  [/\bROMANIA\b/,                      'Romania'],
+  [/\bUNGHERIA\b|\bHUNGARY\b/,        'Ungheria'],
+  [/\bPOLONIA\b|\bPOLAND\b/,          'Polonia'],
+  [/\bBULGARIA\b/,                     'Bulgaria'],
+  [/\bCROAZIA\b|\bCROATIA\b/,         'Croazia'],
+  [/\bSLOVENIA\b/,                     'Slovenia'],
+  [/\bGRECIA\b|\bGREECE\b/,           'Grecia'],
+  [/\bPORTOGALLO\b|\bPORTUGAL\b/,    'Portogallo'],
+  [/\bSPAGNA\b|\bSPAIN\b/,            'Spagna'],
+  [/\bBELGIO\b|\bBELGIUM\b/,         'Belgio'],
+  [/\bAUSTRIA\b/,                      'Austria'],
+  [/\bFINLANDIA\b|\bFINLAND\b/,       'Finlandia'],
+  [/\bIRLANDA\b|\bIRELAND\b/,         'Irlanda'],
+  [/\bPAESI BASSI\b|\bNETHERLANDS\b/, 'Paesi Bassi'],
+  [/\bLITUANIA\b|\bLITHUANIA\b/,      'Lituania'],
+  [/\bLETTONIA\b|\bLATVIA\b/,         'Lettonia'],
+  [/\bESTONIA\b/,                      'Estonia'],
+  [/\bSLOVACCHIA\b|\bSLOVAKIA\b/,     'Slovacchia'],
+  [/\bCIPRO\b|\bCYPRUS\b/,            'Cipro'],
+  // Extra-europei
+  [/\bUSA\b|\bU\.S\.A\.\b/,           'Stati Uniti'],
+  [/\bGIAPPONE\b|\bJAPAN\b/,          'Giappone'],
+  [/\bCINA\b|\bCHINA\b/,              'Cina'],
+  [/\bCANADA\b/,                       'Canada'],
+  [/\bAUSTRALIA\b/,                    'Australia'],
+  [/\bBRASILE\b|\bBRAZIL\b/,         'Brasile'],
+  [/\bMESSICO\b|\bMEXICO\b/,         'Messico'],
+  [/\bCOLOMBIA\b/,                     'Colombia'],
+  [/\bCILE\b|\bCHILE\b/,              'Cile'],
+  [/\bPERU\b|\bPERÙ\b/,              'Perù'],
+  [/\bARGENTINA\b/,                    'Argentina'],
+  [/\bSUDAFRICA\b|\bSOUTH AFRICA\b/,  'Sudafrica'],
+  [/\bEGITTO\b|\bEGYPT\b/,           'Egitto'],
+  [/\bBAHRAIN\b/,                      'Bahrain'],
+  [/\bINDONESIA\b/,                    'Indonesia'],
+  [/\bINDIA\b/,                        'India'],
+  [/\bFILIPPINE\b|\bPHILIPPINES\b/,  'Filippine'],
+  [/\bMAROCCO\b|\bMOROCCO\b/,        'Marocco'],
+  [/\bKENYA\b/,                        'Kenya'],
+  [/\bGHANA\b/,                        'Ghana'],
+  [/\bNIGERIA\b/,                      'Nigeria'],
+  [/\bIVORY COAST\b|\bCOTE D.IVOIRE\b/,'Costa d\'Avorio'],
+];
+
+// Rileva paese dalla descrizione (fallback per ISIN XS/US con emittente non USA)
+function getCountryFromDesc(desc) {
+  for (const [re, paese] of DESC_PAESE_MAP) {
+    if (re.test(desc)) return paese;
+  }
+  return null;
+}
+
+// Assegna paese considerando: monitor → prefisso ISIN → keywords emittente → descrizione
 function getPaese(isin, monitorName, descrizione) {
   const prefix = (isin || '').substring(0, 2).toUpperCase();
   const desc = (descrizione || '').toUpperCase();
 
-  // I monitor 62 e 63 definiscono esplicitamente la categoria
+  // Monitor 62/63 → override esplicito
   if (monitorName === 'Sovranazionali') {
-    // Dentro monitor 62 ci sono anche alcuni bond EU (prefisso EU/EFSF)
     if (prefix === 'EU') return 'Unione Europea';
     return 'Sovranazionale';
   }
   if (monitorName === 'Unione Europea') return 'Unione Europea';
 
-  // Per tutti gli altri monitor: prefisso EU → sempre Unione Europea
+  // Prefisso EU (EFSF, ESM, EU Commission) → sempre Unione Europea
   if (prefix === 'EU') return 'Unione Europea';
 
-  // Per bond XS/XF/XC in altri monitor: guarda la descrizione
+  // Prefissi univoci per paese → usa COUNTRY_MAP
+  if (COUNTRY_MAP[prefix]) {
+    // Eccezione: bond con prefisso US ma emittente non USA (es. Turkey con ISIN USA)
+    if (prefix === 'US') {
+      const fromDesc = getCountryFromDesc(desc);
+      if (fromDesc && fromDesc !== 'Stati Uniti') return fromDesc;
+    }
+    return COUNTRY_MAP[prefix];
+  }
+
+  // Prefissi Euroclear/Clearstream (XS, XF, XC, XB): ambigui, guarda il contenuto
   if (['XS','XF','XC','XB'].includes(prefix)) {
     if (SUPRA_KEYWORDS.some(kw => desc.includes(kw))) return 'Sovranazionale';
-    // Non è un sovranazionale riconosciuto → "Altro" (bond bancario, corp, ecc.)
+    const fromDesc = getCountryFromDesc(desc);
+    if (fromDesc) return fromDesc;
     return 'Altro';
   }
 
-  return COUNTRY_MAP[prefix] || 'Altro';
+  return 'Altro';
 }
 
 let state = {
