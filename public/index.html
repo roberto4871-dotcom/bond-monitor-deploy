@@ -8,19 +8,19 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #f0f4f8;
-      --bg2: #ffffff;
-      --bg3: #e8eef5;
-      --border: #c8d4e0;
-      --text: #1a2332;
-      --text2: #5a6a7e;
-      --blue: #2563eb;
-      --green: #059669;
-      --red: #dc2626;
-      --amber: #d97706;
-      --purple: #7c3aed;
-      --teal: #0891b2;
-      --shadow: 0 2px 12px rgba(0,0,0,0.1);
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #1c2230;
+      --border: #2a3347;
+      --text: #e0e8f0;
+      --text2: #7a8fa8;
+      --blue: #3b82f6;
+      --green: #22c55e;
+      --red: #f87171;
+      --amber: #fbbf24;
+      --purple: #a78bfa;
+      --teal: #22d3ee;
+      --shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
 
     body {
@@ -1226,11 +1226,11 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#ffffff',
-            borderColor: '#c8d4e0',
+            backgroundColor: '#1c2230',
+            borderColor: '#2a3347',
             borderWidth: 1,
-            titleColor: '#5a6a7e',
-            bodyColor: '#1a2332',
+            titleColor: '#7a8fa8',
+            bodyColor: '#e0e8f0',
             callbacks: {
               label: ctx => `  ${label}: ${ctx.parsed.y.toFixed(decimals)}${suffix}`,
             },
@@ -1238,9 +1238,9 @@
         },
         scales: {
           x: {
-            grid: { color: '#e2e8f0' },
+            grid: { color: '#1e2840' },
             ticks: {
-              color: '#5a6a7e', maxTicksLimit: 8, maxRotation: 0,
+              color: '#7a8fa8', maxTicksLimit: 8, maxRotation: 0,
               callback: (val, idx) => {
                 const step = Math.max(1, Math.floor(chartLabels.length / 7));
                 return idx % step === 0 ? chartLabels[idx] : '';
@@ -1248,8 +1248,8 @@
             },
           },
           y: {
-            grid: { color: '#e2e8f0' },
-            ticks: { color: '#5a6a7e', callback: v => v.toFixed(decimals) + suffix },
+            grid: { color: '#1e2840' },
+            ticks: { color: '#7a8fa8', callback: v => v.toFixed(decimals) + suffix },
             position: 'right',
           },
         },

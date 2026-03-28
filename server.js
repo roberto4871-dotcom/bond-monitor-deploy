@@ -10,8 +10,11 @@ const PORT = process.env.PORT || 3001;
 // Tutti i monitor della sezione "Sovranazionali e Governativi"
 const MONITORS = [
   { id: 62, name: 'Sovranazionali' },
+  { id: 63, name: 'Unione Europea' },
+  { id: 73, name: 'ESG Green Bond' },
   { id: 82, name: 'Titoli ad alto rating' },
   { id: 5,  name: 'BTP - Italia' },
+  { id: 74, name: 'BTP Futura / Valore / Più' },
   { id: 72, name: 'BOT' },
   { id: 66, name: 'Titoli di stato europei' },
   { id: 43, name: 'Altri titoli di stato' },
@@ -19,6 +22,8 @@ const MONITORS = [
   { id: 13, name: 'Francia' },
   { id: 78, name: 'Romania' },
   { id: 58, name: 'Stati Uniti' },
+  { id: 68, name: 'Banche internazionali' },
+  { id: 70, name: 'Sovranazionali scad. 2026' },
 ];
 
 const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minuti
