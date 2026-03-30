@@ -1097,7 +1097,7 @@
     const isin = bond.isin || '';
     const linkBI = document.getElementById('linkBorsaIt');
     const linkST = document.getElementById('linkSimpleTools');
-    linkBI.href = `https://www.borsaitaliana.it/borsa/obbligazioni/scheda.html?isin=${isin}&lang=it`;
+    linkBI.href = `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
     linkBI.style.display = isin ? 'inline-block' : 'none';
     if (bond.bondid) {
       linkST.href = `https://www.simpletoolsforinvestors.eu/details.php?bondid=${bond.bondid}&marketcode=${bond.marketcode || 'MOT'}`;
