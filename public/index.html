@@ -1564,11 +1564,14 @@
     const data = bonds.map(b => ({
       x: b.duration,
       y: b.yield,
+      bond: b,
       label: `${b.isin} — ${b.descrizione ? b.descrizione.substring(0,40) : ''}`
     }));
 
     if (ycChart) { ycChart.destroy(); ycChart = null; }
-    const ctx = document.getElementById('yieldCurveChart').getContext('2d');
+    const canvas = document.getElementById('yieldCurveChart');
+    canvas.style.cursor = 'pointer';
+    const ctx = canvas.getContext('2d');
     ycChart = new Chart(ctx, {
       type: 'scatter',
       data: {
@@ -1582,6 +1585,15 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        onClick: (evt, elements) => {
+          if (elements.length > 0) {
+            const bond = data[elements[0].index].bond;
+            openChart(bond);
+          }
+        },
+        onHover: (evt, elements) => {
+          canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -1589,7 +1601,7 @@
             titleColor: '#7a8fa8', bodyColor: '#e0e8f0',
             callbacks: {
               title: items => items[0].raw.label,
-              label: item => `Duration: ${item.parsed.x.toFixed(2)}a  |  Yield: ${item.parsed.y.toFixed(2)}%`,
+              label: item => `Duration: ${item.parsed.x.toFixed(2)}a  |  Yield: ${item.parsed.y.toFixed(2)}%  · clicca per aprire`,
             }
           }
         },
