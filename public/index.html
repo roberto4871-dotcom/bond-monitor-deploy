@@ -1233,8 +1233,9 @@
 
   fetchData().then(() => {
     document.getElementById('loadingOverlay').classList.remove('show');
-    // Imposta icona sort iniziale
     sortBy('yield');
+    populateYCPaese();
+    loadPortfolioFromStorage();
   });
 
   // Polling ogni 5 minuti per verificare aggiornamenti
@@ -1764,13 +1765,6 @@
     window.print();
   }
 
-  // Dopo il caricamento dati, popola select yield curve e ricarica portafoglio
-  const _origFetchData = fetchData;
-  fetchData = async function() {
-    await _origFetchData();
-    populateYCPaese();
-    loadPortfolioFromStorage();
-  };
 </script>
 </body>
 </html>
