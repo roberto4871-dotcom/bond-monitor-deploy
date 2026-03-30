@@ -680,21 +680,35 @@
     </div>
     <div class="calc-grid">
       <div class="calc-field">
-        <label>Prezzo acquisto</label>
+        <label>Prezzo acquisto (tel quel)</label>
         <input type="number" id="calcPrice" step="0.01" min="0" oninput="runCalc()" placeholder="es. 98.50">
       </div>
       <div class="calc-field">
         <label>Nominale (€)</label>
         <input type="number" id="calcNominale" step="1000" min="0" value="10000" oninput="runCalc()" placeholder="es. 10000">
       </div>
+      <div class="calc-field">
+        <label>Tasso cedola % <span id="calcCouponSrc" style="font-size:10px;color:var(--teal)"></span></label>
+        <input type="number" id="calcCoupon" step="0.01" min="0" oninput="runCalc()" placeholder="es. 3.50">
+      </div>
+      <div class="calc-field">
+        <label>Frequenza cedola</label>
+        <select id="calcFreq" onchange="runCalc()" style="width:100%;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">
+          <option value="2">Semestrale (IT, US)</option>
+          <option value="1">Annuale (DE, FR, EU)</option>
+          <option value="4">Trimestrale</option>
+        </select>
+      </div>
     </div>
-    <div class="calc-result" id="calcResult">
+    <div class="calc-result" id="calcResult" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="calc-res-item"><label>Prezzo secco</label><span id="rSecco">—</span></div>
+      <div class="calc-res-item"><label>Rateo interessi</label><span id="rRateo">—</span></div>
+      <div class="calc-res-item"><label>Controvalore totale</label><span id="rTotale">—</span></div>
       <div class="calc-res-item"><label>YTM stimato</label><span id="rYtm">—</span></div>
       <div class="calc-res-item"><label>Capital gain</label><span id="rGain">—</span></div>
-      <div class="calc-res-item"><label>Valore acquisto</label><span id="rValAcq">—</span></div>
-      <div class="calc-res-item"><label>Cedola annua stimata</label><span id="rCedola">—</span></div>
+      <div class="calc-res-item"><label>Cedola annua</label><span id="rCedola">—</span></div>
     </div>
-    <div class="calc-note">* Calcolo approssimativo basato sul yield corrente come proxy della cedola. Non include rateo interessi.</div>
+    <div class="calc-note">* Prezzo tel quel = prezzo secco + rateo. Cedola estratta dalla descrizione se disponibile, altrimenti usa yield come proxy.</div>
   </div>
 </div>
 
@@ -1715,49 +1729,115 @@
   // ─────────────────────────────────────────────
   let calcBond = null;
 
+  // Estrae il tasso cedola dalla descrizione (es. "BTP 15/03/2030 3,5%" → 3.5)
+  function extractCouponFromDesc(desc) {
+    if (!desc) return null;
+    // Pattern: numero con virgola o punto seguito da % alla fine o prima di spazio/fine
+    const m = desc.match(/(\d+[,\.]\d+)\s*%/) || desc.match(/\s(\d+)\s*%/);
+    if (m) return parseFloat(m[1].replace(',', '.'));
+    return null;
+  }
+
+  // Stima frequenza cedola dal paese/ISIN
+  function guessFreq(bond) {
+    const prefix = (bond.isin || '').substring(0, 2);
+    if (['IT','US','CA','GB'].includes(prefix)) return 2; // semestrale
+    return 1; // annuale default (DE, FR, EU, XS...)
+  }
+
+  // Calcola rateo interessi
+  // rateo = couponRate/freq * (giorni_trascorsi / giorni_periodo)
+  function calcRateo(couponRate, freq, scadenza) {
+    if (!scadenza || !couponRate) return 0;
+    const today = new Date();
+    const maturity = new Date(scadenza);
+    const monthsPerPeriod = 12 / freq;
+    // Trova la prossima data cedola (risalendo da scadenza a multipli del periodo)
+    let nextCoupon = new Date(maturity);
+    while (nextCoupon > today) {
+      nextCoupon = new Date(nextCoupon);
+      nextCoupon.setMonth(nextCoupon.getMonth() - monthsPerPeriod);
+    }
+    // nextCoupon è ora l'ultima data cedola passata
+    const lastCoupon = new Date(nextCoupon);
+    const nextCouponDate = new Date(lastCoupon);
+    nextCouponDate.setMonth(nextCouponDate.getMonth() + monthsPerPeriod);
+
+    const periodDays = (nextCouponDate - lastCoupon) / 86400000;
+    const elapsedDays = (today - lastCoupon) / 86400000;
+    const rateo = (couponRate / freq) * (elapsedDays / periodDays);
+    return Math.max(0, rateo);
+  }
+
   function openCalc(bond) {
     calcBond = bond;
     document.getElementById('calcDesc').textContent = bond.descrizione || bond.isin;
     document.getElementById('calcPrice').value = bond.prezzo !== null ? bond.prezzo.toFixed(2) : '';
     document.getElementById('calcNominale').value = 10000;
+
+    // Prova a estrarre cedola dalla descrizione
+    const couponExtracted = extractCouponFromDesc(bond.descrizione);
+    const couponInput = document.getElementById('calcCoupon');
+    const couponSrc = document.getElementById('calcCouponSrc');
+    if (couponExtracted !== null) {
+      couponInput.value = couponExtracted.toFixed(2);
+      couponSrc.textContent = '(dalla descrizione)';
+    } else {
+      couponInput.value = bond.yield !== null ? bond.yield.toFixed(2) : '';
+      couponSrc.textContent = '(proxy yield)';
+    }
+
+    // Imposta frequenza suggerita
+    document.getElementById('calcFreq').value = guessFreq(bond);
+
     runCalc();
     document.getElementById('calcModal').classList.add('show');
   }
 
   function runCalc() {
     if (!calcBond) return;
-    const price = parseFloat(document.getElementById('calcPrice').value);
+    const telQuel = parseFloat(document.getElementById('calcPrice').value);
     const nominale = parseFloat(document.getElementById('calcNominale').value) || 10000;
-    if (isNaN(price) || price <= 0) {
-      ['rYtm','rGain','rValAcq','rCedola'].forEach(id => document.getElementById(id).textContent = '—');
+    const couponRate = parseFloat(document.getElementById('calcCoupon').value) || 0;
+    const freq = parseInt(document.getElementById('calcFreq').value) || 2;
+
+    if (isNaN(telQuel) || telQuel <= 0) {
+      ['rSecco','rRateo','rTotale','rYtm','rGain','rCedola'].forEach(id => document.getElementById(id).textContent = '—');
       return;
     }
+
+    // Rateo
+    const rateo = calcRateo(couponRate, freq, calcBond.scadenza);
+    const prezzoSecco = telQuel - rateo;
+    const valTotale = nominale * telQuel / 100;
+    const valRateo = nominale * rateo / 100;
+    const valSecco = nominale * prezzoSecco / 100;
+
+    const fmt = v => v.toLocaleString('it-IT', {style:'currency', currency:'EUR', minimumFractionDigits:2, maximumFractionDigits:2});
+
+    document.getElementById('rSecco').textContent = prezzoSecco.toFixed(3);
+    document.getElementById('rRateo').textContent = fmt(valRateo);
+    document.getElementById('rTotale').textContent = fmt(valTotale);
+
+    // YTM (basato su prezzo secco)
     const years = calcBond.scadenza
       ? Math.max(0.01, (new Date(calcBond.scadenza) - new Date()) / (365.25 * 86400000))
       : null;
-    const couponRate = calcBond.yield || 0; // proxy cedola = yield corrente
-    const coupon = couponRate; // per 100 di nominale
-
-    let ytmText = '—';
     if (years) {
-      const ytm = (coupon + (100 - price) / years) / ((100 + price) / 2) * 100;
-      ytmText = ytm.toFixed(2) + '%';
-      document.getElementById('rYtm').textContent = ytmText;
+      const ytm = (couponRate + (100 - prezzoSecco) / years) / ((100 + prezzoSecco) / 2) * 100;
+      document.getElementById('rYtm').textContent = ytm.toFixed(2) + '%';
       document.getElementById('rYtm').className = ytm >= 0 ? 'green' : 'red';
     } else {
       document.getElementById('rYtm').textContent = '—';
     }
 
-    const gain = 100 - price;
+    const gain = 100 - prezzoSecco;
     const gainEl = document.getElementById('rGain');
     gainEl.textContent = (gain >= 0 ? '+' : '') + gain.toFixed(2) + '%';
     gainEl.className = gain >= 0 ? 'green' : 'red';
 
-    const valAcq = nominale * price / 100;
-    document.getElementById('rValAcq').textContent = valAcq.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0});
-
     const cedola = nominale * couponRate / 100;
-    document.getElementById('rCedola').textContent = cedola.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0});
+    document.getElementById('rCedola').textContent = fmt(cedola);
   }
 
   // ─────────────────────────────────────────────
