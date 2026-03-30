@@ -618,10 +618,10 @@
         <thead><tr>
           <th>ISIN</th><th>Descrizione</th><th>Scad.</th>
           <th>Prezzo</th><th>Yield%</th>
-          <th>Nominale (€)</th><th>Val. Mercato</th><th>Cedola/anno</th><th></th>
+          <th>Nominale (€)</th><th>Val. Mercato</th><th>Cedola/anno</th><th>Rateo</th><th></th>
         </tr></thead>
         <tbody id="portfolioBody">
-          <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text2);">
+          <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">
             Nessun titolo nel portafoglio.<br>Clicca <strong>+ Port.</strong> su un titolo in tabella per aggiungerlo.
           </td></tr>
         </tbody>
@@ -1682,7 +1682,7 @@
     const tbody = document.getElementById('portfolioBody');
     const positions = Object.values(portfolio);
     if (positions.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text2);">
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">
         Nessun titolo nel portafoglio.<br>Clicca <strong>+ Port.</strong> su un titolo in tabella per aggiungerlo.
       </td></tr>`;
       document.getElementById('portfolioSummary').innerHTML = '';
@@ -1692,6 +1692,10 @@
       const b = pos.bond;
       const mv = pos.nominale * (b.prezzo || 100) / 100;
       const cedola = pos.nominale * (b.yield || 0) / 100;
+      const couponRate = extractCouponFromDesc(b.descrizione) || b.yield || 0;
+      const freq = guessFreq(b);
+      const rateoPerc = calcRateo(couponRate, freq, b.scadenza);
+      const rateoEur = pos.nominale * rateoPerc / 100;
       return `<tr>
         <td class="isin-cell">${b.isin}</td>
         <td class="desc-cell" style="max-width:200px" title="${escHtml(b.descrizione)}">${escHtml(b.descrizione)}</td>
@@ -1702,6 +1706,7 @@
           onchange="updateNominale('${b.isin}', this.value)"></td>
         <td>${mv.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
         <td>${cedola.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
+        <td>${rateoEur > 0 ? rateoEur.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:2}) : '—'}</td>
         <td><button class="btn-remove" onclick="removeFromPortfolio('${b.isin}')" title="Rimuovi">✕</button></td>
       </tr>`;
     }).join('');
@@ -1715,12 +1720,19 @@
     const totalMV  = positions.reduce((s, p) => s + p.nominale * (p.bond.prezzo || 100) / 100, 0);
     const wtdYield = totalNom > 0 ? positions.reduce((s, p) => s + p.nominale * (p.bond.yield || 0), 0) / totalNom : 0;
     const totCedola = positions.reduce((s, p) => s + p.nominale * (p.bond.yield || 0) / 100, 0);
+    const totRateo = positions.reduce((s, p) => {
+      const couponRate = extractCouponFromDesc(p.bond.descrizione) || p.bond.yield || 0;
+      const freq = guessFreq(p.bond);
+      return s + p.nominale * calcRateo(couponRate, freq, p.bond.scadenza) / 100;
+    }, 0);
     const fmt = (v) => v.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0});
+    const fmt2 = (v) => v.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:2});
     document.getElementById('portfolioSummary').innerHTML = `
       <div class="port-stat"><div class="port-stat-label">Nominale totale</div><div class="port-stat-value">${fmt(totalNom)}</div></div>
       <div class="port-stat"><div class="port-stat-label">Valore di mercato</div><div class="port-stat-value">${fmt(totalMV)}</div></div>
       <div class="port-stat"><div class="port-stat-label">Yield medio pond.</div><div class="port-stat-value green">${wtdYield.toFixed(2)}%</div></div>
       <div class="port-stat"><div class="port-stat-label">Cedola annua stimata</div><div class="port-stat-value">${fmt(totCedola)}</div></div>
+      <div class="port-stat"><div class="port-stat-label">Rateo totale</div><div class="port-stat-value">${fmt2(totRateo)}</div></div>
     `;
   }
 
