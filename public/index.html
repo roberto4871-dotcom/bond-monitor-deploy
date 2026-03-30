@@ -551,6 +551,16 @@
         <div class="modal-bond-isin" id="modalIsin">—</div>
         <div class="modal-bond-desc" id="modalDesc">—</div>
         <div class="modal-bond-meta" id="modalMeta">—</div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+          <a id="linkBorsaIt" href="#" target="_blank" rel="noopener"
+             style="font-size:11px;padding:3px 8px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);text-decoration:none;display:none;">
+            🏛 Borsa Italiana
+          </a>
+          <a id="linkSimpleTools" href="#" target="_blank" rel="noopener"
+             style="font-size:11px;padding:3px 8px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);text-decoration:none;display:none;">
+            📊 simpletoolsforinvestors
+          </a>
+        </div>
       </div>
       <button class="modal-close" onclick="document.getElementById('chartModal').classList.remove('show')">✕</button>
     </div>
@@ -1082,6 +1092,19 @@
       bond.divisa || '',
     ].filter(Boolean).join('  ·  ');
     document.getElementById('modalMeta').textContent = meta;
+
+    // Link esterni
+    const isin = bond.isin || '';
+    const linkBI = document.getElementById('linkBorsaIt');
+    const linkST = document.getElementById('linkSimpleTools');
+    linkBI.href = `https://www.borsaitaliana.it/borsa/obbligazioni/scheda.html?isin=${isin}&lang=it`;
+    linkBI.style.display = isin ? 'inline-block' : 'none';
+    if (bond.bondid) {
+      linkST.href = `https://www.simpletoolsforinvestors.eu/details.php?bondid=${bond.bondid}&marketcode=${bond.marketcode || 'MOT'}`;
+      linkST.style.display = 'inline-block';
+    } else {
+      linkST.style.display = 'none';
+    }
 
     // Reset periodo buttons
     currentRange = 'max';
