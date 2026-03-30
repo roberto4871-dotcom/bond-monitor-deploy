@@ -302,6 +302,82 @@
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
     .empty-text { font-size: 15px; }
 
+    /* STAR / WATCHLIST */
+    .star-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 15px; color: #3a4a5e; padding: 0 2px;
+      transition: color 0.15s; line-height: 1;
+    }
+    .star-btn:hover { color: var(--amber); }
+    .star-btn.starred { color: var(--amber); }
+    .btn-watchlist { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); }
+    .btn-watchlist.active { background: rgba(251,191,36,0.15); border-color: var(--amber); color: var(--amber); }
+
+    /* SOTTO LA PARI */
+    tbody tr.under-par { border-left: 3px solid var(--teal); }
+    tbody tr.under-par td:first-child { padding-left: 9px; }
+
+    /* GIORNI SCADENZA */
+    .days-cell { font-size: 12px; color: var(--text2); }
+    .days-cell.days-soon { color: var(--amber); font-weight: 600; }
+
+    /* YIELD CURVE PANEL */
+    .extra-panel {
+      display: none; flex-direction: column; flex: 1; overflow: auto;
+      padding: 20px; background: var(--bg);
+    }
+    .extra-panel.show { display: flex; }
+    .panel-header { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .yc-canvas-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; flex: 1; min-height: 300px; max-height: 460px; }
+
+    /* PORTFOLIO PANEL */
+    .portfolio-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .portfolio-table th { background: var(--bg3); padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text2); border-bottom: 1px solid var(--border); }
+    .portfolio-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+    .portfolio-table input[type=number] { width: 100px; padding: 4px 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; }
+    .portfolio-summary { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+    .port-stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; min-width: 160px; }
+    .port-stat-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+    .port-stat-value { font-size: 20px; font-weight: 700; color: var(--text); margin-top: 4px; }
+    .port-stat-value.green { color: var(--green); }
+    .btn-remove { background: none; border: none; cursor: pointer; color: var(--red); font-size: 15px; padding: 0 4px; }
+    .btn-add-port { font-size: 11px; padding: 2px 7px; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text2); cursor: pointer; margin-left: 4px; }
+    .btn-add-port:hover { border-color: var(--blue); color: var(--blue); }
+
+    /* CALCULATOR MODAL */
+    .calc-modal {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; width: 92vw; max-width: 500px;
+      padding: 24px; display: flex; flex-direction: column; gap: 16px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    }
+    .calc-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .calc-bond-desc { font-size: 12px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .calc-field label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .calc-field input { width: 100%; padding: 7px 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; }
+    .calc-result { background: var(--bg3); border-radius: 8px; padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .calc-res-item label { font-size: 11px; color: var(--text2); text-transform: uppercase; display: block; }
+    .calc-res-item span { font-size: 18px; font-weight: 700; color: var(--text); }
+    .calc-res-item span.green { color: var(--green); }
+    .calc-res-item span.red { color: var(--red); }
+    .calc-note { font-size: 11px; color: var(--text2); font-style: italic; }
+
+    /* PRINT */
+    @media print {
+      .sidebar, .header, .table-toolbar .table-actions, .pagination,
+      .modal-overlay, #chartModal, #calcModal, .btn, .star-btn,
+      .extra-panel, .tab-bar, .print-hide { display: none !important; }
+      body { font-size: 11px; background: white; color: black; }
+      .layout { flex-direction: column; }
+      .main { overflow: visible; }
+      table { font-size: 10px; }
+      thead th { background: #f0f0f0 !important; color: #333 !important; }
+      .print-header { display: block !important; }
+      @page { size: A4 landscape; margin: 1.5cm; }
+    }
+    .print-header { display: none; font-size: 12px; color: #333; margin-bottom: 12px; }
+
     /* CHART MODAL */
     .modal-overlay {
       display: none; position: fixed; inset: 0; z-index: 200;
@@ -487,6 +563,13 @@
 
   <!-- MAIN CONTENT -->
   <div class="main" style="position:relative;">
+  <!-- TAB BAR -->
+  <div class="tab-bar" style="display:flex;gap:2px;padding:8px 16px 0;background:var(--bg2);border-bottom:1px solid var(--border);">
+    <button class="tab-btn active" id="tab-table"     onclick="switchPanel('table')">📋 Tabella</button>
+    <button class="tab-btn"        id="tab-yieldcurve" onclick="switchPanel('yieldcurve')">📈 Yield Curve</button>
+    <button class="tab-btn"        id="tab-portfolio"  onclick="switchPanel('portfolio')">💼 Portafoglio</button>
+  </div>
+
     <div class="loading-overlay" id="loadingOverlay">
       <div class="spinner"></div>
       <div class="loading-text">Caricamento titoli...</div>
@@ -498,32 +581,73 @@
     <div class="table-toolbar">
       <div class="results-count" id="resultsCount">—</div>
       <div class="table-actions">
+        <button class="btn btn-watchlist print-hide" id="btnWatchlist" onclick="toggleWatchlistFilter()">★ Watchlist</button>
         <select id="pageSize" onchange="changePageSize()" style="width:auto;padding:5px 8px;">
           <option value="50">50 per pagina</option>
           <option value="100">100 per pagina</option>
           <option value="200">200 per pagina</option>
           <option value="999999">Tutti</option>
         </select>
-        <button class="btn btn-secondary" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn btn-secondary print-hide" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn btn-secondary print-hide" onclick="exportPDF()">🖨 PDF</button>
       </div>
     </div>
 
+    <!-- YIELD CURVE PANEL -->
+    <div class="extra-panel" id="panelYieldCurve">
+      <div class="panel-header">
+        Yield Curve —
+        <select id="ycPaese" onchange="renderYieldCurve()" style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
+          <option value="">Seleziona paese...</option>
+        </select>
+        <span id="ycInfo" style="font-size:12px;color:var(--text2);"></span>
+      </div>
+      <div class="yc-canvas-wrap">
+        <canvas id="yieldCurveChart"></canvas>
+      </div>
+    </div>
+
+    <!-- PORTFOLIO PANEL -->
+    <div class="extra-panel" id="panelPortfolio">
+      <div class="panel-header" style="justify-content:space-between;">
+        <span>💼 Simulatore Portafoglio</span>
+        <button onclick="clearPortfolio()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--red);cursor:pointer;">🗑 Svuota</button>
+      </div>
+      <div class="print-header" id="printHeader"></div>
+      <table class="portfolio-table">
+        <thead><tr>
+          <th>ISIN</th><th>Descrizione</th><th>Scad.</th>
+          <th>Prezzo</th><th>Yield%</th>
+          <th>Nominale (€)</th><th>Val. Mercato</th><th>Cedola/anno</th><th></th>
+        </tr></thead>
+        <tbody id="portfolioBody">
+          <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text2);">
+            Nessun titolo nel portafoglio.<br>Clicca <strong>+ Port.</strong> su un titolo in tabella per aggiungerlo.
+          </td></tr>
+        </tbody>
+      </table>
+      <div class="portfolio-summary" id="portfolioSummary"></div>
+    </div>
+
     <!-- TABELLA -->
-    <div class="table-wrapper">
+    <div class="table-wrapper" id="panelTable">
       <table id="bondsTable">
         <thead>
           <tr>
+            <th class="print-hide" style="width:32px;"></th>
             <th onclick="sortBy('isin')" title="Codice ISIN">ISIN <span class="sort-icon" id="sort-isin"></span></th>
             <th onclick="sortBy('descrizione')" title="Descrizione">Descrizione <span class="sort-icon" id="sort-descrizione"></span></th>
             <th onclick="sortBy('emittente')" title="Emittente">Emittente <span class="sort-icon" id="sort-emittente"></span></th>
             <th onclick="sortBy('divisa')" title="Valuta">Valuta <span class="sort-icon" id="sort-divisa"></span></th>
             <th onclick="sortBy('scadenza')" title="Data scadenza">Scadenza <span class="sort-icon" id="sort-scadenza"></span></th>
+            <th onclick="sortBy('giorni')" title="Giorni alla scadenza">Giorni <span class="sort-icon" id="sort-giorni"></span></th>
             <th onclick="sortBy('prezzo')" title="Prezzo di riferimento">Prezzo <span class="sort-icon" id="sort-prezzo"></span></th>
             <th onclick="sortBy('yield')" title="Rendimento">Yield % <span class="sort-icon" id="sort-yield"></span></th>
             <th onclick="sortBy('duration')" title="Duration modificata">Duration <span class="sort-icon" id="sort-duration"></span></th>
             <th onclick="sortBy('zSpread')" title="Z-Spread">Z-Spread <span class="sort-icon" id="sort-zSpread"></span></th>
             <th onclick="sortBy('monitor')" title="Categoria">Categoria <span class="sort-icon" id="sort-monitor"></span></th>
             <th onclick="sortBy('mercato')" title="Mercato">Mercato <span class="sort-icon" id="sort-mercato"></span></th>
+            <th class="print-hide" style="width:60px;">Azioni</th>
           </tr>
         </thead>
         <tbody id="bondsBody">
@@ -540,6 +664,37 @@
       <div class="page-info" id="pageInfo">—</div>
       <div class="page-btns" id="pageBtns"></div>
     </div>
+  </div>
+</div>
+
+<!-- CALCULATOR MODAL -->
+<div class="modal-overlay" id="calcModal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="calc-modal">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div class="calc-title">🧮 Calcolatore Rendimento</div>
+        <div class="calc-bond-desc" id="calcDesc">—</div>
+      </div>
+      <button onclick="document.getElementById('calcModal').classList.remove('show')"
+        style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div class="calc-grid">
+      <div class="calc-field">
+        <label>Prezzo acquisto</label>
+        <input type="number" id="calcPrice" step="0.01" min="0" oninput="runCalc()" placeholder="es. 98.50">
+      </div>
+      <div class="calc-field">
+        <label>Nominale (€)</label>
+        <input type="number" id="calcNominale" step="1000" min="0" value="10000" oninput="runCalc()" placeholder="es. 10000">
+      </div>
+    </div>
+    <div class="calc-result" id="calcResult">
+      <div class="calc-res-item"><label>YTM stimato</label><span id="rYtm">—</span></div>
+      <div class="calc-res-item"><label>Capital gain</label><span id="rGain">—</span></div>
+      <div class="calc-res-item"><label>Valore acquisto</label><span id="rValAcq">—</span></div>
+      <div class="calc-res-item"><label>Cedola annua stimata</label><span id="rCedola">—</span></div>
+    </div>
+    <div class="calc-note">* Calcolo approssimativo basato sul yield corrente come proxy della cedola. Non include rateo interessi.</div>
   </div>
 </div>
 
@@ -902,7 +1057,6 @@
     const end = Math.min(start + pageSize, total);
     const page = filteredBonds.slice(start, end);
 
-    const today = new Date().toISOString().slice(0, 10);
     const rows = page.map((b, i) => {
       const yieldClass = b.yield === null ? 'yield-na' :
         b.yield < 0 ? 'yield-neg' :
@@ -916,27 +1070,47 @@
 
       let scadenzaDisplay = '—';
       let scadenzaClass = '';
+      let giorniDisplay = '—';
+      let giorniClass = 'days-cell';
       if (b.scadenza) {
         const d = new Date(b.scadenza);
         scadenzaDisplay = d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
-        const yearsLeft = (d - new Date()) / (365.25 * 24 * 3600 * 1000);
+        const msLeft = d - new Date();
+        const giorni = Math.ceil(msLeft / 86400000);
+        const yearsLeft = msLeft / (365.25 * 24 * 3600 * 1000);
         scadenzaClass = yearsLeft < 3 ? 'maturity-soon' : 'maturity-far';
+        if (giorni > 0) {
+          giorniDisplay = giorni > 365 ? (yearsLeft).toFixed(1) + 'a' : giorni + 'gg';
+          if (yearsLeft < 1) giorniClass += ' days-soon';
+        } else {
+          giorniDisplay = 'scaduto';
+        }
       }
 
       const divisaClass = {EUR:'divisa-eur',USD:'divisa-usd',GBP:'divisa-gbp',TRY:'divisa-try'}[b.divisa] || 'divisa-other';
+      const underPar = b.prezzo !== null && b.prezzo < 100 ? 'under-par' : '';
+      const starred = watchlist.has(b.isin) ? 'starred' : '';
 
-      return `<tr data-idx="${start + i}" onclick="openChartByIdx(this)" title="Clicca per vedere il grafico storico">
-        <td class="isin-cell">${b.isin}</td>
-        <td class="desc-cell" title="${escHtml(b.descrizione)}">${escHtml(b.descrizione)}</td>
-        <td class="emittente-cell">${escHtml(b.emittente)}</td>
-        <td><span class="divisa-badge ${divisaClass}">${b.divisa || '—'}</span></td>
-        <td class="${scadenzaClass}">${scadenzaDisplay}</td>
-        <td>${prezzoVal}</td>
-        <td class="yield-cell ${yieldClass}">${yieldVal}</td>
-        <td>${durVal}</td>
-        <td>${zVal}</td>
-        <td><span class="monitor-badge">${escHtml(b.monitor)}</span></td>
-        <td class="emittente-cell">${escHtml(b.mercato || '—')}</td>
+      return `<tr data-idx="${start + i}" class="${underPar}" title="Clicca per vedere il grafico storico">
+        <td class="print-hide" onclick="event.stopPropagation()">
+          <button class="star-btn ${starred}" onclick="toggleStar('${b.isin}',this)" title="Aggiungi a watchlist">★</button>
+        </td>
+        <td class="isin-cell" onclick="openChartByIdx(this.parentElement)">${b.isin}</td>
+        <td class="desc-cell" title="${escHtml(b.descrizione)}" onclick="openChartByIdx(this.parentElement)">${escHtml(b.descrizione)}</td>
+        <td class="emittente-cell" onclick="openChartByIdx(this.parentElement)">${escHtml(b.emittente)}</td>
+        <td onclick="openChartByIdx(this.parentElement)"><span class="divisa-badge ${divisaClass}">${b.divisa || '—'}</span></td>
+        <td class="${scadenzaClass}" onclick="openChartByIdx(this.parentElement)">${scadenzaDisplay}</td>
+        <td class="${giorniClass}" onclick="openChartByIdx(this.parentElement)">${giorniDisplay}</td>
+        <td onclick="openChartByIdx(this.parentElement)">${prezzoVal}</td>
+        <td class="yield-cell ${yieldClass}" onclick="openChartByIdx(this.parentElement)">${yieldVal}</td>
+        <td onclick="openChartByIdx(this.parentElement)">${durVal}</td>
+        <td onclick="openChartByIdx(this.parentElement)">${zVal}</td>
+        <td onclick="openChartByIdx(this.parentElement)"><span class="monitor-badge">${escHtml(b.monitor)}</span></td>
+        <td class="emittente-cell" onclick="openChartByIdx(this.parentElement)">${escHtml(b.mercato || '—')}</td>
+        <td class="print-hide" onclick="event.stopPropagation()" style="white-space:nowrap;">
+          <button class="btn-add-port" onclick="addToPortfolio(filteredBonds[${start+i}])" title="Aggiungi al portafoglio">+ Port.</button>
+          <button class="btn-add-port" onclick="openCalc(filteredBonds[${start+i}])" title="Calcolatore rendimento" style="margin-left:2px;">🧮</button>
+        </td>
       </tr>`;
     }).join('');
 
@@ -1288,8 +1462,315 @@
 
   // Chiudi con ESC
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') document.getElementById('chartModal').classList.remove('show');
+    if (e.key === 'Escape') {
+      document.getElementById('chartModal').classList.remove('show');
+      document.getElementById('calcModal').classList.remove('show');
+    }
   });
+
+  // ─────────────────────────────────────────────
+  // TAB PANEL
+  // ─────────────────────────────────────────────
+  function switchPanel(panel) {
+    document.getElementById('panelTable').style.display      = panel === 'table'      ? '' : 'none';
+    document.getElementById('panelYieldCurve').style.display = panel === 'yieldcurve' ? 'flex' : 'none';
+    document.getElementById('panelPortfolio').style.display  = panel === 'portfolio'  ? 'flex' : 'none';
+    // toolbar visibile solo su tabella
+    document.querySelector('.table-toolbar').style.display   = panel === 'table'      ? '' : 'none';
+    document.querySelector('.pagination').style.display      = panel === 'table'      ? '' : 'none';
+    ['table','yieldcurve','portfolio'].forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('active', t === panel);
+    });
+    if (panel === 'yieldcurve') renderYieldCurve();
+    if (panel === 'portfolio')  renderPortfolio();
+  }
+
+  // Stile tab buttons
+  const tabStyle = document.createElement('style');
+  tabStyle.textContent = `
+    .tab-bar { display:flex; gap:2px; padding:8px 16px 0; background:var(--bg2); border-bottom:1px solid var(--border); }
+    .tab-btn { padding:7px 16px; border:none; border-radius:8px 8px 0 0; background:transparent;
+      color:var(--text2); font-size:13px; cursor:pointer; font-weight:500; transition:all 0.15s; }
+    .tab-btn:hover { background:var(--bg3); color:var(--text); }
+    .tab-btn.active { background:var(--bg3); color:var(--blue); border-bottom:2px solid var(--blue); }
+  `;
+  document.head.appendChild(tabStyle);
+
+  // ─────────────────────────────────────────────
+  // WATCHLIST
+  // ─────────────────────────────────────────────
+  let watchlist = new Set(JSON.parse(localStorage.getItem('bond_watchlist') || '[]'));
+  let showWatchlistOnly = false;
+
+  function saveWatchlist() {
+    localStorage.setItem('bond_watchlist', JSON.stringify([...watchlist]));
+  }
+
+  function toggleStar(isin, btn) {
+    if (watchlist.has(isin)) {
+      watchlist.delete(isin);
+      btn.classList.remove('starred');
+    } else {
+      watchlist.add(isin);
+      btn.classList.add('starred');
+    }
+    saveWatchlist();
+  }
+
+  function toggleWatchlistFilter() {
+    showWatchlistOnly = !showWatchlistOnly;
+    document.getElementById('btnWatchlist').classList.toggle('active', showWatchlistOnly);
+    applyFilters();
+  }
+
+  // Aggiungi filtro watchlist in applyFilters
+  const _origApplyFilters = applyFilters;
+  applyFilters = function() {
+    _origApplyFilters();
+    if (showWatchlistOnly) {
+      filteredBonds = filteredBonds.filter(b => watchlist.has(b.isin));
+      sortBonds();
+      currentPage = 1;
+      renderTable();
+      updateStats();
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // YIELD CURVE
+  // ─────────────────────────────────────────────
+  let ycChart = null;
+
+  function populateYCPaese() {
+    const sel = document.getElementById('ycPaese');
+    const paesi = [...new Set(allBonds.filter(b => b.yield !== null && b.duration !== null).map(b => b.paese))].sort();
+    sel.innerHTML = '<option value="">Seleziona paese...</option>';
+    paesi.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p; o.textContent = p;
+      sel.appendChild(o);
+    });
+    // default: Italia
+    if (paesi.includes('Italia')) sel.value = 'Italia';
+  }
+
+  function renderYieldCurve() {
+    const paese = document.getElementById('ycPaese').value;
+    if (!paese) return;
+    const bonds = allBonds.filter(b => b.paese === paese && b.yield !== null && b.duration !== null);
+    document.getElementById('ycInfo').textContent = `${bonds.length} titoli`;
+
+    const data = bonds.map(b => ({
+      x: b.duration,
+      y: b.yield,
+      label: `${b.isin} — ${b.descrizione ? b.descrizione.substring(0,40) : ''}`
+    }));
+
+    if (ycChart) { ycChart.destroy(); ycChart = null; }
+    const ctx = document.getElementById('yieldCurveChart').getContext('2d');
+    ycChart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: paese,
+          data,
+          backgroundColor: 'rgba(59,130,246,0.6)',
+          pointRadius: 6,
+          pointHoverRadius: 9,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1c2230', borderColor: '#2a3347', borderWidth: 1,
+            titleColor: '#7a8fa8', bodyColor: '#e0e8f0',
+            callbacks: {
+              title: items => items[0].raw.label,
+              label: item => `Duration: ${item.parsed.x.toFixed(2)}a  |  Yield: ${item.parsed.y.toFixed(2)}%`,
+            }
+          }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Duration (anni)', color: '#7a8fa8' },
+               grid: { color: '#1e2840' }, ticks: { color: '#7a8fa8' } },
+          y: { title: { display: true, text: 'Yield (%)', color: '#7a8fa8' },
+               grid: { color: '#1e2840' }, ticks: { color: '#7a8fa8', callback: v => v.toFixed(2)+'%' } }
+        }
+      }
+    });
+  }
+
+  // ─────────────────────────────────────────────
+  // PORTAFOGLIO
+  // ─────────────────────────────────────────────
+  let portfolio = JSON.parse(localStorage.getItem('bond_portfolio') || '{}');
+
+  function addToPortfolio(bond) {
+    if (!portfolio[bond.isin]) {
+      portfolio[bond.isin] = { bond, nominale: 10000 };
+      savePortfolio();
+    }
+    switchPanel('portfolio');
+  }
+
+  function savePortfolio() {
+    // Salva solo isin + nominale (il bond si risolve da allBonds al caricamento)
+    const slim = {};
+    Object.entries(portfolio).forEach(([isin, pos]) => slim[isin] = pos.nominale);
+    localStorage.setItem('bond_portfolio', JSON.stringify(slim));
+  }
+
+  function loadPortfolioFromStorage() {
+    const slim = JSON.parse(localStorage.getItem('bond_portfolio') || '{}');
+    portfolio = {};
+    Object.entries(slim).forEach(([isin, nominale]) => {
+      const bond = allBonds.find(b => b.isin === isin);
+      if (bond) portfolio[isin] = { bond, nominale };
+    });
+  }
+
+  function clearPortfolio() {
+    portfolio = {};
+    savePortfolio();
+    renderPortfolio();
+  }
+
+  function removeFromPortfolio(isin) {
+    delete portfolio[isin];
+    savePortfolio();
+    renderPortfolio();
+  }
+
+  function updateNominale(isin, val) {
+    if (portfolio[isin]) {
+      portfolio[isin].nominale = parseFloat(val) || 0;
+      savePortfolio();
+      updatePortfolioSummary();
+    }
+  }
+
+  function renderPortfolio() {
+    const tbody = document.getElementById('portfolioBody');
+    const positions = Object.values(portfolio);
+    if (positions.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text2);">
+        Nessun titolo nel portafoglio.<br>Clicca <strong>+ Port.</strong> su un titolo in tabella per aggiungerlo.
+      </td></tr>`;
+      document.getElementById('portfolioSummary').innerHTML = '';
+      return;
+    }
+    tbody.innerHTML = positions.map(pos => {
+      const b = pos.bond;
+      const mv = pos.nominale * (b.prezzo || 100) / 100;
+      const cedola = pos.nominale * (b.yield || 0) / 100;
+      return `<tr>
+        <td class="isin-cell">${b.isin}</td>
+        <td class="desc-cell" style="max-width:200px" title="${escHtml(b.descrizione)}">${escHtml(b.descrizione)}</td>
+        <td>${b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : '—'}</td>
+        <td>${b.prezzo !== null ? b.prezzo.toFixed(2) : '—'}</td>
+        <td class="yield-cell ${b.yield > 0 ? 'yield-mid' : 'yield-na'}">${b.yield !== null ? b.yield.toFixed(2)+'%' : '—'}</td>
+        <td><input type="number" value="${pos.nominale}" min="0" step="1000"
+          onchange="updateNominale('${b.isin}', this.value)"></td>
+        <td>${mv.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
+        <td>${cedola.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
+        <td><button class="btn-remove" onclick="removeFromPortfolio('${b.isin}')" title="Rimuovi">✕</button></td>
+      </tr>`;
+    }).join('');
+    updatePortfolioSummary();
+  }
+
+  function updatePortfolioSummary() {
+    const positions = Object.values(portfolio);
+    if (positions.length === 0) return;
+    const totalNom = positions.reduce((s, p) => s + p.nominale, 0);
+    const totalMV  = positions.reduce((s, p) => s + p.nominale * (p.bond.prezzo || 100) / 100, 0);
+    const wtdYield = totalNom > 0 ? positions.reduce((s, p) => s + p.nominale * (p.bond.yield || 0), 0) / totalNom : 0;
+    const totCedola = positions.reduce((s, p) => s + p.nominale * (p.bond.yield || 0) / 100, 0);
+    const fmt = (v) => v.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0});
+    document.getElementById('portfolioSummary').innerHTML = `
+      <div class="port-stat"><div class="port-stat-label">Nominale totale</div><div class="port-stat-value">${fmt(totalNom)}</div></div>
+      <div class="port-stat"><div class="port-stat-label">Valore di mercato</div><div class="port-stat-value">${fmt(totalMV)}</div></div>
+      <div class="port-stat"><div class="port-stat-label">Yield medio pond.</div><div class="port-stat-value green">${wtdYield.toFixed(2)}%</div></div>
+      <div class="port-stat"><div class="port-stat-label">Cedola annua stimata</div><div class="port-stat-value">${fmt(totCedola)}</div></div>
+    `;
+  }
+
+  // ─────────────────────────────────────────────
+  // CALCOLATORE
+  // ─────────────────────────────────────────────
+  let calcBond = null;
+
+  function openCalc(bond) {
+    calcBond = bond;
+    document.getElementById('calcDesc').textContent = bond.descrizione || bond.isin;
+    document.getElementById('calcPrice').value = bond.prezzo !== null ? bond.prezzo.toFixed(2) : '';
+    document.getElementById('calcNominale').value = 10000;
+    runCalc();
+    document.getElementById('calcModal').classList.add('show');
+  }
+
+  function runCalc() {
+    if (!calcBond) return;
+    const price = parseFloat(document.getElementById('calcPrice').value);
+    const nominale = parseFloat(document.getElementById('calcNominale').value) || 10000;
+    if (isNaN(price) || price <= 0) {
+      ['rYtm','rGain','rValAcq','rCedola'].forEach(id => document.getElementById(id).textContent = '—');
+      return;
+    }
+    const years = calcBond.scadenza
+      ? Math.max(0.01, (new Date(calcBond.scadenza) - new Date()) / (365.25 * 86400000))
+      : null;
+    const couponRate = calcBond.yield || 0; // proxy cedola = yield corrente
+    const coupon = couponRate; // per 100 di nominale
+
+    let ytmText = '—';
+    if (years) {
+      const ytm = (coupon + (100 - price) / years) / ((100 + price) / 2) * 100;
+      ytmText = ytm.toFixed(2) + '%';
+      document.getElementById('rYtm').textContent = ytmText;
+      document.getElementById('rYtm').className = ytm >= 0 ? 'green' : 'red';
+    } else {
+      document.getElementById('rYtm').textContent = '—';
+    }
+
+    const gain = 100 - price;
+    const gainEl = document.getElementById('rGain');
+    gainEl.textContent = (gain >= 0 ? '+' : '') + gain.toFixed(2) + '%';
+    gainEl.className = gain >= 0 ? 'green' : 'red';
+
+    const valAcq = nominale * price / 100;
+    document.getElementById('rValAcq').textContent = valAcq.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0});
+
+    const cedola = nominale * couponRate / 100;
+    document.getElementById('rCedola').textContent = cedola.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0});
+  }
+
+  // ─────────────────────────────────────────────
+  // EXPORT PDF (stampa browser)
+  // ─────────────────────────────────────────────
+  function exportPDF() {
+    const hdr = document.getElementById('printHeader');
+    const filters = [];
+    const search = document.getElementById('filterSearch').value;
+    if (search) filters.push(`Ricerca: "${search}"`);
+    if (document.getElementById('filterMonitor').value) filters.push(`Categoria: ${document.getElementById('filterMonitor').value}`);
+    if (showWatchlistOnly) filters.push('Solo Watchlist');
+    hdr.innerHTML = `
+      <strong>Monitor Obbligazioni Sovranazionali & Governativi</strong><br>
+      Data: ${new Date().toLocaleDateString('it-IT')} — ${filteredBonds.length} titoli${filters.length ? ' — Filtri: ' + filters.join(', ') : ''}
+    `;
+    window.print();
+  }
+
+  // Dopo il caricamento dati, popola select yield curve e ricarica portafoglio
+  const _origFetchData = fetchData;
+  fetchData = async function() {
+    await _origFetchData();
+    populateYCPaese();
+    loadPortfolioFromStorage();
+  };
 </script>
 </body>
 </html>
