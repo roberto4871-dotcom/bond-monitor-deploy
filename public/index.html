@@ -310,8 +310,18 @@
     }
     .star-btn:hover { color: var(--amber); }
     .star-btn.starred { color: var(--amber); }
+    /* Multi-watchlist */
+    .wl-cell { display: flex; gap: 2px; align-items: center; }
+    .wl-star { background: none; border: none; cursor: pointer; font-size: 14px; padding: 1px 3px; line-height: 1; opacity: 0.15; transition: opacity 0.15s; }
+    .wl-star:hover { opacity: 0.65; }
+    .wl-star.in-list { opacity: 1; }
+    .wl-star.c1 { color: #fbbf24; }
+    .wl-star.c2 { color: #3b82f6; }
+    .wl-star.c3 { color: #22c55e; }
     .btn-watchlist { background: var(--bg3); border: 1px solid var(--border); color: var(--text2); }
-    .btn-watchlist.active { background: rgba(251,191,36,0.15); border-color: var(--amber); color: var(--amber); }
+    .btn-wl1.active { background: rgba(251,191,36,0.15); border-color: #fbbf24; color: #fbbf24; }
+    .btn-wl2.active { background: rgba(59,130,246,0.15); border-color: #3b82f6; color: #3b82f6; }
+    .btn-wl3.active { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
 
     /* SOTTO LA PARI */
     tbody tr.under-par { border-left: 3px solid var(--teal); }
@@ -581,7 +591,9 @@
     <div class="table-toolbar">
       <div class="results-count" id="resultsCount">—</div>
       <div class="table-actions">
-        <button class="btn btn-watchlist print-hide" id="btnWatchlist" onclick="toggleWatchlistFilter()">★ Watchlist</button>
+        <button class="btn btn-watchlist btn-wl1 print-hide" id="btnWatchlist1" onclick="toggleWatchlistFilter(1)" ondblclick="renameWatchlist(1,event)" title="Doppio clic per rinominare">★ <span id="wlName1">Lista 1</span></button>
+        <button class="btn btn-watchlist btn-wl2 print-hide" id="btnWatchlist2" onclick="toggleWatchlistFilter(2)" ondblclick="renameWatchlist(2,event)" title="Doppio clic per rinominare">★ <span id="wlName2">Lista 2</span></button>
+        <button class="btn btn-watchlist btn-wl3 print-hide" id="btnWatchlist3" onclick="toggleWatchlistFilter(3)" ondblclick="renameWatchlist(3,event)" title="Doppio clic per rinominare">★ <span id="wlName3">Lista 3</span></button>
         <select id="pageSize" onchange="changePageSize()" style="width:auto;padding:5px 8px;">
           <option value="50">50 per pagina</option>
           <option value="100">100 per pagina</option>
@@ -634,7 +646,7 @@
       <table id="bondsTable">
         <thead>
           <tr>
-            <th class="print-hide" style="width:32px;"></th>
+            <th class="print-hide" style="width:72px;"></th>
             <th onclick="sortBy('isin')" title="Codice ISIN">ISIN <span class="sort-icon" id="sort-isin"></span></th>
             <th onclick="sortBy('descrizione')" title="Descrizione">Descrizione <span class="sort-icon" id="sort-descrizione"></span></th>
             <th onclick="sortBy('emittente')" title="Emittente">Emittente <span class="sort-icon" id="sort-emittente"></span></th>
@@ -1103,11 +1115,17 @@
 
       const divisaClass = {EUR:'divisa-eur',USD:'divisa-usd',GBP:'divisa-gbp',TRY:'divisa-try'}[b.divisa] || 'divisa-other';
       const underPar = b.prezzo !== null && b.prezzo < 100 ? 'under-par' : '';
-      const starred = watchlist.has(b.isin) ? 'starred' : '';
+      const w1 = watchlists[1].has(b.isin) ? 'in-list' : '';
+      const w2 = watchlists[2].has(b.isin) ? 'in-list' : '';
+      const w3 = watchlists[3].has(b.isin) ? 'in-list' : '';
 
       return `<tr data-idx="${start + i}" class="${underPar}" title="Clicca per vedere il grafico storico">
         <td class="print-hide" onclick="event.stopPropagation()">
-          <button class="star-btn ${starred}" onclick="toggleStar('${b.isin}',this)" title="Aggiungi a watchlist">★</button>
+          <div class="wl-cell">
+            <button class="wl-star c1 ${w1}" onclick="toggleWl(1,'${b.isin}',this)" title="${escHtml(wlNames[1])}">★</button>
+            <button class="wl-star c2 ${w2}" onclick="toggleWl(2,'${b.isin}',this)" title="${escHtml(wlNames[2])}">★</button>
+            <button class="wl-star c3 ${w3}" onclick="toggleWl(3,'${b.isin}',this)" title="${escHtml(wlNames[3])}">★</button>
+          </div>
         </td>
         <td class="isin-cell" onclick="openChartByIdx(this.parentElement)">${b.isin}</td>
         <td class="desc-cell" title="${escHtml(b.descrizione)}" onclick="openChartByIdx(this.parentElement)">${escHtml(b.descrizione)}</td>
@@ -1250,6 +1268,7 @@
     sortBy('yield');
     populateYCPaese();
     loadPortfolioFromStorage();
+    applyWlNames();
   });
 
   // Polling ogni 5 minuti per verificare aggiornamenti
@@ -1514,36 +1533,50 @@
   // ─────────────────────────────────────────────
   // WATCHLIST
   // ─────────────────────────────────────────────
-  let watchlist = new Set(JSON.parse(localStorage.getItem('bond_watchlist') || '[]'));
-  let showWatchlistOnly = false;
+  // Migrazione da vecchia watchlist singola
+  const _oldWl = JSON.parse(localStorage.getItem('bond_watchlist') || '[]');
+  const _wlData = JSON.parse(localStorage.getItem('bond_watchlists') || 'null') || {1:_oldWl,2:[],3:[]};
+  const watchlists = { 1: new Set(_wlData[1]||[]), 2: new Set(_wlData[2]||[]), 3: new Set(_wlData[3]||[]) };
+  const wlNames = JSON.parse(localStorage.getItem('bond_watchlist_names') || '{"1":"Lista 1","2":"Lista 2","3":"Lista 3"}');
+  let activeWlFilters = new Set();
 
-  function saveWatchlist() {
-    localStorage.setItem('bond_watchlist', JSON.stringify([...watchlist]));
+  function saveWatchlists() {
+    localStorage.setItem('bond_watchlists', JSON.stringify({1:[...watchlists[1]],2:[...watchlists[2]],3:[...watchlists[3]]}));
   }
 
-  function toggleStar(isin, btn) {
-    if (watchlist.has(isin)) {
-      watchlist.delete(isin);
-      btn.classList.remove('starred');
-    } else {
-      watchlist.add(isin);
-      btn.classList.add('starred');
-    }
-    saveWatchlist();
+  function saveWlNames() {
+    localStorage.setItem('bond_watchlist_names', JSON.stringify(wlNames));
   }
 
-  function toggleWatchlistFilter() {
-    showWatchlistOnly = !showWatchlistOnly;
-    document.getElementById('btnWatchlist').classList.toggle('active', showWatchlistOnly);
+  function applyWlNames() {
+    [1,2,3].forEach(n => { const el = document.getElementById('wlName'+n); if(el) el.textContent = wlNames[n]; });
+  }
+
+  function toggleWl(num, isin, btn) {
+    if (watchlists[num].has(isin)) { watchlists[num].delete(isin); btn.classList.remove('in-list'); }
+    else { watchlists[num].add(isin); btn.classList.add('in-list'); }
+    saveWatchlists();
+  }
+
+  function toggleWatchlistFilter(num) {
+    if (activeWlFilters.has(num)) activeWlFilters.delete(num);
+    else activeWlFilters.add(num);
+    [1,2,3].forEach(n => document.getElementById('btnWatchlist'+n).classList.toggle('active', activeWlFilters.has(n)));
     applyFilters();
+  }
+
+  function renameWatchlist(num, evt) {
+    evt.stopPropagation();
+    const newName = prompt('Rinomina watchlist:', wlNames[num]);
+    if (newName && newName.trim()) { wlNames[num] = newName.trim(); saveWlNames(); applyWlNames(); }
   }
 
   // Aggiungi filtro watchlist in applyFilters
   const _origApplyFilters = applyFilters;
   applyFilters = function() {
     _origApplyFilters();
-    if (showWatchlistOnly) {
-      filteredBonds = filteredBonds.filter(b => watchlist.has(b.isin));
+    if (activeWlFilters.size > 0) {
+      filteredBonds = filteredBonds.filter(b => [...activeWlFilters].some(n => watchlists[n].has(b.isin)));
       sortBonds();
       currentPage = 1;
       renderTable();
@@ -1861,7 +1894,7 @@
     const search = document.getElementById('filterSearch').value;
     if (search) filters.push(`Ricerca: "${search}"`);
     if (document.getElementById('filterMonitor').value) filters.push(`Categoria: ${document.getElementById('filterMonitor').value}`);
-    if (showWatchlistOnly) filters.push('Solo Watchlist');
+    if (activeWlFilters.size > 0) filters.push('Solo ' + [...activeWlFilters].map(n => wlNames[n]).join('/'));
     hdr.innerHTML = `
       <strong>Monitor Obbligazioni Sovranazionali & Governativi</strong><br>
       Data: ${new Date().toLocaleDateString('it-IT')} — ${filteredBonds.length} titoli${filters.length ? ' — Filtri: ' + filters.join(', ') : ''}
