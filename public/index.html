@@ -323,6 +323,14 @@
     .btn-wl2.active { background: rgba(59,130,246,0.15); border-color: #3b82f6; color: #3b82f6; }
     .btn-wl3.active { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
 
+    /* YIELD NETTO */
+    .yield-netto-cell { color: var(--teal); font-size: 12px; }
+
+    /* MATURITY LADDER */
+    .ladder-panel { display:none; flex-direction:column; flex:1; overflow:auto; padding:20px; background:var(--bg); }
+    .ladder-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+    .ladder-canvas-wrap { flex:1; position:relative; min-height:340px; }
+
     /* SOTTO LA PARI */
     tbody tr.under-par { border-left: 3px solid var(--teal); }
     tbody tr.under-par td:first-child { padding-left: 9px; }
@@ -495,6 +503,14 @@
     <div class="stat-label">Valute</div>
     <div class="stat-value" id="statCurrencies">—</div>
   </div>
+  <div class="stat-card">
+    <div class="stat-label">Duration media</div>
+    <div class="stat-value" style="color:var(--teal)" id="statAvgDur">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Sotto la pari</div>
+    <div class="stat-value" style="color:var(--teal)" id="statUnderPar">—</div>
+  </div>
 </div>
 
 <div class="layout">
@@ -577,6 +593,7 @@
   <div class="tab-bar" style="display:flex;gap:2px;padding:8px 16px 0;background:var(--bg2);border-bottom:1px solid var(--border);">
     <button class="tab-btn active" id="tab-table"     onclick="switchPanel('table')">📋 Tabella</button>
     <button class="tab-btn"        id="tab-yieldcurve" onclick="switchPanel('yieldcurve')">📈 Yield Curve</button>
+    <button class="tab-btn"        id="tab-ladder"     onclick="switchPanel('ladder')">📊 Maturity Ladder</button>
     <button class="tab-btn"        id="tab-portfolio"  onclick="switchPanel('portfolio')">💼 Portafoglio</button>
   </div>
 
@@ -619,6 +636,28 @@
       </div>
     </div>
 
+    <!-- MATURITY LADDER PANEL -->
+    <div class="ladder-panel" id="panelLadder">
+      <div class="panel-header" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span>📊 Maturity Ladder — scadenze per anno</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label style="font-size:12px;color:var(--text2);">Visualizza:</label>
+          <select id="ladderMode" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+            <option value="count">N° titoli</option>
+            <option value="yield">Yield medio %</option>
+          </select>
+          <label style="font-size:12px;color:var(--text2);">Dati:</label>
+          <select id="ladderScope" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+            <option value="filtered">Filtrati</option>
+            <option value="all">Tutti</option>
+          </select>
+        </div>
+      </div>
+      <div class="ladder-canvas-wrap">
+        <canvas id="ladderChart"></canvas>
+      </div>
+    </div>
+
     <!-- PORTFOLIO PANEL -->
     <div class="extra-panel" id="panelPortfolio">
       <div class="panel-header" style="justify-content:space-between;">
@@ -654,7 +693,8 @@
             <th onclick="sortBy('scadenza')" title="Data scadenza">Scadenza <span class="sort-icon" id="sort-scadenza"></span></th>
             <th onclick="sortBy('giorni')" title="Giorni alla scadenza">Giorni <span class="sort-icon" id="sort-giorni"></span></th>
             <th onclick="sortBy('prezzo')" title="Prezzo di riferimento">Prezzo <span class="sort-icon" id="sort-prezzo"></span></th>
-            <th onclick="sortBy('yield')" title="Rendimento">Yield % <span class="sort-icon" id="sort-yield"></span></th>
+            <th onclick="sortBy('yield')" title="Rendimento lordo">Yield % <span class="sort-icon" id="sort-yield"></span></th>
+            <th onclick="sortBy('yieldNetto')" title="Rendimento netto (12,5% tassazione titoli di stato)">Netto <span class="sort-icon" id="sort-yieldNetto"></span></th>
             <th onclick="sortBy('duration')" title="Duration modificata">Duration <span class="sort-icon" id="sort-duration"></span></th>
             <th onclick="sortBy('zSpread')" title="Z-Spread">Z-Spread <span class="sort-icon" id="sort-zSpread"></span></th>
             <th onclick="sortBy('monitor')" title="Categoria">Categoria <span class="sort-icon" id="sort-monitor"></span></th>
@@ -1048,7 +1088,8 @@
 
   function sortBonds() {
     filteredBonds.sort((a, b) => {
-      let av = a[sortField], bv = b[sortField];
+      let av = sortField === 'yieldNetto' ? (a.yield !== null ? a.yield * 0.875 : null) : a[sortField];
+      let bv = sortField === 'yieldNetto' ? (b.yield !== null ? b.yield * 0.875 : null) : b[sortField];
       // Null values go to end
       if (av === null || av === undefined) return 1;
       if (bv === null || bv === undefined) return -1;
@@ -1135,6 +1176,7 @@
         <td class="${giorniClass}" onclick="openChartByIdx(this.parentElement)">${giorniDisplay}</td>
         <td onclick="openChartByIdx(this.parentElement)">${prezzoVal}</td>
         <td class="yield-cell ${yieldClass}" onclick="openChartByIdx(this.parentElement)">${yieldVal}</td>
+        <td class="yield-netto-cell" onclick="openChartByIdx(this.parentElement)">${b.yield !== null ? (b.yield * 0.875).toFixed(2) + '%' : '—'}</td>
         <td onclick="openChartByIdx(this.parentElement)">${durVal}</td>
         <td onclick="openChartByIdx(this.parentElement)">${zVal}</td>
         <td onclick="openChartByIdx(this.parentElement)"><span class="monitor-badge">${escHtml(b.monitor)}</span></td>
@@ -1226,6 +1268,23 @@
 
     const currencies = new Set(filteredBonds.map(b => b.divisa).filter(Boolean));
     document.getElementById('statCurrencies').textContent = currencies.size;
+
+    const withDur = filteredBonds.filter(b => b.duration !== null);
+    if (withDur.length > 0) {
+      const avgDur = withDur.reduce((s,b) => s + b.duration, 0) / withDur.length;
+      document.getElementById('statAvgDur').textContent = avgDur.toFixed(1);
+    } else {
+      document.getElementById('statAvgDur').textContent = '—';
+    }
+
+    const withPrice = filteredBonds.filter(b => b.prezzo !== null);
+    if (withPrice.length > 0) {
+      const underPar = withPrice.filter(b => b.prezzo < 100).length;
+      document.getElementById('statUnderPar').textContent =
+        underPar + ' (' + Math.round(underPar / withPrice.length * 100) + '%)';
+    } else {
+      document.getElementById('statUnderPar').textContent = '—';
+    }
   }
 
   // ─────────────────────────────────────────────
@@ -1508,14 +1567,16 @@
   function switchPanel(panel) {
     document.getElementById('panelTable').style.display      = panel === 'table'      ? '' : 'none';
     document.getElementById('panelYieldCurve').style.display = panel === 'yieldcurve' ? 'flex' : 'none';
+    document.getElementById('panelLadder').style.display     = panel === 'ladder'     ? 'flex' : 'none';
     document.getElementById('panelPortfolio').style.display  = panel === 'portfolio'  ? 'flex' : 'none';
     // toolbar visibile solo su tabella
     document.querySelector('.table-toolbar').style.display   = panel === 'table'      ? '' : 'none';
     document.querySelector('.pagination').style.display      = panel === 'table'      ? '' : 'none';
-    ['table','yieldcurve','portfolio'].forEach(t => {
+    ['table','yieldcurve','ladder','portfolio'].forEach(t => {
       document.getElementById('tab-' + t).classList.toggle('active', t === panel);
     });
     if (panel === 'yieldcurve') renderYieldCurve();
+    if (panel === 'ladder')     renderLadder();
     if (panel === 'portfolio')  renderPortfolio();
   }
 
@@ -1529,6 +1590,91 @@
     .tab-btn.active { background:var(--bg3); color:var(--blue); border-bottom:2px solid var(--blue); }
   `;
   document.head.appendChild(tabStyle);
+
+  // ─────────────────────────────────────────────
+  // MATURITY LADDER
+  // ─────────────────────────────────────────────
+  let ladderChart = null;
+
+  function renderLadder() {
+    const mode  = document.getElementById('ladderMode').value;
+    const scope = document.getElementById('ladderScope').value;
+    const bonds = (scope === 'all' ? allBonds : filteredBonds).filter(b => b.scadenza);
+
+    // Raggruppa per anno
+    const byYear = {};
+    bonds.forEach(b => {
+      const yr = new Date(b.scadenza).getFullYear();
+      if (!byYear[yr]) byYear[yr] = { count: 0, yields: [] };
+      byYear[yr].count++;
+      if (b.yield !== null) byYear[yr].yields.push(b.yield);
+    });
+
+    const sortedYears = Object.keys(byYear).map(Number).sort((a,b) => a-b);
+    const labels = sortedYears.map(String);
+    const data = sortedYears.map(yr => {
+      if (mode === 'count') return byYear[yr].count;
+      const ys = byYear[yr].yields;
+      return ys.length ? +(ys.reduce((s,v) => s+v,0) / ys.length).toFixed(2) : 0;
+    });
+
+    const currentYear = new Date().getFullYear();
+    const colors = sortedYears.map(yr =>
+      yr < currentYear ? 'rgba(156,163,175,0.4)' :
+      yr <= currentYear + 2 ? 'rgba(251,191,36,0.7)' :
+      yr <= currentYear + 5 ? 'rgba(59,130,246,0.7)' :
+      'rgba(34,197,94,0.7)'
+    );
+
+    const ctx = document.getElementById('ladderChart').getContext('2d');
+    if (ladderChart) ladderChart.destroy();
+    ladderChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: mode === 'count' ? 'N° titoli' : 'Yield medio %',
+          data,
+          backgroundColor: colors,
+          borderColor: colors.map(c => c.replace('0.7','1').replace('0.4','0.6')),
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: ctx => 'Anno ' + ctx[0].label,
+              label: ctx => mode === 'count'
+                ? ctx.parsed.y + ' titoli'
+                : 'Yield medio: ' + ctx.parsed.y.toFixed(2) + '%'
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: {
+            ticks: { color: '#8b949e', callback: v => mode === 'count' ? v : v + '%' },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            beginAtZero: true
+          }
+        },
+        onClick: (evt, els) => {
+          if (!els.length) return;
+          const yr = sortedYears[els[0].index];
+          // Imposta filtro scadenza sull'anno cliccato
+          const from = yr + '-01-01', to = yr + '-12-31';
+          document.getElementById('filterMatFrom').value = from;
+          document.getElementById('filterMatTo').value   = to;
+          applyFilters();
+          switchPanel('table');
+        }
+      }
+    });
+  }
 
   // ─────────────────────────────────────────────
   // WATCHLIST
