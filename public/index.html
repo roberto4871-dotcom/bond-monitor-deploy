@@ -775,8 +775,8 @@
           <span id="etfCount" style="font-size:12px;color:var(--text2);"></span>
         </div>
         <div id="etfLoadingBanner" style="display:none;align-items:center;gap:8px;font-size:12px;color:var(--amber);background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:6px;padding:6px 12px;">
-          <span style="animation:spin 1.2s linear infinite;display:inline-block;">⏳</span>
-          Prezzi in caricamento dal mercato — la tabella si aggiorna automaticamente tra ~2 minuti
+          <span style="animation:spin 1.2s linear infinite;display:inline-block;flex-shrink:0;">⏳</span>
+          <span id="etfLoadingBannerText">Prezzi in caricamento dal mercato — la tabella si aggiorna automaticamente tra ~2 minuti</span>
         </div>
       </div>
       <div style="overflow-x:auto;flex:1;">
@@ -2012,15 +2012,15 @@
       }
 
       // Banner adattivo: prezzi / rendimenti / nascosto
-      const banner = document.getElementById('etfLoadingBanner');
+      const banner  = document.getElementById('etfLoadingBanner');
+      const bannerTxt = document.getElementById('etfLoadingBannerText');
       if (banner) {
-        const txt = banner.querySelector('span:last-child');
         if (isLoading) {
           banner.style.display = 'flex';
-          if (txt) txt.textContent = 'Prezzi in caricamento dal mercato — la tabella si aggiorna automaticamente tra ~2 minuti';
+          if (bannerTxt) bannerTxt.textContent = 'Prezzi in caricamento dal mercato — la tabella si aggiorna automaticamente tra ~2 minuti';
         } else if (yldLoading) {
           banner.style.display = 'flex';
-          if (txt) txt.textContent = 'Rendimenti in caricamento — la colonna Rend.% si aggiorna tra ~3 minuti';
+          if (bannerTxt) bannerTxt.textContent = 'Rendimenti in caricamento — la colonna Rend.% si aggiorna tra ~3 minuti';
         } else {
           banner.style.display = 'none';
         }
