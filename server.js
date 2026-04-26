@@ -866,9 +866,9 @@ async function refreshETFYieldsBackground() {
         const sym = etfPriceData[etf.isin]?.symbol;
         if (!sym) return;
         try {
-          const qs = await yahooFinance.quoteSummary(sym, { modules: ['summaryDetail'] }, { validateResult: false });
-          const yld = qs?.summaryDetail?.yield;
-          if (yld != null) {
+          const qs = await yahooFinance.quoteSummary(sym, { modules: ['price', 'summaryDetail'] }, { validateResult: false });
+          const yld = qs?.price?.trailingAnnualDividendYield ?? qs?.summaryDetail?.yield;
+          if (yld != null && yld > 0) {
             etfPriceData[etf.isin].yld = +(yld * 100).toFixed(2);
             found++;
             console.log(`  [Yield] ${sym}: ${etfPriceData[etf.isin].yld}%`);
@@ -935,7 +935,7 @@ app.get('/api/etf/debug', async (req, res) => {
   res.json(out);
 });
 
-// Dettaglio singolo ETF: quoteSummary con yield, AUM, inception date, holdings
+// Dettaglio singolo ETF: quoteSummary con tutti i moduli disponibili
 app.get('/api/etf/:isin', async (req, res) => {
   const isin = req.params.isin.toUpperCase();
   const etf  = ETF_LIST.find(e => e.isin === isin);
@@ -948,21 +948,65 @@ app.get('/api/etf/:isin', async (req, res) => {
   if (sym) {
     try {
       const qs = await yahooFinance.quoteSummary(sym, {
-        modules: ['summaryDetail', 'defaultKeyStatistics', 'topHoldings'],
+        modules: ['price', 'summaryDetail', 'defaultKeyStatistics', 'topHoldings', 'assetProfile', 'fundProfile'],
       }, { validateResult: false });
 
-      const sd = qs?.summaryDetail;
-      if (sd) {
-        if (sd.yield       != null) detail.distYield   = +(sd.yield * 100).toFixed(2);
-        if (sd.totalAssets != null) detail.totalAssets = sd.totalAssets;
-        if (sd.beta        != null) detail.beta        = +sd.beta.toFixed(2);
-      }
+      const pr  = qs?.price;
+      const sd  = qs?.summaryDetail;
       const dks = qs?.defaultKeyStatistics;
-      if (dks?.fundInceptionDate != null) detail.fundInceptionDate = dks.fundInceptionDate;
+      const th  = qs?.topHoldings;
+      const ap  = qs?.assetProfile;
+      const fp  = qs?.fundProfile;
 
-      const th = qs?.topHoldings;
-      if (th?.holdings?.length)  detail.holdings    = th.holdings.slice(0, 8);
-      if (th?.bondRatings?.length) detail.bondRatings = th.bondRatings;
+      // Yield: price.trailingAnnualDividendYield è il più affidabile per ETF
+      const yld = pr?.trailingAnnualDividendYield ?? sd?.yield ?? dks?.trailingAnnualDividendYield;
+      if (yld != null && yld > 0) detail.distYield = +(yld * 100).toFixed(2);
+
+      // AUM e dati di mercato
+      if (sd?.totalAssets != null) detail.totalAssets = sd.totalAssets;
+      if (sd?.beta        != null) detail.beta        = +sd.beta.toFixed(2);
+      if (pr?.volume      != null) detail.volume      = pr.volume;
+      if (pr?.regularMarketVolume != null && detail.volume == null) detail.volume = pr.regularMarketVolume;
+
+      // Inception date
+      const inceptRaw = dks?.fundInceptionDate ?? fp?.inceptionDate;
+      if (inceptRaw != null) detail.fundInceptionDate = inceptRaw;
+
+      // Fund family / provider
+      const family = fp?.fundFamily ?? dks?.fundFamily ?? pr?.quoteType;
+      if (family && typeof family === 'string') detail.fundFamily = family;
+
+      // Description
+      if (ap?.longBusinessSummary) detail.description = ap.longBusinessSummary;
+      if (fp?.categoryName) detail.categoryName = fp.categoryName;
+
+      // Holdings (top 10)
+      if (th?.holdings?.length) detail.holdings = th.holdings.slice(0, 10);
+
+      // Bond-specific: effective duration, average maturity
+      const bh = th?.bondHolding;
+      if (bh) {
+        if (bh.duration != null) detail.effectiveDuration = +bh.duration.toFixed(2);
+        if (bh.maturity != null) detail.avgMaturity       = +bh.maturity.toFixed(2);
+        if (bh.creditQuality != null) detail.creditQuality = bh.creditQuality;
+      }
+
+      // Bond Ratings — Yahoo v3 restituisce [{aaa:0.30}, {aa:0.11}, ...]
+      // Normalizziamo in [{label:'AAA', value:0.30}, ...]
+      if (th?.bondRatings?.length) {
+        const RATING_MAP = {
+          'aaa':'AAA','aa':'AA','a':'A','bbb':'BBB','bb':'BB','b':'B',
+          'below_b':'Below B','us_government':'US Gov','other':'Altro',
+        };
+        detail.bondRatings = th.bondRatings
+          .map(r => {
+            const key = Object.keys(r)[0];
+            const val = r[key];
+            return { label: RATING_MAP[key] || key.toUpperCase(), value: val };
+          })
+          .filter(r => r.value > 0.001);
+      }
+
     } catch (e) {
       console.log(`[ETF detail] quoteSummary ${sym}: ${e.message}`);
     }

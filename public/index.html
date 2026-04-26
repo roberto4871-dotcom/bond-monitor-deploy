@@ -364,39 +364,69 @@
     .projection-section { margin-top:20px; padding:0 4px; }
     .projection-canvas-wrap { position:relative; height:220px; }
 
-    /* ETF DETAIL MODAL */
+    /* ETF DETAIL MODAL — Professional */
     .etf-detail-overlay {
-      position:fixed;inset:0;background:rgba(0,0,0,0.78);
-      display:none;align-items:center;justify-content:center;z-index:300;padding:16px;
+      position:fixed;inset:0;background:rgba(0,0,0,0.82);
+      display:none;align-items:center;justify-content:center;z-index:300;padding:12px;
     }
     .etf-detail-overlay.show { display:flex; }
     .etf-detail-panel {
       background:var(--bg2);border:1px solid var(--border);border-radius:16px;
-      width:min(96vw,860px);max-height:92vh;overflow-y:auto;
-      display:flex;flex-direction:column;
+      width:min(98vw,980px);max-height:96vh;overflow-y:auto;
+      display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,0.7);
     }
+    /* Sticky header */
     .etf-d-header {
-      padding:22px 24px 16px;border-bottom:1px solid var(--border);
+      padding:18px 24px 14px;border-bottom:1px solid var(--border);
       display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
-      position:sticky;top:0;background:var(--bg2);z-index:1;border-radius:16px 16px 0 0;
+      position:sticky;top:0;background:var(--bg2);z-index:5;border-radius:16px 16px 0 0;
     }
+    /* Provider badge */
+    .etf-provider-badge {
+      display:inline-block;padding:2px 8px;border-radius:4px;
+      background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);
+      color:var(--blue);font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
+    }
+    /* Performance strip */
+    .etf-perf-strip { display:flex;gap:1px;background:var(--border);border-bottom:1px solid var(--border); }
+    .etf-perf-cell { flex:1;background:var(--bg3);padding:8px 6px;text-align:center;min-width:0; }
+    .etf-perf-label { font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text2);margin-bottom:3px; }
+    .etf-perf-val { font-size:12px;font-weight:700;white-space:nowrap; }
+    /* KPI grid 4×2 */
     .etf-d-kpi-row {
       display:grid;grid-template-columns:repeat(4,1fr);
       background:var(--border);gap:1px;border-bottom:1px solid var(--border);
     }
     @media(max-width:600px){ .etf-d-kpi-row{grid-template-columns:repeat(2,1fr);} }
-    .etf-d-kpi { background:var(--bg2);padding:14px 18px; }
-    .etf-d-kpi-label { font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text2);margin-bottom:5px; }
-    .etf-d-kpi-value { font-size:20px;font-weight:700; }
-    .etf-d-chart { padding:20px 24px; }
-    .etf-d-section { padding:0 24px 20px; }
-    .etf-d-section-title { font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.9px;margin-bottom:10px; }
-    .etf-d-footer { padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap; }
-    .etf-d-btn-primary { padding:9px 18px;background:var(--blue);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:12px;font-weight:600; }
-    .etf-d-btn-secondary { padding:9px 18px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px; }
-    .etf-d-rating-bar { display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:6px; }
-    .etf-d-holdings-row { display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px; }
-    .etf-d-holdings-row:last-child { border-bottom:none; }
+    .etf-d-kpi { background:var(--bg2);padding:12px 16px; }
+    .etf-d-kpi-label { font-size:9px;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:4px; }
+    .etf-d-kpi-value { font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    /* Chart area */
+    .etf-d-chart { padding:14px 24px; }
+    /* Description */
+    .etf-d-desc { padding:0 24px 14px; }
+    .etf-d-desc-title { font-size:9px;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);font-weight:600;margin-bottom:5px; }
+    .etf-d-desc-text { font-size:12px;color:var(--text2);line-height:1.65;max-height:72px;overflow:hidden;transition:max-height 0.3s; }
+    .etf-d-desc-text.expanded { max-height:none; }
+    /* Bottom two-column */
+    .etf-d-bottom { padding:0 24px 20px;display:grid;grid-template-columns:1fr 1fr;gap:28px; }
+    @media(max-width:660px){ .etf-d-bottom{grid-template-columns:1fr;} }
+    .etf-d-section-title { font-size:9px;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);font-weight:600;margin-bottom:8px; }
+    /* Rating bar */
+    .etf-d-rating-bar { display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0 8px; }
+    .etf-d-rating-legend { display:flex;flex-wrap:wrap;gap:6px; }
+    /* Holdings */
+    .etf-holding-row {
+      display:flex;justify-content:space-between;align-items:center;
+      padding:5px 0;border-bottom:1px solid rgba(42,51,71,0.6);gap:8px;
+    }
+    .etf-holding-row:last-child { border-bottom:none; }
+    .etf-holding-bar-wrap { width:72px;height:4px;background:var(--bg3);border-radius:2px;flex-shrink:0; }
+    .etf-holding-bar { height:100%;border-radius:2px;background:var(--blue); }
+    /* Footer */
+    .etf-d-footer { padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
+    .etf-d-btn-primary { padding:8px 16px;background:var(--blue);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:12px;font-weight:600;text-decoration:none; }
+    .etf-d-btn-secondary { padding:8px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px;text-decoration:none; }
 
     /* SOTTO LA PARI */
     tbody tr.under-par { border-left: 3px solid var(--teal); }
@@ -952,68 +982,137 @@
   </div>
 </div>
 
-<!-- ETF DETAIL MODAL -->
+<!-- ETF DETAIL MODAL — Professional -->
 <div class="etf-detail-overlay" id="etfDetailModal" onclick="if(event.target===this)closeETFDetail()">
   <div class="etf-detail-panel">
+
+    <!-- ── Sticky Header ── -->
     <div class="etf-d-header">
       <div style="flex:1;min-width:0;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-          <span id="edTicker" style="font-family:monospace;font-size:16px;font-weight:700;color:var(--blue)"></span>
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap;">
+          <span id="edProviderBadge" class="etf-provider-badge" style="display:none;"></span>
           <span id="edCat" class="cat-badge"></span>
-          <span id="edIsin" style="font-size:11px;color:var(--text2);font-family:monospace"></span>
+          <span id="edIsin" style="font-size:11px;color:var(--text2);font-family:monospace;"></span>
+          <span id="edTicker" style="font-size:11px;color:var(--text2);font-family:monospace;"></span>
         </div>
-        <div id="edName" style="font-size:18px;font-weight:700;line-height:1.25;margin-bottom:10px;"></div>
-        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
-          <span id="edPrice" style="font-size:28px;font-weight:700;letter-spacing:-0.5px;"></span>
+        <div id="edName" style="font-size:20px;font-weight:700;line-height:1.2;margin-bottom:8px;"></div>
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+          <span id="edPrice" style="font-size:30px;font-weight:800;letter-spacing:-0.5px;font-variant-numeric:tabular-nums;"></span>
           <span id="edChange" style="font-size:14px;font-weight:600;"></span>
-          <span id="edYTD" style="font-size:12px;color:var(--text2);"></span>
+          <span id="edVolume" style="font-size:12px;color:var(--text2);"></span>
+          <span id="edYTD" style="font-size:12px;"></span>
         </div>
       </div>
-      <button onclick="closeETFDetail()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:4px 8px;line-height:1;flex-shrink:0;border-radius:6px;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">✕</button>
+      <button onclick="closeETFDetail()"
+        style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:4px 8px;line-height:1;flex-shrink:0;border-radius:6px;"
+        onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">✕</button>
     </div>
 
-    <!-- KPI Grid: 8 celle 4×2 -->
-    <div class="etf-d-kpi-row" id="edKpiGrid"></div>
+    <!-- ── Performance Strip ── -->
+    <div class="etf-perf-strip">
+      <div class="etf-perf-cell"><div class="etf-perf-label">1M</div><div class="etf-perf-val" id="eperf-1m">—</div></div>
+      <div class="etf-perf-cell"><div class="etf-perf-label">3M</div><div class="etf-perf-val" id="eperf-3m">—</div></div>
+      <div class="etf-perf-cell"><div class="etf-perf-label">6M</div><div class="etf-perf-val" id="eperf-6m">—</div></div>
+      <div class="etf-perf-cell"><div class="etf-perf-label">YTD</div><div class="etf-perf-val" id="eperf-ytd">—</div></div>
+      <div class="etf-perf-cell"><div class="etf-perf-label">1 Anno</div><div class="etf-perf-val" id="eperf-1y">—</div></div>
+      <div class="etf-perf-cell"><div class="etf-perf-label">3 Anni</div><div class="etf-perf-val" id="eperf-3y">—</div></div>
+      <div class="etf-perf-cell"><div class="etf-perf-label">5 Anni</div><div class="etf-perf-val" id="eperf-5y">—</div></div>
+    </div>
 
-    <!-- Grafico storico -->
+    <!-- ── KPI Grid 4×2 ── -->
+    <div class="etf-d-kpi-row">
+      <div class="etf-d-kpi">
+        <div class="etf-d-kpi-label">Rendimento dist.</div>
+        <div class="etf-d-kpi-value" id="edKpi_yld" style="color:var(--green);">⏳</div>
+      </div>
+      <div class="etf-d-kpi">
+        <div class="etf-d-kpi-label">Duration eff.</div>
+        <div class="etf-d-kpi-value" id="edKpi_dur" style="color:var(--teal);">—</div>
+      </div>
+      <div class="etf-d-kpi">
+        <div class="etf-d-kpi-label">Avg Maturity</div>
+        <div class="etf-d-kpi-value" id="edKpi_mat" style="color:var(--teal);">—</div>
+      </div>
+      <div class="etf-d-kpi">
+        <div class="etf-d-kpi-label">TER annuo</div>
+        <div class="etf-d-kpi-value" id="edKpi_ter" style="color:var(--amber);">—</div>
+      </div>
+      <div class="etf-d-kpi">
+        <div class="etf-d-kpi-label">AUM</div>
+        <div class="etf-d-kpi-value" id="edKpi_aum" style="color:var(--text);">⏳</div>
+      </div>
+      <div class="etf-d-kpi">
+        <div class="etf-d-kpi-label">52w Min → Max</div>
+        <div class="etf-d-kpi-value" id="edKpi_52w" style="color:var(--text);font-size:13px;">—</div>
+      </div>
+      <div class="etf-d-kpi">
+        <div class="etf-d-kpi-label">Inizio fondo</div>
+        <div class="etf-d-kpi-value" id="edKpi_incep" style="color:var(--text2);">⏳</div>
+      </div>
+      <div class="etf-d-kpi">
+        <div class="etf-d-kpi-label">Categoria</div>
+        <div class="etf-d-kpi-value" id="edKpi_cat" style="color:var(--purple);font-size:12px;">—</div>
+      </div>
+    </div>
+
+    <!-- ── Grafico storico ── -->
     <div class="etf-d-chart">
-      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
-        <button class="period-btn active" id="edpb-1y"  onclick="loadETFDetailChart('1y')">1 Anno</button>
-        <button class="period-btn"        id="edpb-2y"  onclick="loadETFDetailChart('2y')">2 Anni</button>
-        <button class="period-btn"        id="edpb-3y"  onclick="loadETFDetailChart('3y')">3 Anni</button>
-        <button class="period-btn"        id="edpb-5y"  onclick="loadETFDetailChart('5y')">5 Anni</button>
-        <button class="period-btn"        id="edpb-max" onclick="loadETFDetailChart('max')">Storico</button>
+      <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+        <button class="period-btn" id="edpb-ytd" onclick="loadETFDetailChart('ytd')">YTD</button>
+        <button class="period-btn active" id="edpb-1y" onclick="loadETFDetailChart('1y')">1 Anno</button>
+        <button class="period-btn" id="edpb-2y" onclick="loadETFDetailChart('2y')">2 Anni</button>
+        <button class="period-btn" id="edpb-3y" onclick="loadETFDetailChart('3y')">3 Anni</button>
+        <button class="period-btn" id="edpb-5y" onclick="loadETFDetailChart('5y')">5 Anni</button>
+        <button class="period-btn" id="edpb-max" onclick="loadETFDetailChart('max')">Storico</button>
         <span id="edChartSrc" style="font-size:10px;color:var(--text2);margin-left:auto;"></span>
       </div>
-      <div style="position:relative;height:220px;background:var(--bg3);border-radius:10px;overflow:hidden;">
+      <div style="position:relative;height:240px;background:var(--bg3);border-radius:10px;overflow:hidden;">
         <canvas id="etfDetailCanvas" style="width:100%;height:100%;"></canvas>
         <div id="etfDetailLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text2);font-size:13px;background:var(--bg3);">
-          <span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span> Caricamento grafico...
+          <span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span>&nbsp;Caricamento grafico...
         </div>
       </div>
     </div>
 
-    <!-- Holdings (se disponibili da Yahoo) -->
-    <div class="etf-d-section" id="edHoldingsSection" style="display:none;">
-      <div class="etf-d-section-title">Top Holdings</div>
-      <div id="edHoldingsBody"></div>
+    <!-- ── Descrizione (se disponibile) ── -->
+    <div id="edDescSection" style="display:none;" class="etf-d-desc">
+      <div class="etf-d-desc-title">Descrizione</div>
+      <div class="etf-d-desc-text" id="edDescText"></div>
+      <button id="edDescMore" onclick="expandETFDesc()"
+        style="display:none;font-size:11px;color:var(--blue);background:none;border:none;cursor:pointer;padding:4px 0 0;">Leggi tutto ▼</button>
     </div>
 
-    <!-- Bond Ratings (se disponibili) -->
-    <div class="etf-d-section" id="edRatingsSection" style="display:none;">
-      <div class="etf-d-section-title">Credit Quality</div>
-      <div id="edRatingsBody"></div>
+    <!-- ── Bottom: Credit Quality + Top Holdings ── -->
+    <div class="etf-d-bottom">
+
+      <!-- Credit Quality -->
+      <div id="edRatingsSection" style="display:none;">
+        <div class="etf-d-section-title">Credit Quality</div>
+        <div class="etf-d-rating-bar" id="edRatingsBar"></div>
+        <div class="etf-d-rating-legend" id="edRatingsLegend"></div>
+      </div>
+
+      <!-- Top Holdings -->
+      <div id="edHoldingsSection" style="display:none;">
+        <div class="etf-d-section-title">Top Holdings</div>
+        <div id="edHoldingsBody"></div>
+      </div>
+
     </div>
 
-    <!-- Footer link -->
+    <!-- ── Footer links ── -->
     <div class="etf-d-footer">
-      <a id="edLinkJustETF" href="#" target="_blank" rel="noopener" style="text-decoration:none;">
+      <a id="edLinkJustETF" href="#" target="_blank" rel="noopener">
         <button class="etf-d-btn-primary">📊 JustETF Factsheet</button>
       </a>
-      <a id="edLinkBorsa" href="#" target="_blank" rel="noopener" style="text-decoration:none;">
+      <a id="edLinkBorsa" href="#" target="_blank" rel="noopener">
         <button class="etf-d-btn-secondary">🏛 Borsa Italiana</button>
       </a>
+      <a id="edLinkYahoo" href="#" target="_blank" rel="noopener" style="margin-left:auto;">
+        <button class="etf-d-btn-secondary">🔗 Yahoo Finance</button>
+      </a>
     </div>
+
   </div>
 </div>
 
@@ -1759,6 +1858,7 @@
     if (e.key === 'Escape') {
       document.getElementById('chartModal').classList.remove('show');
       document.getElementById('calcModal').classList.remove('show');
+      closeETFDetail();
     }
   });
 
@@ -2006,188 +2106,312 @@
     }).join('') : `<tr><td colspan="14" style="text-align:center;padding:30px;color:var(--text2);">Nessun ETF corrisponde ai filtri</td></tr>`;
   }
 
-  // ─── ETF DETAIL MODAL ──────────────────────────────────────────────────────
+  // ─── ETF DETAIL MODAL — Professional ──────────────────────────────────────
   let etfDetailChartInst = null;
   let currentETFDetailIsin = null;
+  let currentETFCurrency = 'EUR';
+  let etfDetailAllPts = []; // cached max-range data for period computation
 
   function closeETFDetail() {
     document.getElementById('etfDetailModal').classList.remove('show');
     if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
+    etfDetailAllPts = [];
   }
 
   function openETFChart(isin) {
     const etf = allETFs.find(e => e.isin === isin);
     if (!etf) return;
-    currentETFDetailIsin = isin;
+    currentETFDetailIsin  = isin;
+    currentETFCurrency    = etf.currency || 'EUR';
+    etfDetailAllPts       = [];
 
-    // Header
-    document.getElementById('edTicker').textContent = etf.ticker || '—';
-    document.getElementById('edCat').textContent    = etf.cat    || '';
+    // ── Header ──
+    const badge = document.getElementById('edProviderBadge');
+    badge.textContent = ''; badge.style.display = 'none';
+    document.getElementById('edCat').textContent    = etf.cat || '';
     document.getElementById('edIsin').textContent   = isin;
+    document.getElementById('edTicker').textContent = etf.ticker ? '· ' + etf.ticker : '';
     document.getElementById('edName').textContent   = etf.name;
 
     const p = etf.price;
-    document.getElementById('edPrice').textContent = p != null ? p.toFixed(2) + ' ' + (etf.currency || 'EUR') : '—';
+    document.getElementById('edPrice').textContent =
+      p != null ? p.toFixed(2) + ' ' + currentETFCurrency : '—';
+
     const chgEl = document.getElementById('edChange');
     const ytdEl = document.getElementById('edYTD');
+    const volEl = document.getElementById('edVolume');
+    volEl.textContent = '';
     if (etf.changePercent != null) {
-      const sign = etf.changePercent >= 0;
-      chgEl.textContent = (sign ? '▲ +' : '▼ ') + etf.changePercent.toFixed(2) + '%';
-      chgEl.style.color = sign ? 'var(--green)' : 'var(--red)';
+      const up = etf.changePercent >= 0;
+      chgEl.textContent = (up ? '▲ +' : '▼ ') + etf.changePercent.toFixed(2) + '%';
+      chgEl.style.color = up ? 'var(--green)' : 'var(--red)';
     } else { chgEl.textContent = ''; }
     if (etf.ytdReturn != null) {
-      const ytdPct = etf.ytdReturn * 100;
-      ytdEl.textContent = 'YTD ' + (ytdPct >= 0 ? '+' : '') + ytdPct.toFixed(2) + '%';
-      ytdEl.style.color = ytdPct >= 0 ? 'var(--green)' : 'var(--red)';
+      const yp = etf.ytdReturn * 100;
+      ytdEl.textContent = 'YTD ' + (yp >= 0 ? '+' : '') + yp.toFixed(2) + '%';
+      ytdEl.style.color = yp >= 0 ? 'var(--green)' : 'var(--red)';
     } else { ytdEl.textContent = ''; }
 
-    // KPI Grid 4×2
-    const fmtN = (v, dec=2) => v != null ? v.toFixed(dec) : '—';
-    const kpis = [
-      { label:'Rendimento dist.',   value: etf.yld    != null ? etf.yld.toFixed(2)+'%' : '⏳', color:'var(--green)',  id:'edKpi_yld'    },
-      { label:'Duration est.',      value: fmtN(etf.dur,1),                                      color:'var(--teal)'                     },
-      { label:'TER annuo',          value: etf.ter   != null ? etf.ter.toFixed(2)+'%' : '—',    color:'var(--amber)'                    },
-      { label:'AUM',                value:'⏳',                                                   color:'var(--text)',  id:'edKpi_aum'    },
-      { label:'52w Min',            value: fmtN(etf.low52w),                                     color:'var(--red)'                      },
-      { label:'52w Max',            value: fmtN(etf.high52w),                                    color:'var(--green)'                    },
-      { label:'YTD',                value: etf.ytdReturn != null ? (etf.ytdReturn*100).toFixed(2)+'%' : '—', color: etf.ytdReturn >= 0 ? 'var(--green)' : 'var(--red)' },
-      { label:'Inizio fondo',       value:'⏳',                                                   color:'var(--text2)', id:'edKpi_incep'  },
-    ];
-    document.getElementById('edKpiGrid').innerHTML = kpis.map(k =>
-      `<div class="etf-d-kpi"${k.id ? ` id="${k.id}"` : ''}>
-        <div class="etf-d-kpi-label">${k.label}</div>
-        <div class="etf-d-kpi-value" style="color:${k.color}">${k.value}</div>
-      </div>`
-    ).join('');
+    // ── KPI — static data we already have ──
+    document.getElementById('edKpi_yld').textContent  = etf.yld != null ? etf.yld.toFixed(2) + '%' : '⏳';
+    document.getElementById('edKpi_dur').textContent  = etf.dur != null ? etf.dur.toFixed(1) + 'a' : '—';
+    document.getElementById('edKpi_mat').textContent  = '⏳';
+    document.getElementById('edKpi_ter').textContent  = etf.ter != null ? etf.ter.toFixed(2) + '%' : '—';
+    document.getElementById('edKpi_aum').textContent  = '⏳';
+    document.getElementById('edKpi_incep').textContent = '⏳';
+    document.getElementById('edKpi_cat').textContent  = etf.cat || '—';
+    const low52  = etf.low52w  != null ? etf.low52w.toFixed(2)  : '—';
+    const high52 = etf.high52w != null ? etf.high52w.toFixed(2) : '—';
+    document.getElementById('edKpi_52w').textContent = low52 + ' → ' + high52;
 
-    // Links
-    document.getElementById('edLinkJustETF').href = `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
-    document.getElementById('edLinkBorsa').href   = `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
+    // ── Performance strip — reset ──
+    ['1m','3m','6m','ytd','1y','3y','5y'].forEach(k => {
+      const el = document.getElementById('eperf-' + k);
+      if (el) { el.textContent = '—'; el.style.color = ''; }
+    });
 
-    // Reset sezioni opzionali
+    // ── Links ──
+    document.getElementById('edLinkJustETF').href =
+      `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
+    document.getElementById('edLinkBorsa').href =
+      `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
+    const sym = etf.symbol || '';
+    document.getElementById('edLinkYahoo').href =
+      sym ? `https://finance.yahoo.com/quote/${sym}` : `https://finance.yahoo.com/search/?query=${isin}`;
+
+    // ── Reset optional sections ──
+    document.getElementById('edDescSection').style.display    = 'none';
     document.getElementById('edHoldingsSection').style.display = 'none';
     document.getElementById('edRatingsSection').style.display  = 'none';
 
-    // Apri modal + carica grafico + dati dettaglio in parallelo
+    // ── Open + parallel load ──
     document.getElementById('etfDetailModal').classList.add('show');
-    loadETFDetailChart('1y');
-    fetchETFDetailData(isin, etf);
+    loadETFDetailChart('1y');       // fetches max range, computes perf strip, then renders
+    fetchETFDetailData(isin, etf);  // quoteSummary: yield, AUM, holdings, ratings, desc
   }
 
-  async function fetchETFDetailData(isin, etf) {
+  // ── fetchETFDetailData — populates KPIs from /api/etf/:isin ──
+  async function fetchETFDetailData(isin) {
     try {
       const res  = await fetch(`/api/etf/${isin}`);
       if (!res.ok) return;
-      const data = await res.json();
+      const d = await res.json();
 
-      // Aggiorna KPI con dati da quoteSummary
-      if (data.distYield != null) {
-        const el = document.getElementById('edKpi_yld');
-        if (el) { el.querySelector('.etf-d-kpi-value').textContent = data.distYield.toFixed(2) + '%'; el.querySelector('.etf-d-kpi-label').textContent = 'Rend. dist. (30d)'; }
-      }
-      if (data.totalAssets != null) {
-        const el = document.getElementById('edKpi_aum');
-        if (el) {
-          const v = data.totalAssets >= 1e9 ? (data.totalAssets/1e9).toFixed(1)+'B' : (data.totalAssets/1e6).toFixed(0)+'M';
-          el.querySelector('.etf-d-kpi-value').textContent = '€' + v;
-        }
-      } else {
-        const el = document.getElementById('edKpi_aum'); if (el) el.querySelector('.etf-d-kpi-value').textContent = '—';
-      }
-      if (data.fundInceptionDate != null) {
-        const el = document.getElementById('edKpi_incep');
-        if (el) { const yr = new Date(data.fundInceptionDate * 1000).getFullYear(); el.querySelector('.etf-d-kpi-value').textContent = yr; }
-      } else {
-        const el = document.getElementById('edKpi_incep'); if (el) el.querySelector('.etf-d-kpi-value').textContent = '—';
+      // Provider badge
+      if (d.fundFamily) {
+        const b = document.getElementById('edProviderBadge');
+        b.textContent = d.fundFamily; b.style.display = 'inline-block';
       }
 
-      // Holdings
-      if (data.holdings?.length) {
+      // Yield
+      if (d.distYield != null) {
+        document.getElementById('edKpi_yld').textContent = d.distYield.toFixed(2) + '%';
+        // update cache so table column also benefits on next render
+        const obj = allETFs.find(e => e.isin === isin);
+        if (obj && obj.yld == null) obj.yld = d.distYield;
+      } else if (document.getElementById('edKpi_yld').textContent === '⏳') {
+        document.getElementById('edKpi_yld').textContent = '—';
+      }
+
+      // AUM
+      if (d.totalAssets != null) {
+        const v = d.totalAssets >= 1e9
+          ? (d.totalAssets/1e9).toFixed(2) + ' B'
+          : (d.totalAssets/1e6).toFixed(0) + ' M';
+        document.getElementById('edKpi_aum').textContent = v + ' ' + (d.currency || 'EUR');
+      } else { document.getElementById('edKpi_aum').textContent = '—'; }
+
+      // Duration eff. from bond-specific data (overrides static)
+      if (d.effectiveDuration != null)
+        document.getElementById('edKpi_dur').textContent = d.effectiveDuration.toFixed(1) + 'a';
+
+      // Avg Maturity
+      if (d.avgMaturity != null)
+        document.getElementById('edKpi_mat').textContent = d.avgMaturity.toFixed(1) + 'a';
+      else document.getElementById('edKpi_mat').textContent = '—';
+
+      // Inception date
+      if (d.fundInceptionDate != null) {
+        const ts = typeof d.fundInceptionDate === 'number' ? d.fundInceptionDate * 1000 : new Date(d.fundInceptionDate).getTime();
+        document.getElementById('edKpi_incep').textContent =
+          new Date(ts).toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
+      } else { document.getElementById('edKpi_incep').textContent = '—'; }
+
+      // Volume
+      if (d.volume != null && d.volume > 0) {
+        const vStr = d.volume >= 1e6 ? (d.volume/1e6).toFixed(1)+'M'
+                   : d.volume >= 1000 ? Math.round(d.volume/1000)+'K'
+                   : d.volume.toString();
+        document.getElementById('edVolume').textContent = 'Vol ' + vStr;
+      }
+
+      // Description
+      if (d.description) {
+        const sec  = document.getElementById('edDescSection');
+        const txt  = document.getElementById('edDescText');
+        const more = document.getElementById('edDescMore');
+        txt.textContent = d.description;
+        sec.style.display = 'block';
+        // show "read more" if text overflows max-height
+        requestAnimationFrame(() => {
+          if (txt.scrollHeight > txt.clientHeight + 8) more.style.display = 'inline-block';
+        });
+      }
+
+      // Top Holdings
+      if (d.holdings?.length) {
         const sec = document.getElementById('edHoldingsSection');
         sec.style.display = 'block';
-        document.getElementById('edHoldingsBody').innerHTML = data.holdings.map(h => {
-          const pct = h.holdingPercent != null ? (h.holdingPercent * 100).toFixed(2) + '%' : '—';
-          const bar = h.holdingPercent != null ? `<div style="width:${Math.min(h.holdingPercent*400,100)}%;height:3px;background:var(--blue);border-radius:2px;margin-top:3px;"></div>` : '';
-          return `<div class="etf-d-holdings-row">
-            <div>${escHtml(h.holdingName || h.symbol || '—')}</div>
-            <div style="text-align:right;min-width:70px;">
-              <span style="color:var(--teal);font-weight:600;">${pct}</span>${bar}
+        document.getElementById('edHoldingsBody').innerHTML = d.holdings.map(h => {
+          const pct = h.holdingPercent != null ? h.holdingPercent * 100 : 0;
+          return `<div class="etf-holding-row">
+            <div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${escHtml(h.holdingName || h.symbol || '—')}</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <span style="color:var(--teal);font-weight:600;font-size:12px;width:46px;text-align:right;">${pct > 0 ? pct.toFixed(2)+'%' : '—'}</span>
+              <div class="etf-holding-bar-wrap"><div class="etf-holding-bar" style="width:${Math.min(pct*5,100)}%"></div></div>
             </div>
           </div>`;
         }).join('');
       }
 
-      // Bond Ratings
-      if (data.bondRatings?.length) {
-        const ratingColors = { 'AAA':'#22c55e','AA':'#4ade80','A':'#86efac','BBB':'#fbbf24','BB':'#fb923c','B':'#f87171','CCC':'#ef4444','Other':'#6b7280' };
-        const sec = document.getElementById('edRatingsSection');
-        sec.style.display = 'block';
-        const total = data.bondRatings.reduce((s, r) => s + (r.holdingPercent || 0), 0);
-        document.getElementById('edRatingsBody').innerHTML =
-          `<div class="etf-d-rating-bar">${data.bondRatings.map(r => {
-            const pct = total > 0 ? (r.holdingPercent / total * 100) : 0;
-            const col  = ratingColors[r.maxMaturityClass] || ratingColors['Other'];
-            return `<div title="${r.maxMaturityClass}: ${pct.toFixed(1)}%" style="width:${pct}%;background:${col};"></div>`;
-          }).join('')}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${data.bondRatings.map(r => {
-            const pct = total > 0 ? (r.holdingPercent / total * 100).toFixed(1) : '—';
-            const col  = ratingColors[r.maxMaturityClass] || ratingColors['Other'];
-            return `<span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${col};display:inline-block;"></span>${r.maxMaturityClass} ${pct}%</span>`;
-          }).join('')}</div>`;
+      // Bond Ratings — now normalized as [{label:'AAA', value:0.30}, ...]
+      if (d.bondRatings?.length) {
+        const COL = {
+          'AAA':'#22c55e','AA':'#4ade80','A':'#86efac',
+          'BBB':'#fbbf24','BB':'#fb923c','B':'#f87171',
+          'Below B':'#ef4444','US Gov':'#60a5fa','Altro':'#9ca3af',
+        };
+        const filtered = d.bondRatings.filter(r => r.value > 0.001);
+        const total    = filtered.reduce((s, r) => s + r.value, 0);
+
+        document.getElementById('edRatingsSection').style.display = 'block';
+        document.getElementById('edRatingsBar').innerHTML = filtered.map(r => {
+          const pct = total > 0 ? r.value / total * 100 : 0;
+          const col = COL[r.label] || '#9ca3af';
+          return `<div title="${r.label}: ${(r.value*100).toFixed(1)}%" style="width:${pct}%;background:${col};"></div>`;
+        }).join('');
+        document.getElementById('edRatingsLegend').innerHTML = filtered.map(r => {
+          const col = COL[r.label] || '#9ca3af';
+          return `<span style="font-size:11px;display:flex;align-items:center;gap:4px;">
+            <span style="width:10px;height:10px;border-radius:2px;background:${col};display:inline-block;flex-shrink:0;"></span>
+            <span>${r.label}</span>
+            <span style="color:var(--text2)">${(r.value*100).toFixed(1)}%</span>
+          </span>`;
+        }).join('');
       }
-    } catch (e) {}
+    } catch (e) { console.error('[ETF detail]', e); }
   }
 
+  // ── loadETFDetailChart — fetches max range, computes perf strip, renders chart ──
   async function loadETFDetailChart(range) {
-    ['1y','2y','3y','5y','max'].forEach(r => {
+    ['ytd','1y','2y','3y','5y','max'].forEach(r => {
       const b = document.getElementById(`edpb-${r}`);
       if (b) b.classList.toggle('active', r === range);
     });
     const loading = document.getElementById('etfDetailLoading');
     const canvas  = document.getElementById('etfDetailCanvas');
     loading.style.display = 'flex';
-    canvas.style.display  = 'none';
+    loading.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span>&nbsp;Caricamento grafico...';
+    canvas.style.display = 'none';
     if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
 
     try {
-      const res = await fetch(`/api/chart/${currentETFDetailIsin}?range=${range}`);
-      if (!res.ok) { loading.innerHTML = '📉 Dati storici non disponibili'; return; }
-      const data = await res.json();
-      const pts  = data.price || [];
-      if (pts.length < 2) { loading.innerHTML = '📉 Dati insufficienti'; return; }
+      // Always fetch max range so we can compute all performance periods once
+      let allPts = etfDetailAllPts;
+      if (!allPts.length) {
+        const res = await fetch(`/api/chart/${currentETFDetailIsin}?range=max`);
+        if (!res.ok) { loading.innerHTML = '📉 Dati storici non disponibili'; return; }
+        const data = await res.json();
+        allPts = data.price || [];
+        etfDetailAllPts = allPts;
+        document.getElementById('edChartSrc').textContent = data.source ? '· ' + data.source : '';
+      }
+      if (allPts.length < 2) { loading.innerHTML = '📉 Dati insufficienti'; return; }
 
-      document.getElementById('edChartSrc').textContent = data.source ? '· ' + data.source : '';
+      // ── Compute performance periods ──
+      const DAY    = 86400000;
+      const nowPt  = allPts[allPts.length - 1];
+      const nowTs  = nowPt[0];
+      const nowVal = nowPt[1];
+
+      const priceAt = (targetTs) => {
+        let v = null;
+        for (const [ts, val] of allPts) { if (ts <= targetTs) v = val; else break; }
+        return v;
+      };
+      const perfPct = (msAgo) => {
+        const v = priceAt(nowTs - msAgo);
+        return v != null ? (nowVal - v) / v * 100 : null;
+      };
+      const ytdStart = new Date(new Date(nowTs).getFullYear(), 0, 1).getTime();
+
+      const perfs = {
+        '1m':  perfPct(30  * DAY),
+        '3m':  perfPct(91  * DAY),
+        '6m':  perfPct(182 * DAY),
+        'ytd': (() => { const v = priceAt(ytdStart); return v != null ? (nowVal-v)/v*100 : null; })(),
+        '1y':  perfPct(365 * DAY),
+        '3y':  perfPct(3   * 365 * DAY),
+        '5y':  perfPct(5   * 365 * DAY),
+      };
+      Object.entries(perfs).forEach(([k, val]) => {
+        const el = document.getElementById('eperf-' + k);
+        if (!el) return;
+        if (val == null) { el.textContent = '—'; el.style.color = ''; }
+        else { el.textContent = (val >= 0 ? '+' : '') + val.toFixed(2) + '%'; el.style.color = val >= 0 ? 'var(--green)' : 'var(--red)'; }
+      });
+
+      // ── Filter to selected range ──
+      const cutoff = (() => {
+        switch (range) {
+          case 'ytd': return ytdStart;
+          case '1y':  return nowTs - 365 * DAY;
+          case '2y':  return nowTs - 2 * 365 * DAY;
+          case '3y':  return nowTs - 3 * 365 * DAY;
+          case '5y':  return nowTs - 5 * 365 * DAY;
+          default:    return 0;
+        }
+      })();
+      const pts = cutoff > 0 ? allPts.filter(([ts]) => ts >= cutoff) : allPts;
+      if (pts.length < 2) { loading.innerHTML = '📉 Dati insufficienti per questo periodo'; return; }
+
       loading.style.display = 'none';
       canvas.style.display  = 'block';
 
-      const labels = pts.map(([ts]) => {
-        const d = new Date(ts);
-        return d.toLocaleDateString('it-IT', { month:'short', year:'2-digit' });
-      });
-      const prices  = pts.map(([,v]) => v);
-      const isUp    = prices[prices.length-1] >= prices[0];
-      const color   = isUp ? '#22c55e' : '#f87171';
-      const ctx     = canvas.getContext('2d');
+      const labels = pts.map(([ts]) => new Date(ts).toLocaleDateString('it-IT', { month:'short', year:'2-digit' }));
+      const prices = pts.map(([, v]) => v);
+      const isUp   = prices[prices.length-1] >= prices[0];
+      const color  = isUp ? '#22c55e' : '#f87171';
 
-      etfDetailChartInst = new Chart(ctx, {
+      etfDetailChartInst = new Chart(canvas.getContext('2d'), {
         type: 'line',
         data: { labels, datasets: [{
-          data: prices, borderColor: color, backgroundColor: color + '18',
-          borderWidth: 2, pointRadius: 0, fill: true, tension: 0.2,
+          data: prices, borderColor: color, backgroundColor: color + '14',
+          borderWidth: 2, pointRadius: 0, fill: true, tension: 0.15,
         }]},
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
             legend: { display: false },
-            tooltip: { mode:'index', intersect:false, callbacks: { label: c => c.parsed.y.toFixed(2) } },
+            tooltip: {
+              mode:'index', intersect:false,
+              backgroundColor:'#1c2230', borderColor:'#2a3347', borderWidth:1,
+              titleColor:'#7a8fa8', bodyColor:'#e0e8f0',
+              callbacks: { label: c => '  ' + c.parsed.y.toFixed(2) + ' ' + currentETFCurrency },
+            },
           },
           scales: {
-            x: { ticks: { maxTicksLimit:8, color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'} },
-            y: { ticks: { color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'} },
+            x: { ticks:{ maxTicksLimit:8, color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'} },
+            y: { ticks:{ color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'}, position:'right' },
           },
         },
       });
-    } catch (e) { loading.innerHTML = '📉 Errore caricamento dati'; }
+    } catch (e) { loading.innerHTML = '📉 Errore caricamento dati'; console.error(e); }
+  }
+
+  function expandETFDesc() {
+    document.getElementById('edDescText').classList.add('expanded');
+    document.getElementById('edDescMore').style.display = 'none';
   }
 
   function addETFToPortfolio(isin) {
