@@ -1055,7 +1055,6 @@
       const chip = document.createElement('div');
       chip.className = 'chip' + (activeCountries.has(paese) ? ' active' : '');
       chip.textContent = paese;
-      if (paese === 'Sovranazionale' || paese === 'Unione Europea') chip.style.borderColor = 'var(--purple)';
       chip.onclick = () => toggleCountry(paese, chip);
       countryContainer.appendChild(chip);
     });
