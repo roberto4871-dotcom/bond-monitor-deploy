@@ -754,56 +754,84 @@ async function fetchETFQuoteViaChart(etf) {
   return { ...etf, price: null };
 }
 
-// Fonte alternativa: Stooq.com — CSV gratuito, dati storici giornalieri
-// Include 52w min/max, YTD e variazione giornaliera
+// ── Stooq.com fallback ──────────────────────────────────────────────────────
+// Passo 1: prezzo corrente via quick-quote CSV  (simbolo,data,ora,open,high,low,close,volume)
+// Passo 2 (opzionale): storico ~13 mesi per 52w range + YTD
 async function fetchPriceFromStooq(etf) {
   const trySymbols = [
     etf.ticker ? `${etf.ticker.toLowerCase()}.mi` : null, // Borsa Italiana
     etf.ticker ? `${etf.ticker.toLowerCase()}.de` : null, // XETRA
-    etf.ticker ? `${etf.ticker.toLowerCase()}.l`  : null, // London
+    etf.ticker ? `${etf.ticker.toLowerCase()}.l`  : null, // London LSE
     etf.ticker ? `${etf.ticker.toLowerCase()}.f`  : null, // Frankfurt
     `${etf.isin.toLowerCase()}.mi`,
   ].filter(Boolean);
 
+  const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
   for (const sym of trySymbols) {
     try {
-      // Storico giornaliero ultimi ~370 giorni
-      const url = `https://stooq.com/q/d/l/?s=${sym}&i=d`;
-      const resp = await axios.get(url, { timeout: 12000, headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      }});
-      // CSV: Date,Open,High,Low,Close,Volume (prima riga = header)
-      const lines = resp.data.trim().split('\n').filter(l => l && !l.startsWith('Date'));
-      if (lines.length < 2) continue;
+      // ---- PASSO 1: prezzo corrente ----
+      // Formato risposta: Symbol,Date,Time,Open,High,Low,Close,Volume
+      const qUrl = `https://stooq.com/q/l/?s=${sym}&f=sd2t2ohlcv&h&e=csv`;
+      const qResp = await axios.get(qUrl, { timeout: 10000, headers: { 'User-Agent': UA } });
+      const qLines = qResp.data.trim().split('\n');
+      if (qLines.length < 2) continue;
+      const qCols = qLines[1].split(','); // dati nel secondo rigo
+      const price = parseFloat(qCols[6]);  // Close
+      const open  = parseFloat(qCols[3]);  // Open
+      if (isNaN(price) || price <= 0) continue; // N/D o simbolo inesistente
 
-      const parseRow = (l) => {
-        const parts = l.split(',');
-        return { date: parts[0], open: parseFloat(parts[1]), close: parseFloat(parts[4]) };
-      };
-      const rows = lines.map(parseRow).filter(r => !isNaN(r.close) && r.close > 0);
-      if (rows.length < 2) continue;
+      // ---- PASSO 2: storico per 52w + YTD (opzionale, non blocca) ----
+      let ytdReturn = null, low52w = null, high52w = null, changePercent = null, change1d = null;
+      try {
+        const d2 = new Date();
+        const d1 = new Date(d2.getTime() - 400 * 24 * 3600 * 1000);
+        const fmt = d => d.toISOString().split('T')[0].replace(/-/g, '');
+        const hUrl = `https://stooq.com/q/d/l/?s=${sym}&d1=${fmt(d1)}&d2=${fmt(d2)}&i=d`;
+        const hResp = await axios.get(hUrl, { timeout: 10000, headers: { 'User-Agent': UA } });
+        // Formato: Date,Open,High,Low,Close,Volume  (date discendenti — ordino ascendente)
+        const rows = hResp.data.trim().split('\n')
+          .slice(1)
+          .map(l => { const p = l.split(','); return { date: p[0], close: parseFloat(p[4]), prev: parseFloat(p[1]) }; })
+          .filter(r => r.date && !isNaN(r.close) && r.close > 0)
+          .sort((a, b) => a.date.localeCompare(b.date));
 
-      const last   = rows[rows.length - 1];
-      const prev   = rows[rows.length - 2];
-      const closes = rows.map(r => r.close);
-      const yearNow = new Date().getFullYear();
-      const jan1row = rows.find(r => r.date.startsWith(String(yearNow)));
-      const ytdReturn = jan1row ? (last.close - jan1row.close) / jan1row.close : null;
+        if (rows.length >= 2) {
+          const last = rows[rows.length - 1];
+          const prev2 = rows[rows.length - 2];
+          const closes = rows.map(r => r.close);
+          low52w  = Math.min(...closes);
+          high52w = Math.max(...closes);
+          change1d      = last.close - prev2.close;
+          changePercent = (change1d / prev2.close) * 100;
+          const yr = new Date().getFullYear();
+          const jan1 = rows.find(r => r.date.startsWith(String(yr)));
+          ytdReturn = jan1 ? (price - jan1.close) / jan1.close : null;
+        }
+      } catch (_) { /* storico opzionale */ }
 
-      console.log(`  [Stooq] ${sym}: ${last.close}`);
+      // Fallback change1d da open intraday se storico non disponibile
+      if (change1d == null && !isNaN(open) && open > 0) {
+        change1d = price - open;
+        changePercent = (change1d / open) * 100;
+      }
+
+      console.log(`  [Stooq] ${sym}: ${price.toFixed(2)} ${change1d != null ? (change1d >= 0 ? '+' : '') + change1d.toFixed(2) : ''}`);
       return {
         ...etf,
-        price:         last.close,
+        price,
         currency:      'EUR',
-        changePercent: (last.close - prev.close) / prev.close * 100,
-        change1d:      last.close - prev.close,
+        changePercent,
+        change1d,
         ytdReturn,
-        low52w:        Math.min(...closes),
-        high52w:       Math.max(...closes),
+        low52w,
+        high52w,
         symbol:        sym.toUpperCase(),
         source:        'Stooq',
       };
-    } catch (e) { /* prova simbolo successivo */ }
+    } catch (e) {
+      console.log(`  [Stooq ERR] ${sym}: ${e.message}`);
+    }
   }
   return { ...etf, price: null };
 }
@@ -855,6 +883,45 @@ app.get('/api/etf', (req, res) => {
     refreshETFPricesBackground(); // fire-and-forget
   }
   res.json({ etfs: list, loading: etfPriceLoading, cacheTime: etfCacheTime || null });
+});
+
+// Debug: testa Yahoo + Stooq per il primo ETF e restituisce i risultati grezzi
+app.get('/api/etf/debug', async (req, res) => {
+  const etf = ETF_LIST[0]; // IEAG — iShares EU Aggregate Bond
+  const out  = { etf, state: { etfPriceLoading, etfCacheTime, pricesFound: Object.values(etfPriceData).filter(v => v?.price != null).length }, tests: {} };
+
+  // TEST 1: Yahoo Finance chart()
+  try {
+    const period1 = new Date(Date.now() - 10 * 24 * 3600 * 1000);
+    const r = await yahooFinance.chart('IEAG.MI', { period1, interval: '1d' }, { validateResult: false });
+    out.tests.yahooChart = { ok: true, quotes: r.quotes?.length, currency: r.meta?.currency, lastClose: r.quotes?.at(-1)?.close };
+  } catch (e) { out.tests.yahooChart = { ok: false, error: e.message }; }
+
+  // TEST 2: Stooq quick-quote
+  try {
+    const r = await axios.get('https://stooq.com/q/l/?s=ieag.mi&f=sd2t2ohlcv&h&e=csv', {
+      timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    });
+    out.tests.stooqQuote = { ok: true, status: r.status, raw: r.data.substring(0, 400) };
+  } catch (e) { out.tests.stooqQuote = { ok: false, error: e.message }; }
+
+  // TEST 3: Stooq storico
+  try {
+    const d2 = new Date(); const d1 = new Date(d2 - 30 * 24 * 3600 * 1000);
+    const fmt = d => d.toISOString().split('T')[0].replace(/-/g,'');
+    const r = await axios.get(`https://stooq.com/q/d/l/?s=ieag.mi&d1=${fmt(d1)}&d2=${fmt(d2)}&i=d`, {
+      timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    });
+    out.tests.stooqHistory = { ok: true, status: r.status, lines: r.data.trim().split('\n').length, raw: r.data.substring(0, 400) };
+  } catch (e) { out.tests.stooqHistory = { ok: false, error: e.message }; }
+
+  // TEST 4: fetchPriceFromStooq completo
+  try {
+    const result = await fetchPriceFromStooq(etf);
+    out.tests.fetchPriceFromStooq = result;
+  } catch (e) { out.tests.fetchPriceFromStooq = { error: e.message }; }
+
+  res.json(out);
 });
 
 // ─── MACRO ────────────────────────────────────────────────────────────────────
