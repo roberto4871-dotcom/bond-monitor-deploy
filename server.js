@@ -2,7 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const path = require('path');
-const yahooFinance = require('yahoo-finance2').default;
+// yahoo-finance2 v3: .default è la classe, va istanziata con new
+const yahooFinance = new (require('yahoo-finance2').default)();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -781,40 +782,11 @@ async function fetchPriceFromStooq(etf) {
       const open  = parseFloat(qCols[3]);  // Open
       if (isNaN(price) || price <= 0) continue; // N/D o simbolo inesistente
 
-      // ---- PASSO 2: storico per 52w + YTD (opzionale, non blocca) ----
-      let ytdReturn = null, low52w = null, high52w = null, changePercent = null, change1d = null;
-      try {
-        const d2 = new Date();
-        const d1 = new Date(d2.getTime() - 400 * 24 * 3600 * 1000);
-        const fmt = d => d.toISOString().split('T')[0].replace(/-/g, '');
-        const hUrl = `https://stooq.com/q/d/l/?s=${sym}&d1=${fmt(d1)}&d2=${fmt(d2)}&i=d`;
-        const hResp = await axios.get(hUrl, { timeout: 10000, headers: { 'User-Agent': UA } });
-        // Formato: Date,Open,High,Low,Close,Volume  (date discendenti — ordino ascendente)
-        const rows = hResp.data.trim().split('\n')
-          .slice(1)
-          .map(l => { const p = l.split(','); return { date: p[0], close: parseFloat(p[4]), prev: parseFloat(p[1]) }; })
-          .filter(r => r.date && !isNaN(r.close) && r.close > 0)
-          .sort((a, b) => a.date.localeCompare(b.date));
-
-        if (rows.length >= 2) {
-          const last = rows[rows.length - 1];
-          const prev2 = rows[rows.length - 2];
-          const closes = rows.map(r => r.close);
-          low52w  = Math.min(...closes);
-          high52w = Math.max(...closes);
-          change1d      = last.close - prev2.close;
-          changePercent = (change1d / prev2.close) * 100;
-          const yr = new Date().getFullYear();
-          const jan1 = rows.find(r => r.date.startsWith(String(yr)));
-          ytdReturn = jan1 ? (price - jan1.close) / jan1.close : null;
-        }
-      } catch (_) { /* storico opzionale */ }
-
-      // Fallback change1d da open intraday se storico non disponibile
-      if (change1d == null && !isNaN(open) && open > 0) {
-        change1d = price - open;
-        changePercent = (change1d / open) * 100;
-      }
+      // Calcola variazione giornaliera dall'open intraday (Stooq non dà prev close senza API key)
+      const change1d = (!isNaN(open) && open > 0) ? price - open : null;
+      const changePercent = (change1d != null && open > 0) ? (change1d / open) * 100 : null;
+      // 52w e YTD non disponibili via Stooq senza API key — restano null
+      const ytdReturn = null, low52w = null, high52w = null;
 
       console.log(`  [Stooq] ${sym}: ${price.toFixed(2)} ${change1d != null ? (change1d >= 0 ? '+' : '') + change1d.toFixed(2) : ''}`);
       return {
