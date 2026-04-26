@@ -1466,6 +1466,7 @@
     const linkST = document.getElementById('linkSimpleTools');
     linkBI.href = `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
     linkBI.style.display = isin ? 'inline-block' : 'none';
+    linkST.textContent = '📊 simpletoolsforinvestors';
     if (bond.bondid) {
       linkST.href = `https://www.simpletoolsforinvestors.eu/details.php?bondid=${bond.bondid}&marketcode=${bond.marketcode || 'MOT'}`;
       linkST.style.display = 'inline-block';
@@ -1871,8 +1872,8 @@
     document.getElementById('etfBody').innerHTML = list.length ? list.map(e => {
       const inPort = portfolio[e.isin] ? 'in-list' : '';
       const ytdV   = e.ytdReturn != null ? e.ytdReturn * 100 : null;
-      return `<tr>
-        <td><button class="wl-star c1 ${inPort}" style="font-size:16px;font-style:normal;" onclick="addETFToPortfolio('${e.isin}')" title="+ Portafoglio">+</button></td>
+      return `<tr style="cursor:pointer" onclick="openETFChart('${e.isin}')">
+        <td onclick="event.stopPropagation()"><button class="wl-star c1 ${inPort}" style="font-size:16px;font-style:normal;" onclick="addETFToPortfolio('${e.isin}')" title="+ Portafoglio">+</button></td>
         <td style="font-weight:600;font-family:monospace;color:var(--blue)">${e.ticker || '—'}</td>
         <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(e.name)}">${escHtml(e.name)}</td>
         <td><span class="cat-badge">${escHtml(e.cat)}</span></td>
@@ -1883,13 +1884,53 @@
         <td style="color:var(--text2)">${e.high52w != null ? e.high52w.toFixed(2) : '—'}</td>
         <td style="color:var(--teal)">${e.dur != null ? e.dur.toFixed(1) : '—'}</td>
         <td style="color:var(--text2)">${e.ter != null ? e.ter.toFixed(2)+'%' : '—'}</td>
-        <td style="white-space:nowrap">
+        <td style="white-space:nowrap" onclick="event.stopPropagation()">
           <a href="${jurl(e.isin)}" target="_blank" style="color:var(--blue);font-size:11px;text-decoration:none;margin-right:4px;">JustETF↗</a>
           <a href="${burl(e.isin)}" target="_blank" style="color:var(--text2);font-size:11px;text-decoration:none;">Borsa↗</a>
         </td>
-        <td><button class="btn-add-port" onclick="addETFToPortfolio('${e.isin}')">+ Port.</button></td>
+        <td onclick="event.stopPropagation()"><button class="btn-add-port" onclick="addETFToPortfolio('${e.isin}')">+ Port.</button></td>
       </tr>`;
     }).join('') : `<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--text2);">Nessun ETF corrisponde ai filtri</td></tr>`;
+  }
+
+  // Apre il modal del grafico per un ETF (riusa lo stesso modal dei bond)
+  function openETFChart(isin) {
+    const etf = allETFs.find(e => e.isin === isin);
+    if (!etf) return;
+
+    currentChartIsin = isin;
+    document.getElementById('modalIsin').textContent = isin;
+    document.getElementById('modalDesc').textContent = etf.name;
+
+    const meta = [
+      etf.ticker ? `Ticker: ${etf.ticker}` : '',
+      etf.cat    ? etf.cat : '',
+      etf.ter  != null ? `TER: ${etf.ter.toFixed(2)}%` : '',
+      etf.dur  != null ? `Duration est.: ${etf.dur.toFixed(1)}` : '',
+      etf.price != null ? `Ultimo: ${etf.price.toFixed(2)} ${etf.currency || 'EUR'}` : '',
+    ].filter(Boolean).join('  ·  ');
+    document.getElementById('modalMeta').textContent = meta;
+
+    // Links: Borsa Italiana + JustETF (al posto di simpletoolsforinvestors)
+    const linkBI = document.getElementById('linkBorsaIt');
+    const linkST = document.getElementById('linkSimpleTools');
+    linkBI.href = `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
+    linkBI.style.display = 'inline-block';
+    linkST.href = `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
+    linkST.textContent = '📊 JustETF';
+    linkST.style.display = 'inline-block';
+
+    // Reset periodo e tab
+    currentRange = '1y';
+    currentTab = 'price';
+    document.querySelectorAll('.modal-periods .period-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('pb-1y').classList.add('active');
+    document.getElementById('tabPrice').classList.add('active');
+    document.getElementById('tabYield').classList.remove('active');
+    document.getElementById('tabZspread').classList.remove('active');
+
+    document.getElementById('chartModal').classList.add('show');
+    loadChart('1y');
   }
 
   function addETFToPortfolio(isin) {
