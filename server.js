@@ -676,39 +676,89 @@ const ETF_LIST = [
 let etfCache = null, etfCacheTime = 0;
 const ETF_CACHE_TTL = 60 * 60 * 1000;
 
+async function fetchETFQuoteViaChart(etf) {
+  const candidates = [
+    etf.ticker ? etf.ticker + '.MI' : null,
+    etf.isin   + '.MI',
+    etf.isin   + '.F',
+  ].filter(Boolean);
+
+  const period1 = new Date(Date.now() - 370 * 24 * 3600 * 1000); // ~1 anno
+
+  for (const sym of candidates) {
+    try {
+      const result = await yahooFinance.chart(sym, { period1, interval: '1d' }, { validateResult: false });
+      const quotes = (result.quotes || []).filter(q => q.close != null);
+      if (quotes.length < 2) continue;
+
+      const last    = quotes[quotes.length - 1];
+      const prev    = quotes[quotes.length - 2];
+      const change1d      = last.close - prev.close;
+      const changePercent = (change1d / prev.close) * 100;
+
+      const yearStart = new Date().getFullYear();
+      const jan1q = quotes.find(q => new Date(q.date).getFullYear() === yearStart);
+      const ytdReturn = jan1q ? (last.close - jan1q.close) / jan1q.close : null;
+
+      const prices = quotes.map(q => q.close);
+      const low52w  = Math.min(...prices);
+      const high52w = Math.max(...prices);
+
+      console.log(`  [ETF] ${sym}: ${last.close.toFixed(2)} ${result.meta?.currency || 'EUR'}`);
+      return {
+        ...etf,
+        price:         last.close,
+        currency:      result.meta?.currency || 'EUR',
+        changePercent,
+        change1d,
+        ytdReturn,
+        low52w,
+        high52w,
+        symbol:        sym,
+      };
+    } catch (e) {
+      // prova simbolo successivo
+    }
+  }
+
+  // Ultimo tentativo: ricerca per ISIN
+  try {
+    const search = await yahooFinance.search(etf.isin, { quotesCount: 3, newsCount: 0 }, { validateResult: false });
+    for (const q of (search.quotes || [])) {
+      if (!q.symbol) continue;
+      try {
+        const result = await yahooFinance.chart(q.symbol, { period1, interval: '1d' }, { validateResult: false });
+        const quotes = (result.quotes || []).filter(r => r.close != null);
+        if (quotes.length < 2) continue;
+        const last = quotes[quotes.length - 1];
+        const prev = quotes[quotes.length - 2];
+        console.log(`  [ETF search] ${q.symbol}: ${last.close.toFixed(2)}`);
+        return {
+          ...etf,
+          price:         last.close,
+          currency:      result.meta?.currency || 'EUR',
+          changePercent: (last.close - prev.close) / prev.close * 100,
+          change1d:      last.close - prev.close,
+          ytdReturn:     null,
+          low52w:        Math.min(...quotes.map(r => r.close)),
+          high52w:       Math.max(...quotes.map(r => r.close)),
+          symbol:        q.symbol,
+        };
+      } catch (e) {}
+    }
+  } catch (e) {}
+
+  return { ...etf, price: null };
+}
+
 async function fetchETFData() {
-  const CHUNK = 8;
+  const CHUNK = 5; // più piccolo per evitare rate limit
   const results = [];
   for (let i = 0; i < ETF_LIST.length; i += CHUNK) {
     const chunk = ETF_LIST.slice(i, i + CHUNK);
-    const settled = await Promise.allSettled(chunk.map(async etf => {
-      const candidates = [
-        etf.ticker ? etf.ticker + '.MI' : null,
-        etf.isin + '.MI',
-        etf.isin + '.F',
-      ].filter(Boolean);
-      for (const sym of candidates) {
-        try {
-          const q = await yahooFinance.quote(sym, {}, { validateResult: false });
-          if (q && q.regularMarketPrice != null) {
-            return {
-              ...etf,
-              price:         q.regularMarketPrice,
-              currency:      q.currency || 'EUR',
-              changePercent: q.regularMarketChangePercent ?? null,
-              change1d:      q.regularMarketChange ?? null,
-              high52w:       q.fiftyTwoWeekHigh ?? null,
-              low52w:        q.fiftyTwoWeekLow ?? null,
-              ytdReturn:     q.ytdReturn ?? null,
-              symbol:        sym,
-            };
-          }
-        } catch (e) { /* try next */ }
-      }
-      return { ...etf, price: null };
-    }));
+    const settled = await Promise.allSettled(chunk.map(etf => fetchETFQuoteViaChart(etf)));
     results.push(...settled.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean));
-    if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 400));
+    if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 600));
   }
   return results;
 }
