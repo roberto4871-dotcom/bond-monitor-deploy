@@ -675,6 +675,7 @@ const ETF_LIST = [
 const etfPriceData = {}; // { isin: { price, changePercent, ... } }
 let etfCacheTime = 0;
 let etfPriceLoading = false;
+let etfYieldLoading = false;
 const ETF_CACHE_TTL = 60 * 60 * 1000;
 
 async function fetchETFQuoteViaChart(etf) {
@@ -833,13 +834,54 @@ async function refreshETFPricesBackground() {
       if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 800));
     }
     // Aggiorna il timestamp SOLO se almeno qualche prezzo è stato trovato
-    // (altrimenti al prossimo reload il cache sarebbe ancora "fresco" con tutti null)
-    if (successCount > 0) etfCacheTime = Date.now();
+    if (successCount > 0) {
+      etfCacheTime = Date.now();
+      // Avvia fetch rendimenti in background solo dopo che i prezzi sono pronti
+      setTimeout(refreshETFYieldsBackground, 3000);
+    }
     console.log(`[ETF] Aggiornamento prezzi: ${successCount}/${ETF_LIST.length} ETF con prezzo`);
   } catch (err) {
     console.error('[ETF] Errore aggiornamento background:', err.message);
   } finally {
     etfPriceLoading = false;
+  }
+}
+
+// Secondo passaggio: fetcha distribution yield via quoteSummary per ogni ETF
+// con simbolo noto. Chunk piccoli + delay maggiori per non stressare Yahoo Finance.
+async function refreshETFYieldsBackground() {
+  if (etfYieldLoading) return;
+  const etfsWithSym = ETF_LIST.filter(e => etfPriceData[e.isin]?.symbol);
+  if (!etfsWithSym.length) return;
+
+  etfYieldLoading = true;
+  console.log(`[ETF Yields] Avvio fetch rendimenti per ${etfsWithSym.length} ETF...`);
+  let found = 0;
+
+  try {
+    const CHUNK = 3;
+    for (let i = 0; i < etfsWithSym.length; i += CHUNK) {
+      const chunk = etfsWithSym.slice(i, i + CHUNK);
+      await Promise.allSettled(chunk.map(async (etf) => {
+        const sym = etfPriceData[etf.isin]?.symbol;
+        if (!sym) return;
+        try {
+          const qs = await yahooFinance.quoteSummary(sym, { modules: ['summaryDetail'] }, { validateResult: false });
+          const yld = qs?.summaryDetail?.yield;
+          if (yld != null) {
+            etfPriceData[etf.isin].yld = +(yld * 100).toFixed(2);
+            found++;
+            console.log(`  [Yield] ${sym}: ${etfPriceData[etf.isin].yld}%`);
+          }
+        } catch (_) {}
+      }));
+      if (i + CHUNK < etfsWithSym.length) await new Promise(r => setTimeout(r, 1200));
+    }
+    console.log(`[ETF Yields] Completato: ${found}/${etfsWithSym.length} rendimenti trovati`);
+  } catch (err) {
+    console.error('[ETF Yields] Errore:', err.message);
+  } finally {
+    etfYieldLoading = false;
   }
 }
 
@@ -851,7 +893,7 @@ app.get('/api/etf', (req, res) => {
   if (stale && !etfPriceLoading) {
     refreshETFPricesBackground(); // fire-and-forget
   }
-  res.json({ etfs: list, loading: etfPriceLoading, cacheTime: etfCacheTime || null });
+  res.json({ etfs: list, loading: etfPriceLoading, yieldsLoading: etfYieldLoading, cacheTime: etfCacheTime || null });
 });
 
 // Debug: testa Yahoo + Stooq per il primo ETF e restituisce i risultati grezzi

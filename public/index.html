@@ -1897,10 +1897,11 @@
       const res = await fetch('/api/etf');
       const data = await res.json();
       // Supporta sia { etfs:[], loading:bool } sia array diretto (retrocompat)
-      const etfList = Array.isArray(data) ? data : (data.etfs || []);
-      const isLoading = !Array.isArray(data) && data.loading;
+      const etfList    = Array.isArray(data) ? data : (data.etfs || []);
+      const isLoading  = !Array.isArray(data) && data.loading;
+      const yldLoading = !Array.isArray(data) && data.yieldsLoading;
 
-      allETFs = etfList;
+      allETFs   = etfList;
       etfLoaded = true;
 
       // Popola filtro categorie (solo la prima volta)
@@ -1910,19 +1911,30 @@
         cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
       }
 
-      // Banner "prezzi in caricamento"
+      // Banner adattivo: prezzi / rendimenti / nascosto
       const banner = document.getElementById('etfLoadingBanner');
-      if (banner) banner.style.display = isLoading ? 'flex' : 'none';
+      if (banner) {
+        const txt = banner.querySelector('span:last-child');
+        if (isLoading) {
+          banner.style.display = 'flex';
+          if (txt) txt.textContent = 'Prezzi in caricamento dal mercato — la tabella si aggiorna automaticamente tra ~2 minuti';
+        } else if (yldLoading) {
+          banner.style.display = 'flex';
+          if (txt) txt.textContent = 'Rendimenti in caricamento — la colonna Rend.% si aggiorna tra ~3 minuti';
+        } else {
+          banner.style.display = 'none';
+        }
+      }
 
       renderETF();
 
-      // Se i prezzi sono ancora in caricamento, ri-prova fra 90 secondi
+      // Retry per prezzi (90s)
       if (isLoading && !etfRefreshTimer) {
-        etfRefreshTimer = setTimeout(() => {
-          etfRefreshTimer = null;
-          etfLoaded = false;
-          fetchAndRenderETF();
-        }, 90000);
+        etfRefreshTimer = setTimeout(() => { etfRefreshTimer = null; etfLoaded = false; fetchAndRenderETF(); }, 90000);
+      }
+      // Retry separato per rendimenti (3 minuti)
+      if (!isLoading && yldLoading && !etfRefreshTimer) {
+        etfRefreshTimer = setTimeout(() => { etfRefreshTimer = null; etfLoaded = false; fetchAndRenderETF(); }, 180000);
       }
     } catch (e) {
       document.getElementById('etfBody').innerHTML = `<tr><td colspan="14" style="text-align:center;padding:40px;color:var(--red);">Errore caricamento ETF — riprova tra qualche minuto</td></tr>`;
