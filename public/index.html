@@ -331,6 +331,39 @@
     .ladder-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
     .ladder-canvas-wrap { flex:1; position:relative; min-height:340px; }
 
+    /* ─── ETF ─── */
+    .etf-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .etf-table th { background:var(--bg3); padding:7px 10px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; color:var(--text2); border-bottom:1px solid var(--border); cursor:pointer; white-space:nowrap; }
+    .etf-table th:hover { color:var(--text); }
+    .etf-table td { padding:6px 10px; border-bottom:1px solid var(--border); color:var(--text); }
+    .etf-table tr:hover td { background:var(--bg3); }
+    .cat-badge { display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; background:var(--bg3); color:var(--text2); white-space:nowrap; }
+    .etf-search { padding:6px 10px; background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; width:180px; }
+    .etf-cat-select { padding:6px 8px; background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; }
+    .pos-change { color:#22c55e; }
+    .neg-change { color:#ef4444; }
+    /* ─── MACRO ─── */
+    .macro-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+    .macro-section-title { grid-column:1/-1; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text2); letter-spacing:0.08em; margin-top:8px; padding-bottom:4px; border-bottom:1px solid var(--border); }
+    .macro-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+    .macro-card-label { font-size:11px; color:var(--text2); margin-bottom:4px; text-transform:uppercase; font-weight:600; }
+    .macro-card-value { font-size:24px; font-weight:700; color:var(--text); line-height:1.1; }
+    .macro-card-sub { font-size:10px; color:var(--text2); margin-top:4px; }
+    .macro-card-change { font-size:12px; font-weight:600; margin-top:2px; }
+    .mc-green { border-color:#22c55e; }
+    .mc-amber { border-color:#fbbf24; }
+    .mc-red   { border-color:#ef4444; }
+    /* ─── SCENARIO & PROIEZIONE ─── */
+    .scenario-section { margin-top:20px; padding:0 4px; }
+    .scenario-title { font-size:13px; font-weight:600; color:var(--text); margin-bottom:10px; }
+    .scenario-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .scenario-table th { background:var(--bg3); padding:8px 12px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; color:var(--text2); border-bottom:1px solid var(--border); }
+    .scenario-table td { padding:8px 12px; border-bottom:1px solid var(--border); }
+    .s-gain { color:#22c55e; font-weight:600; }
+    .s-loss { color:#ef4444; font-weight:600; }
+    .projection-section { margin-top:20px; padding:0 4px; }
+    .projection-canvas-wrap { position:relative; height:220px; }
+
     /* SOTTO LA PARI */
     tbody tr.under-par { border-left: 3px solid var(--teal); }
     tbody tr.under-par td:first-child { padding-left: 9px; }
@@ -594,6 +627,8 @@
     <button class="tab-btn active" id="tab-table"     onclick="switchPanel('table')">📋 Tabella</button>
     <button class="tab-btn"        id="tab-yieldcurve" onclick="switchPanel('yieldcurve')">📈 Yield Curve</button>
     <button class="tab-btn"        id="tab-ladder"     onclick="switchPanel('ladder')">📊 Maturity Ladder</button>
+    <button class="tab-btn" id="tab-etf"   onclick="switchPanel('etf')">🏦 ETF Bond</button>
+    <button class="tab-btn" id="tab-macro" onclick="switchPanel('macro')">🌍 Macro</button>
     <button class="tab-btn"        id="tab-portfolio"  onclick="switchPanel('portfolio')">💼 Portafoglio</button>
   </div>
 
@@ -658,6 +693,68 @@
       </div>
     </div>
 
+    <!-- ETF PANEL -->
+    <div class="extra-panel" id="panelETF">
+      <div class="panel-header" style="flex-direction:column;align-items:flex-start;gap:10px;">
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+          <span>🏦 ETF Bond — prezzi in tempo reale</span>
+          <button onclick="reloadETF()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;">↻ Aggiorna</button>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" class="etf-search" id="etfSearch" placeholder="Cerca ticker / nome..." oninput="renderETF()">
+          <select class="etf-cat-select" id="etfCatFilter" onchange="renderETF()">
+            <option value="">Tutte le categorie</option>
+          </select>
+          <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="etfOnlyPrice" onchange="renderETF()"> Solo con prezzo
+          </label>
+          <span id="etfCount" style="font-size:12px;color:var(--text2);"></span>
+        </div>
+      </div>
+      <div style="overflow-x:auto;flex:1;">
+        <table class="etf-table">
+          <thead><tr>
+            <th style="width:32px"></th>
+            <th onclick="sortETF('ticker')">Ticker <span id="esort-ticker"></span></th>
+            <th onclick="sortETF('name')">Nome <span id="esort-name"></span></th>
+            <th onclick="sortETF('cat')">Categoria <span id="esort-cat"></span></th>
+            <th onclick="sortETF('price')">Prezzo <span id="esort-price"></span></th>
+            <th onclick="sortETF('changePercent')">Var% <span id="esort-changePercent"></span></th>
+            <th onclick="sortETF('ytdReturn')">YTD% <span id="esort-ytdReturn"></span></th>
+            <th onclick="sortETF('low52w')">52w Min <span id="esort-low52w"></span></th>
+            <th onclick="sortETF('high52w')">52w Max <span id="esort-high52w"></span></th>
+            <th onclick="sortETF('dur')">Dur.est <span id="esort-dur"></span></th>
+            <th onclick="sortETF('ter')">TER% <span id="esort-ter"></span></th>
+            <th>Links</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="etfBody">
+            <tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text2);">
+              <div style="font-size:28px;margin-bottom:8px;">⏳</div>Caricamento ETF...
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MACRO PANEL -->
+    <div class="extra-panel" id="panelMacro">
+      <div class="panel-header" style="justify-content:space-between;">
+        <span>🌍 Macro — Dati obbligazionari globali</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="macroLastUpdate" style="font-size:11px;color:var(--text2);"></span>
+          <button onclick="reloadMacro()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;">↻ Aggiorna</button>
+        </div>
+      </div>
+      <div style="overflow-y:auto;flex:1;padding-top:4px;">
+        <div class="macro-grid" id="macroGrid">
+          <div style="text-align:center;padding:40px;color:var(--text2);grid-column:1/-1;">
+            <div style="font-size:28px;margin-bottom:8px;">⏳</div>Caricamento dati macro...
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- PORTFOLIO PANEL -->
     <div class="extra-panel" id="panelPortfolio">
       <div class="panel-header" style="justify-content:space-between;">
@@ -667,12 +764,12 @@
       <div class="print-header" id="printHeader"></div>
       <table class="portfolio-table">
         <thead><tr>
-          <th>ISIN</th><th>Descrizione</th><th>Scad.</th>
+          <th>Tipo</th><th>ISIN</th><th>Descrizione</th><th>Scad.</th>
           <th>Prezzo</th><th>Yield%</th>
           <th>Nominale (€)</th><th>Val. Mercato</th><th>Cedola/anno</th><th>Rateo</th><th></th>
         </tr></thead>
         <tbody id="portfolioBody">
-          <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">
+          <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text2);">
             Nessun titolo nel portafoglio.<br>Clicca <strong>+ Port.</strong> su un titolo in tabella per aggiungerlo.
           </td></tr>
         </tbody>
@@ -1568,15 +1665,18 @@
     document.getElementById('panelTable').style.display      = panel === 'table'      ? '' : 'none';
     document.getElementById('panelYieldCurve').style.display = panel === 'yieldcurve' ? 'flex' : 'none';
     document.getElementById('panelLadder').style.display     = panel === 'ladder'     ? 'flex' : 'none';
+    document.getElementById('panelETF').style.display        = panel === 'etf'        ? 'flex' : 'none';
+    document.getElementById('panelMacro').style.display      = panel === 'macro'      ? 'flex' : 'none';
     document.getElementById('panelPortfolio').style.display  = panel === 'portfolio'  ? 'flex' : 'none';
-    // toolbar visibile solo su tabella
     document.querySelector('.table-toolbar').style.display   = panel === 'table'      ? '' : 'none';
     document.querySelector('.pagination').style.display      = panel === 'table'      ? '' : 'none';
-    ['table','yieldcurve','ladder','portfolio'].forEach(t => {
+    ['table','yieldcurve','ladder','etf','macro','portfolio'].forEach(t => {
       document.getElementById('tab-' + t).classList.toggle('active', t === panel);
     });
     if (panel === 'yieldcurve') renderYieldCurve();
     if (panel === 'ladder')     renderLadder();
+    if (panel === 'etf')        loadETFPanel();
+    if (panel === 'macro')      loadMacroPanel();
     if (panel === 'portfolio')  renderPortfolio();
   }
 
@@ -1674,6 +1774,150 @@
         }
       }
     });
+  }
+
+  // ─────────────────────────────────────────────
+  // ETF SECTION
+  // ─────────────────────────────────────────────
+  let allETFs = [], etfSortField = 'cat', etfSortDir = 'asc', etfLoaded = false;
+
+  async function loadETFPanel() {
+    if (etfLoaded) { renderETF(); return; }
+    try {
+      const res = await fetch('/api/etf');
+      allETFs = await res.json();
+      etfLoaded = true;
+      const cats = [...new Set(allETFs.map(e => e.cat).filter(Boolean))].sort();
+      const sel = document.getElementById('etfCatFilter');
+      cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+      renderETF();
+    } catch (e) {
+      document.getElementById('etfBody').innerHTML = `<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--red);">Errore caricamento ETF</td></tr>`;
+    }
+  }
+
+  function reloadETF() { etfLoaded = false; document.getElementById('etfBody').innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text2);">⏳ Ricaricamento...</td></tr>'; loadETFPanel(); }
+
+  function sortETF(field) {
+    if (etfSortField === field) etfSortDir = etfSortDir === 'asc' ? 'desc' : 'asc';
+    else { etfSortField = field; etfSortDir = (field === 'price' || field === 'changePercent') ? 'desc' : 'asc'; }
+    document.querySelectorAll('[id^="esort-"]').forEach(el => el.textContent = '');
+    const icon = document.getElementById('esort-' + field);
+    if (icon) icon.textContent = etfSortDir === 'asc' ? '▲' : '▼';
+    renderETF();
+  }
+
+  function renderETF() {
+    if (!etfLoaded) return;
+    const search = (document.getElementById('etfSearch').value || '').toLowerCase();
+    const cat    = document.getElementById('etfCatFilter').value;
+    const onlyP  = document.getElementById('etfOnlyPrice').checked;
+    let list = allETFs.filter(e => {
+      if (onlyP && !e.price) return false;
+      if (cat && e.cat !== cat) return false;
+      if (search && !((e.ticker||'').toLowerCase().includes(search)) &&
+                   !e.name.toLowerCase().includes(search) &&
+                   !e.isin.toLowerCase().includes(search)) return false;
+      return true;
+    });
+    list.sort((a, b) => {
+      let av = a[etfSortField], bv = b[etfSortField];
+      if (av == null) return 1; if (bv == null) return -1;
+      if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+      return av < bv ? (etfSortDir === 'asc' ? -1 : 1) : av > bv ? (etfSortDir === 'asc' ? 1 : -1) : 0;
+    });
+    document.getElementById('etfCount').textContent = list.length + ' ETF';
+    const fmtPct = v => v != null ? (v >= 0 ? '+' : '') + v.toFixed(2) + '%' : '—';
+    const pctCls = v => v == null ? '' : v >= 0 ? 'pos-change' : 'neg-change';
+    const jurl   = isin => `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
+    const burl   = isin => `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
+    document.getElementById('etfBody').innerHTML = list.length ? list.map(e => {
+      const inPort = portfolio[e.isin] ? 'in-list' : '';
+      const ytdV   = e.ytdReturn != null ? e.ytdReturn * 100 : null;
+      return `<tr>
+        <td><button class="wl-star c1 ${inPort}" style="font-size:16px;font-style:normal;" onclick="addETFToPortfolio('${e.isin}')" title="+ Portafoglio">+</button></td>
+        <td style="font-weight:600;font-family:monospace;color:var(--blue)">${e.ticker || '—'}</td>
+        <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(e.name)}">${escHtml(e.name)}</td>
+        <td><span class="cat-badge">${escHtml(e.cat)}</span></td>
+        <td style="font-weight:600">${e.price != null ? e.price.toFixed(2) + ' ' + (e.currency||'EUR') : '—'}</td>
+        <td class="${pctCls(e.changePercent)}">${fmtPct(e.changePercent)}</td>
+        <td class="${pctCls(ytdV)}">${fmtPct(ytdV)}</td>
+        <td style="color:var(--text2)">${e.low52w != null ? e.low52w.toFixed(2) : '—'}</td>
+        <td style="color:var(--text2)">${e.high52w != null ? e.high52w.toFixed(2) : '—'}</td>
+        <td style="color:var(--teal)">${e.dur != null ? e.dur.toFixed(1) : '—'}</td>
+        <td style="color:var(--text2)">${e.ter != null ? e.ter.toFixed(2)+'%' : '—'}</td>
+        <td style="white-space:nowrap">
+          <a href="${jurl(e.isin)}" target="_blank" style="color:var(--blue);font-size:11px;text-decoration:none;margin-right:4px;">JustETF↗</a>
+          <a href="${burl(e.isin)}" target="_blank" style="color:var(--text2);font-size:11px;text-decoration:none;">Borsa↗</a>
+        </td>
+        <td><button class="btn-add-port" onclick="addETFToPortfolio('${e.isin}')">+ Port.</button></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--text2);">Nessun ETF corrisponde ai filtri</td></tr>`;
+  }
+
+  function addETFToPortfolio(isin) {
+    const etf = allETFs.find(e => e.isin === isin);
+    if (!etf) return;
+    if (!portfolio[etf.isin]) {
+      portfolio[etf.isin] = {
+        bond: {
+          isin: etf.isin, descrizione: etf.name, emittente: etf.ticker || etf.name,
+          scadenza: null, prezzo: etf.price || 100, yield: null,
+          duration: etf.dur || null, divisa: etf.currency || 'EUR',
+          tipo: 'ETF', cat: etf.cat,
+        },
+        nominale: 10000,
+      };
+      savePortfolio();
+    }
+    switchPanel('portfolio');
+  }
+
+  // ─────────────────────────────────────────────
+  // MACRO SECTION
+  // ─────────────────────────────────────────────
+  let macroLoaded = false;
+
+  async function loadMacroPanel() {
+    if (macroLoaded) return;
+    try {
+      const res = await fetch('/api/macro');
+      const data = await res.json();
+      renderMacro(data);
+      macroLoaded = true;
+    } catch (e) {
+      document.getElementById('macroGrid').innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--red);">Errore caricamento dati macro</div>`;
+    }
+  }
+
+  function reloadMacro() { macroLoaded = false; document.getElementById('macroGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2);">⏳ Ricaricamento...</div>'; loadMacroPanel(); }
+
+  function renderMacro(data) {
+    if (data.lastUpdate) document.getElementById('macroLastUpdate').textContent = 'Aggiornato: ' + new Date(data.lastUpdate).toLocaleString('it-IT');
+    const card = (label, item, unit, colorClass, note) => {
+      if (!item || item.value == null) return `<div class="macro-card"><div class="macro-card-label">${label}</div><div class="macro-card-value" style="color:var(--text2);font-size:18px">N/D</div><div class="macro-card-sub">${note||''}</div></div>`;
+      const v = item.value;
+      const chg = item.change ?? (item.prev != null ? v - item.prev : null);
+      const chgStr = chg != null ? `<span class="${chg >= 0 ? 'pos-change' : 'neg-change'}">${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg).toFixed(2)}${unit}</span>` : '';
+      return `<div class="macro-card ${colorClass||''}"><div class="macro-card-label">${label}</div><div class="macro-card-value">${v.toFixed(2)}<span style="font-size:13px;font-weight:400"> ${unit}</span></div><div class="macro-card-change">${chgStr}</div><div class="macro-card-sub">${note||''}${item.date ? ' · ' + item.date : ''}</div></div>`;
+    };
+    const rateColor = v => v > 3.5 ? 'mc-amber' : '';
+    const inflColor = v => v > 3 ? 'mc-red' : v > 2 ? 'mc-amber' : 'mc-green';
+    const spColor   = v => v > 200 ? 'mc-red' : v > 130 ? 'mc-amber' : 'mc-green';
+    document.getElementById('macroGrid').innerHTML = `
+      <div class="macro-section-title">🏛 Tassi di Riferimento Banche Centrali</div>
+      ${card('BCE — Deposit Rate', data.ecbRate, '%', rateColor(data.ecbRate?.value||0), 'Banca Centrale Europea')}
+      ${card('Fed Funds (proxy 3M)', data.us3m, '%', rateColor(data.us3m?.value||0), 'US T-Bill 3M · ^IRX')}
+      <div class="macro-section-title">📈 Rendimenti Governativi 10Y</div>
+      ${card('BTP 10Y — Italia', data.ita10y, '%', '', 'IT10YT=RR')}
+      ${card('Bund 10Y — Germania', data.ger10y, '%', '', 'DE10YT=RR')}
+      ${card('Treasury 10Y — USA', data.us10y, '%', '', '^TNX')}
+      ${card('Treasury 30Y — USA', data.us30y, '%', '', '^TYX')}
+      <div class="macro-section-title">📊 Spread & Curve</div>
+      ${card('Spread BTP–Bund', data.spreadBtpBund, 'bps', spColor(data.spreadBtpBund?.value||0), 'BTP 10Y − Bund 10Y')}
+      <div class="macro-section-title">💹 Inflazione</div>
+      ${card('HICP — Area Euro', data.hicp, '%', inflColor(data.hicp?.value||0), 'ECB · variazione annua')}
+    `;
   }
 
   // ─────────────────────────────────────────────
@@ -1861,7 +2105,7 @@
     const tbody = document.getElementById('portfolioBody');
     const positions = Object.values(portfolio);
     if (positions.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text2);">
         Nessun titolo nel portafoglio.<br>Clicca <strong>+ Port.</strong> su un titolo in tabella per aggiungerlo.
       </td></tr>`;
       document.getElementById('portfolioSummary').innerHTML = '';
@@ -1876,6 +2120,7 @@
       const rateoPerc = calcRateo(couponRate, freq, b.scadenza);
       const rateoEur = pos.nominale * rateoPerc / 100;
       return `<tr>
+        <td><span class="monitor-badge" style="${b.tipo==='ETF'?'background:rgba(59,130,246,0.15);color:#3b82f6':'background:rgba(34,197,94,0.1);color:#22c55e'}">${b.tipo||'Bond'}</span></td>
         <td class="isin-cell">${b.isin}</td>
         <td class="desc-cell" style="max-width:200px" title="${escHtml(b.descrizione)}">${escHtml(b.descrizione)}</td>
         <td>${b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : '—'}</td>
@@ -1913,6 +2158,92 @@
       <div class="port-stat"><div class="port-stat-label">Cedola annua stimata</div><div class="port-stat-value">${fmt(totCedola)}</div></div>
       <div class="port-stat"><div class="port-stat-label">Rateo totale</div><div class="port-stat-value">${fmt2(totRateo)}</div></div>
     `;
+    renderScenarioAnalysis(positions, totalMV);
+    renderProjectionChart(positions, wtdYield, totalMV);
+  }
+
+  function renderScenarioAnalysis(positions, totalMV) {
+    let el = document.getElementById('scenarioSection');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'scenarioSection';
+      el.className = 'scenario-section';
+      document.getElementById('panelPortfolio').appendChild(el);
+    }
+    if (!positions || positions.length === 0) { el.innerHTML = ''; return; }
+    const scenarios = [
+      { label: 'Tassi −2%', delta: -2 },
+      { label: 'Tassi −1%', delta: -1 },
+      { label: 'Tassi +1%', delta: +1 },
+      { label: 'Tassi +2%', delta: +2 },
+    ];
+    const rows = scenarios.map(sc => {
+      let deltaV = 0;
+      positions.forEach(p => {
+        const dur = p.bond.duration || p.bond.dur || null;
+        if (dur == null) return;
+        const mv = p.nominale * (p.bond.prezzo || 100) / 100;
+        deltaV += -dur * (sc.delta / 100) * mv;
+      });
+      const pct = totalMV > 0 ? (deltaV / totalMV * 100).toFixed(2) : '0.00';
+      const cls = deltaV >= 0 ? 's-gain' : 's-loss';
+      const fmt = v => v.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0});
+      return `<tr><td>${sc.label}</td><td class="${cls}">${deltaV >= 0?'+':''}${fmt(deltaV)}</td><td class="${cls}">${deltaV>=0?'+':''}${pct}%</td><td style="color:var(--text2)">${fmt(totalMV + deltaV)}</td></tr>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="scenario-title">⚡ Scenario Analysis — Impatto variazione tassi</div>
+      <table class="scenario-table">
+        <thead><tr><th>Scenario</th><th>Δ Valore</th><th>Δ %</th><th>Valore post-shock</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="font-size:11px;color:var(--text2);margin-top:6px;">Stima basata su duration modificata. Posizioni senza duration escluse.</div>`;
+  }
+
+  function renderProjectionChart(positions, wtdYield, totalMV) {
+    let wrap = document.getElementById('projectionSection');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = 'projectionSection';
+      wrap.className = 'projection-section';
+      wrap.innerHTML = `<div class="scenario-title">📈 Proiezione Portafoglio (10 anni)</div><div class="projection-canvas-wrap"><canvas id="projectionChart"></canvas></div><div style="font-size:11px;color:var(--text2);margin-top:6px;">Yield netto 12,5% reinvestito · Scenari tassi: base, +1%, −1%</div>`;
+      document.getElementById('panelPortfolio').appendChild(wrap);
+    }
+    if (!positions || positions.length === 0 || totalMV <= 0) { wrap.style.display='none'; return; }
+    wrap.style.display = '';
+    const netY = wtdYield * 0.875 / 100;
+    const years = [0,1,2,3,5,7,10];
+    let wDur=0, wMV=0;
+    positions.forEach(p => {
+      const dur = p.bond.duration || p.bond.dur || null;
+      if (dur == null) return;
+      const mv = p.nominale*(p.bond.prezzo||100)/100;
+      wDur += dur*mv; wMV += mv;
+    });
+    const avgDur = wMV > 0 ? wDur/wMV : 5;
+    const base  = years.map(y => totalMV * Math.pow(1+netY, y));
+    const up    = years.map((y,i) => y===0 ? base[i]-avgDur*0.01*totalMV : (totalMV-avgDur*0.01*totalMV)*Math.pow(1+netY+0.01,y));
+    const down  = years.map((y,i) => y===0 ? base[i]+avgDur*0.01*totalMV : (totalMV+avgDur*0.01*totalMV)*Math.pow(1+netY-0.01,y));
+    const ctx = document.getElementById('projectionChart').getContext('2d');
+    if (window._projChart) { window._projChart.destroy(); window._projChart=null; }
+    window._projChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels: years.map(y=>y===0?'Oggi':'Anno '+y), datasets:[
+        {label:'Base',data:base,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',tension:0.3,fill:true},
+        {label:'Tassi +1%',data:up,borderColor:'#ef4444',backgroundColor:'transparent',tension:0.3,fill:false,borderDash:[5,4]},
+        {label:'Tassi −1%',data:down,borderColor:'#22c55e',backgroundColor:'transparent',tension:0.3,fill:false,borderDash:[5,4]},
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{labels:{color:'#8b949e',font:{size:11}}},
+          tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})}}
+        },
+        scales:{
+          x:{ticks:{color:'#8b949e'},grid:{color:'rgba(255,255,255,0.05)'}},
+          y:{ticks:{color:'#8b949e',callback:v=>'€'+(v/1000).toFixed(0)+'k'},grid:{color:'rgba(255,255,255,0.05)'},beginAtZero:false}
+        }
+      }
+    });
   }
 
   // ─────────────────────────────────────────────

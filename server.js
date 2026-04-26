@@ -616,6 +616,186 @@ app.get('/api/chart/:isin', async (req, res) => {
   }
 });
 
+// ─── ETF ─────────────────────────────────────────────────────────────────────
+
+const ETF_LIST = [
+  { isin:'LU1650491282', ticker:'EMI',    name:'Amundi EUR Gov Infl Linked',     cat:'Gov Inflation EUR', ter:0.14, dur:7.0  },
+  { isin:'LU1390062245', ticker:'INFL',   name:'Amundi EUR 2-10Y Infl Exp',      cat:'Gov Inflation EUR', ter:0.16, dur:7.0  },
+  { isin:'IE00B0M62X26', ticker:'IBCI',   name:'iShares Infl Linked EUR Gov',    cat:'Gov Inflation EUR', ter:0.10, dur:7.0  },
+  { isin:'LU0290357929', ticker:'XGIN',   name:'Xtrackers Glob Infl Link EUR H', cat:'Gov Inflation GLB', ter:0.20, dur:7.0  },
+  { isin:'LU1390062831', ticker:'INFU',   name:'Amundi US$ 10Y Infl Exp',        cat:'Gov Inflation USD', ter:0.16, dur:7.5  },
+  { isin:'IE00B1FZSC47', ticker:'ITPS',   name:'iShares $ TIPS',                 cat:'Gov Inflation USD', ter:0.10, dur:7.5  },
+  { isin:'LU1650487413', ticker:'EM13',   name:'Amundi Euro Gov Bond 1-3Y',      cat:'Gov EUR 1-3Y',      ter:0.14, dur:1.9  },
+  { isin:'LU1598691050', ticker:'BTP13',  name:'Amundi EMTS 1-3Y ITA BTP',       cat:'Gov EUR 1-3Y',      ter:0.15, dur:1.9  },
+  { isin:'LU1650488494', ticker:'EM35',   name:'Amundi Euro Gov Bond 3-5Y',      cat:'Gov EUR 3-5Y',      ter:0.14, dur:3.8  },
+  { isin:'LU1287023003', ticker:'EM57',   name:'Amundi Euro Gov Bond 5-7Y',      cat:'Gov EUR 5-7Y',      ter:0.14, dur:5.5  },
+  { isin:'LU1287023185', ticker:'EM710',  name:'Amundi Euro Gov Bond 7-10Y',     cat:'Gov EUR 7-10Y',     ter:0.14, dur:7.5  },
+  { isin:'LU1650489385', ticker:'EM1015', name:'Amundi Euro Gov Bond 10-15Y',    cat:'Gov EUR 10-15Y',    ter:0.14, dur:11.0 },
+  { isin:'LU1287023268', ticker:'EM15',   name:'Amundi Euro Gov Bond 15+Y',      cat:'Gov EUR 15+Y',      ter:0.14, dur:14.0 },
+  { isin:'LU1598691217', ticker:'BTP10',  name:'Amundi EMTS 10Y ITA BTP',        cat:'Gov EUR 10+Y',      ter:0.15, dur:8.5  },
+  { isin:'LU1437018598', ticker:'EGOV',   name:'Amundi Euro Government Bond',    cat:'Gov EUR Blend',     ter:0.14, dur:7.0  },
+  { isin:'IE00B4WXJJ64', ticker:'SEGA',   name:'iShares Core EU Gov Bond',       cat:'Gov EUR Blend',     ter:0.09, dur:7.0  },
+  { isin:'IE00B14X4S71', ticker:'IBTS',   name:'iShares $ Treasury 1-3Y',        cat:'Gov USD 1-3Y',      ter:0.07, dur:1.8  },
+  { isin:'IE00B1FZS798', ticker:'IBTM',   name:'iShares $ Treasury 7-10Y',       cat:'Gov USD 7-10Y',     ter:0.07, dur:7.5  },
+  { isin:'LU1407890620', ticker:'US10',   name:'Amundi Core US Treasury 10+Y',   cat:'Gov USD 10+Y',      ter:0.07, dur:12.0 },
+  { isin:'LU0378818131', ticker:'XGSH',   name:'Xtrackers II GL Gov EUR H',      cat:'Gov GLB EUR H',     ter:0.20, dur:7.0  },
+  { isin:'DE000C7PB900', ticker:null,     name:'2Y Schatz',                      cat:'Gov DE',            ter:null, dur:2.0  },
+  { isin:'DE000C7PB9Z2', ticker:null,     name:'5Y Bobl',                        cat:'Gov DE',            ter:null, dur:4.5  },
+  { isin:'DE000C7PB9Y5', ticker:null,     name:'10Y Bund Future',                cat:'Gov DE',            ter:null, dur:9.0  },
+  { isin:'IE00BF553838', ticker:'EMSA',   name:'iShares JPM Advanced $ EM Bond', cat:'EM Gov USD',        ter:0.35, dur:6.0  },
+  { isin:'LU0321462953', ticker:'XEMB',   name:'Xtrackers II EM Bond EUR',       cat:'EM Gov EUR H',      ter:0.25, dur:6.0  },
+  { isin:'IE00B2NPKV68', ticker:'IEMB',   name:'iShares JPM $ EM',              cat:'EM Gov USD',        ter:0.45, dur:6.0  },
+  { isin:'LU1686830909', ticker:'EMKTB',  name:'Amundi IBX $ Liquid EM Sov',    cat:'EM Gov USD',        ter:0.20, dur:6.0  },
+  { isin:'IE00B5M4WH52', ticker:'SEML',   name:'iShares JPM EM Local Gov Bond',  cat:'EM Gov Local',      ter:0.50, dur:5.0  },
+  { isin:'IE00B6TLBW47', ticker:'EMCR',   name:'iShares JPM $ EM Corp Bond',    cat:'EM Corp USD',       ter:0.50, dur:5.0  },
+  { isin:'LU1829219127', ticker:'CRPE',   name:'Amundi Euro Corp Bond',          cat:'IG Corp EUR',       ter:0.16, dur:5.5  },
+  { isin:'IE00B3F81R35', ticker:'IEAC',   name:'iShares Core EU Corp Bond',      cat:'IG Corp EUR',       ter:0.20, dur:5.5  },
+  { isin:'IE0032895942', ticker:'LQDE',   name:'iShares $ Corp Bond',            cat:'IG Corp USD',       ter:0.20, dur:7.0  },
+  { isin:'LU1681040496', ticker:'AHYE',   name:'Amundi Euro HY Liq Bond Iboxx',  cat:'HY Corp EUR',       ter:0.35, dur:3.5  },
+  { isin:'LU1812090543', ticker:'HY',     name:'Amundi EUR HY Corp Bond ESG',    cat:'HY Corp EUR',       ter:0.35, dur:3.5  },
+  { isin:'LU1215415214', ticker:'HYBB',   name:'Amundi Iboxx EUR Liq HY BB',     cat:'HY Corp EUR',       ter:0.35, dur:3.5  },
+  { isin:'IE00B66F4759', ticker:'IHYG',   name:'iShares EUR HY Corp Bond',       cat:'HY Corp EUR',       ter:0.50, dur:3.5  },
+  { isin:'IE00B4PY7Y77', ticker:'IHYU',   name:'iShares $ HY Corp',              cat:'HY Corp USD',       ter:0.50, dur:3.5  },
+  { isin:'IE00BF8HV600', ticker:'STHE',   name:'PIMCO US SH Term HY EUR H',      cat:'HY Corp USD',       ter:0.55, dur:3.5  },
+  { isin:'IE00B3DKXQ41', ticker:'IEAG',   name:'iShares EU Aggregate Bond',      cat:'Aggregate EUR',     ter:0.10, dur:6.5  },
+  { isin:'IE00BFZPF322', ticker:'AT1',    name:'Invesco AT1 Capital Bond',        cat:'AT1 / CoCo',        ter:0.39, dur:2.5  },
+  { isin:'IE00BFZPF439', ticker:'XAT1',   name:'Invesco AT1 Cap Bond ETF EUR H', cat:'AT1 / CoCo',        ter:0.39, dur:2.5  },
+  { isin:'IE00BZ0XVF52', ticker:'CCBO',   name:'WisdomTree AT1 CoCo Bond',       cat:'AT1 / CoCo',        ter:0.40, dur:2.5  },
+  { isin:'LU1563454310', ticker:null,     name:'Lyxor Green Bond',               cat:'Green Bond',        ter:0.25, dur:6.0  },
+  { isin:'IE00BDT6FP91', ticker:'GCVE',   name:'SPDR Glob Conv Bond EUR H',      cat:'Convertibili',      ter:0.45, dur:3.0  },
+  { isin:'LU0210533500', ticker:null,     name:'JPM Funds Global Convertibles',  cat:'Convertibili',      ter:null, dur:3.0  },
+  { isin:'IE00BZ048462', ticker:'FLTR',   name:'iShares $ Floating Rate',        cat:'Float Rate USD',    ter:0.10, dur:0.2  },
+  { isin:'LU0321465469', ticker:'XFFE',   name:'Xtrackers II USD OVN Rate Swap', cat:'Money Market',      ter:0.15, dur:0.1  },
+  { isin:'IE00BYPC1H27', ticker:'CNYB',   name:'iShares China Bond USD',         cat:'Gov Cina',          ter:0.35, dur:5.0  },
+  { isin:'LU1094612022', ticker:'CGB',    name:'Xtrackers Harvest China Govt',   cat:'Gov Cina',          ter:0.40, dur:5.0  },
+  { isin:'IE00BDT8V027', ticker:'PRFE',   name:'Invesco Pref Shares ETF EUR H',  cat:'Preferred',         ter:0.50, dur:3.0  },
+  { isin:'FR0010869578', ticker:'BUND2S', name:'Amundi Bund Daily -2X Short',    cat:'Lev/Inverse',       ter:0.20, dur:null },
+  { isin:'IE00BKT09032', ticker:'3TYL',   name:'WisdomTree US Tsy 10Y 3X Lev',  cat:'Lev/Inverse',       ter:0.50, dur:null },
+];
+
+let etfCache = null, etfCacheTime = 0;
+const ETF_CACHE_TTL = 60 * 60 * 1000;
+
+async function fetchETFData() {
+  const CHUNK = 8;
+  const results = [];
+  for (let i = 0; i < ETF_LIST.length; i += CHUNK) {
+    const chunk = ETF_LIST.slice(i, i + CHUNK);
+    const settled = await Promise.allSettled(chunk.map(async etf => {
+      const candidates = [
+        etf.ticker ? etf.ticker + '.MI' : null,
+        etf.isin + '.MI',
+        etf.isin + '.F',
+      ].filter(Boolean);
+      for (const sym of candidates) {
+        try {
+          const q = await yahooFinance.quote(sym, {}, { validateResult: false });
+          if (q && q.regularMarketPrice != null) {
+            return {
+              ...etf,
+              price:         q.regularMarketPrice,
+              currency:      q.currency || 'EUR',
+              changePercent: q.regularMarketChangePercent ?? null,
+              change1d:      q.regularMarketChange ?? null,
+              high52w:       q.fiftyTwoWeekHigh ?? null,
+              low52w:        q.fiftyTwoWeekLow ?? null,
+              ytdReturn:     q.ytdReturn ?? null,
+              symbol:        sym,
+            };
+          }
+        } catch (e) { /* try next */ }
+      }
+      return { ...etf, price: null };
+    }));
+    results.push(...settled.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean));
+    if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 400));
+  }
+  return results;
+}
+
+app.get('/api/etf', async (req, res) => {
+  if (etfCache && Date.now() - etfCacheTime < ETF_CACHE_TTL) return res.json(etfCache);
+  try {
+    etfCache = await fetchETFData();
+    etfCacheTime = Date.now();
+    res.json(etfCache);
+  } catch (err) {
+    console.error('[ETF] Errore:', err.message);
+    if (etfCache) return res.json(etfCache);
+    res.status(500).json({ error: 'Errore dati ETF', detail: err.message });
+  }
+});
+
+// ─── MACRO ────────────────────────────────────────────────────────────────────
+
+let macroCache = null, macroCacheTime = 0;
+const MACRO_CACHE_TTL = 30 * 60 * 1000;
+
+async function fetchECBSeries(seriesKey) {
+  try {
+    const url = `https://data-api.ecb.europa.eu/service/data/${seriesKey}?lastNObservations=2&format=jsondata`;
+    const resp = await axios.get(url, { timeout: 10000 });
+    const dataset = resp.data.dataSets?.[0];
+    if (!dataset) return null;
+    const series = Object.values(dataset.series || {})[0];
+    if (!series) return null;
+    const obs = series.observations || {};
+    const keys = Object.keys(obs).sort((a, b) => +a - +b);
+    if (!keys.length) return null;
+    const lastKey = keys[keys.length - 1];
+    const prevKey = keys.length > 1 ? keys[keys.length - 2] : null;
+    const dates = resp.data.structure?.dimensions?.observation?.[0]?.values || [];
+    return {
+      value: obs[lastKey]?.[0] ?? null,
+      prev:  prevKey ? (obs[prevKey]?.[0] ?? null) : null,
+      date:  dates[+lastKey]?.id ?? null,
+    };
+  } catch (e) { return null; }
+}
+
+async function fetchYahooIndicator(symbol) {
+  try {
+    const q = await yahooFinance.quote(symbol, {}, { validateResult: false });
+    if (q && q.regularMarketPrice != null) {
+      return {
+        value:         q.regularMarketPrice,
+        change:        q.regularMarketChange ?? null,
+        changePercent: q.regularMarketChangePercent ?? null,
+        date: q.regularMarketTime
+          ? new Date(q.regularMarketTime * 1000).toISOString().split('T')[0]
+          : null,
+      };
+    }
+  } catch (e) {}
+  return null;
+}
+
+app.get('/api/macro', async (req, res) => {
+  if (macroCache && Date.now() - macroCacheTime < MACRO_CACHE_TTL) return res.json(macroCache);
+  try {
+    const [ecbRate, hicp, us10y, us3m, us30y, ger10y, ita10y] = await Promise.all([
+      fetchECBSeries('FM/B.U2.EUR.4F.KR.DFR.LEV'),
+      fetchECBSeries('ICP/M.U2.N.000000.4.ANR'),
+      fetchYahooIndicator('^TNX'),
+      fetchYahooIndicator('^IRX'),
+      fetchYahooIndicator('^TYX'),
+      fetchYahooIndicator('DE10YT=RR'),
+      fetchYahooIndicator('IT10YT=RR'),
+    ]);
+    const spreadBtpBund = (ita10y?.value != null && ger10y?.value != null)
+      ? { value: +((ita10y.value - ger10y.value) * 100).toFixed(0), date: ita10y.date }
+      : null;
+    const data = { ecbRate, hicp, us10y, us3m, us30y, ger10y, ita10y, spreadBtpBund, lastUpdate: new Date().toISOString() };
+    macroCache = data;
+    macroCacheTime = Date.now();
+    res.json(data);
+  } catch (err) {
+    console.error('[MACRO] Errore:', err.message);
+    if (macroCache) return res.json(macroCache);
+    res.status(500).json({ error: 'Errore dati macro', detail: err.message });
+  }
+});
+
 // Caricamento iniziale
 refreshData();
 
