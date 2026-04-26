@@ -1908,8 +1908,8 @@
       ${card('BCE — Deposit Rate', data.ecbRate, '%', rateColor(data.ecbRate?.value||0), 'Banca Centrale Europea')}
       ${card('Fed Funds (proxy 3M)', data.us3m, '%', rateColor(data.us3m?.value||0), 'US T-Bill 3M · ^IRX')}
       <div class="macro-section-title">📈 Rendimenti Governativi 10Y</div>
-      ${card('BTP 10Y — Italia', data.ita10y, '%', '', 'IT10YT=RR')}
-      ${card('Bund 10Y — Germania', data.ger10y, '%', '', 'DE10YT=RR')}
+      ${card('BTP 10Y — Italia', data.ita10y, '%', '', data.ita10y?.note || 'da monitor bond')}
+      ${card('Bund 10Y — Germania', data.ger10y, '%', '', data.ger10y?.note || 'da monitor bond')}
       ${card('Treasury 10Y — USA', data.us10y, '%', '', '^TNX')}
       ${card('Treasury 30Y — USA', data.us30y, '%', '', '^TYX')}
       <div class="macro-section-title">📊 Spread & Curve</div>

@@ -803,38 +803,63 @@ async function fetchECBSeries(seriesKey) {
   } catch (e) { return null; }
 }
 
+// Usa chart() invece di quote() — quote() non funziona per indici Yahoo Finance
 async function fetchYahooIndicator(symbol) {
   try {
-    const q = await yahooFinance.quote(symbol, {}, { validateResult: false });
-    if (q && q.regularMarketPrice != null) {
-      return {
-        value:         q.regularMarketPrice,
-        change:        q.regularMarketChange ?? null,
-        changePercent: q.regularMarketChangePercent ?? null,
-        date: q.regularMarketTime
-          ? new Date(q.regularMarketTime * 1000).toISOString().split('T')[0]
-          : null,
-      };
-    }
+    const period1 = new Date(Date.now() - 10 * 24 * 3600 * 1000); // ultimi 10 giorni
+    const result = await yahooFinance.chart(symbol, { period1, interval: '1d' }, { validateResult: false });
+    const quotes = (result.quotes || []).filter(q => q.close != null);
+    if (quotes.length < 1) return null;
+    const last = quotes[quotes.length - 1];
+    const prev = quotes.length > 1 ? quotes[quotes.length - 2] : null;
+    return {
+      value:         last.close,
+      change:        prev ? +(last.close - prev.close).toFixed(3) : null,
+      changePercent: prev ? +((last.close - prev.close) / prev.close * 100).toFixed(3) : null,
+      date:          new Date(last.date).toISOString().split('T')[0],
+    };
   } catch (e) {}
   return null;
+}
+
+// Ricava yield ~10Y da bond già scrappati (BTP, Bund, ecc.)
+function getBondYield10Y(paese, targetYears = 10) {
+  const today = new Date();
+  const bonds = state.bonds.filter(b => b.paese === paese && b.yield !== null && b.scadenza);
+  if (!bonds.length) return null;
+  const withYears = bonds
+    .map(b => ({ ...b, years: (new Date(b.scadenza) - today) / (365.25 * 24 * 3600 * 1000) }))
+    .filter(b => b.years > 0.5)
+    .sort((a, b) => Math.abs(a.years - targetYears) - Math.abs(b.years - targetYears));
+  if (!withYears.length) return null;
+  const best = withYears[0];
+  return {
+    value: best.yield,
+    date:  state.lastUpdate ? state.lastUpdate.split('T')[0] : null,
+    note:  `${best.descrizione} (${best.years.toFixed(1)}Y)`,
+  };
 }
 
 app.get('/api/macro', async (req, res) => {
   if (macroCache && Date.now() - macroCacheTime < MACRO_CACHE_TTL) return res.json(macroCache);
   try {
-    const [ecbRate, hicp, us10y, us3m, us30y, ger10y, ita10y] = await Promise.all([
+    // ECB API (gratuita) + Yahoo Finance chart() per US yields
+    const [ecbRate, hicp, us10y, us3m, us30y] = await Promise.all([
       fetchECBSeries('FM/B.U2.EUR.4F.KR.DFR.LEV'),
       fetchECBSeries('ICP/M.U2.N.000000.4.ANR'),
       fetchYahooIndicator('^TNX'),
       fetchYahooIndicator('^IRX'),
       fetchYahooIndicator('^TYX'),
-      fetchYahooIndicator('DE10YT=RR'),
-      fetchYahooIndicator('IT10YT=RR'),
     ]);
+
+    // BTP e Bund 10Y ricavati dai bond già scrappati (sempre disponibili)
+    const ita10y = getBondYield10Y('Italia');
+    const ger10y = getBondYield10Y('Germania');
+
     const spreadBtpBund = (ita10y?.value != null && ger10y?.value != null)
       ? { value: +((ita10y.value - ger10y.value) * 100).toFixed(0), date: ita10y.date }
       : null;
+
     const data = { ecbRate, hicp, us10y, us3m, us30y, ger10y, ita10y, spreadBtpBund, lastUpdate: new Date().toISOString() };
     macroCache = data;
     macroCacheTime = Date.now();
