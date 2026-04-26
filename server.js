@@ -705,14 +705,7 @@ async function fetchETFQuoteViaChart(etf) {
       const low52w  = Math.min(...prices);
       const high52w = Math.max(...prices);
 
-      // Prova yield (distribution yield) via quoteSummary sullo stesso simbolo
-      let yld = null;
-      try {
-        const qs = await yahooFinance.quoteSummary(sym, { modules: ['summaryDetail'] }, { validateResult: false });
-        if (qs?.summaryDetail?.yield != null) yld = qs.summaryDetail.yield * 100;
-      } catch (_) {}
-
-      console.log(`  [ETF] ${sym}: ${last.close.toFixed(2)} ${result.meta?.currency || 'EUR'}${yld != null ? ' yield:'+yld.toFixed(2)+'%' : ''}`);
+      console.log(`  [ETF] ${sym}: ${last.close.toFixed(2)} ${result.meta?.currency || 'EUR'}`);
       return {
         ...etf,
         price:         last.close,
@@ -722,7 +715,6 @@ async function fetchETFQuoteViaChart(etf) {
         ytdReturn,
         low52w,
         high52w,
-        yld,
         symbol:        sym,
       };
     } catch (e) {
@@ -833,8 +825,8 @@ async function refreshETFPricesBackground() {
       }));
       for (const r of settled) {
         if (r.status === 'fulfilled' && r.value?.isin) {
-          const { isin, price, currency, changePercent, change1d, ytdReturn, low52w, high52w, yld, symbol, source } = r.value;
-          etfPriceData[isin] = { price, currency, changePercent, change1d, ytdReturn, low52w, high52w, yld, symbol, source };
+          const { isin, price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source } = r.value;
+          etfPriceData[isin] = { price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source };
           if (price != null) successCount++;
         }
       }
