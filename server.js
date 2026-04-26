@@ -673,7 +673,10 @@ const ETF_LIST = [
   { isin:'IE00BKT09032', ticker:'3TYL',   name:'WisdomTree US Tsy 10Y 3X Lev',  cat:'Lev/Inverse',       ter:0.50, dur:null },
 ];
 
-let etfCache = null, etfCacheTime = 0;
+// Prezzi ETF caricati in background — risposta sempre immediata
+const etfPriceData = {}; // { isin: { price, changePercent, ... } }
+let etfCacheTime = 0;
+let etfPriceLoading = false;
 const ETF_CACHE_TTL = 60 * 60 * 1000;
 
 async function fetchETFQuoteViaChart(etf) {
@@ -751,29 +754,43 @@ async function fetchETFQuoteViaChart(etf) {
   return { ...etf, price: null };
 }
 
-async function fetchETFData() {
-  const CHUNK = 5; // più piccolo per evitare rate limit
-  const results = [];
-  for (let i = 0; i < ETF_LIST.length; i += CHUNK) {
-    const chunk = ETF_LIST.slice(i, i + CHUNK);
-    const settled = await Promise.allSettled(chunk.map(etf => fetchETFQuoteViaChart(etf)));
-    results.push(...settled.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean));
-    if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 600));
+// Aggiorna prezzi ETF in background senza bloccare l'HTTP response
+async function refreshETFPricesBackground() {
+  if (etfPriceLoading) return; // già in corso
+  etfPriceLoading = true;
+  console.log('[ETF] Avvio aggiornamento prezzi in background...');
+  try {
+    const CHUNK = 5;
+    for (let i = 0; i < ETF_LIST.length; i += CHUNK) {
+      const chunk = ETF_LIST.slice(i, i + CHUNK);
+      const settled = await Promise.allSettled(chunk.map(etf => fetchETFQuoteViaChart(etf)));
+      for (const r of settled) {
+        if (r.status === 'fulfilled' && r.value?.isin) {
+          const { isin, price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol } = r.value;
+          etfPriceData[isin] = { price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol };
+        }
+      }
+      if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 600));
+    }
+    etfCacheTime = Date.now();
+    const loaded = Object.keys(etfPriceData).length;
+    console.log(`[ETF] Aggiornamento prezzi completato: ${loaded}/${ETF_LIST.length} ETF`);
+  } catch (err) {
+    console.error('[ETF] Errore aggiornamento background:', err.message);
+  } finally {
+    etfPriceLoading = false;
   }
-  return results;
 }
 
-app.get('/api/etf', async (req, res) => {
-  if (etfCache && Date.now() - etfCacheTime < ETF_CACHE_TTL) return res.json(etfCache);
-  try {
-    etfCache = await fetchETFData();
-    etfCacheTime = Date.now();
-    res.json(etfCache);
-  } catch (err) {
-    console.error('[ETF] Errore:', err.message);
-    if (etfCache) return res.json(etfCache);
-    res.status(500).json({ error: 'Errore dati ETF', detail: err.message });
+// Risponde IMMEDIATAMENTE con la lista statica + prezzi già cachati,
+// poi triggerà il refresh in background se il cache è scaduto
+app.get('/api/etf', (req, res) => {
+  const list = ETF_LIST.map(etf => ({ ...etf, ...(etfPriceData[etf.isin] || {}) }));
+  const stale = Date.now() - etfCacheTime > ETF_CACHE_TTL;
+  if (stale && !etfPriceLoading) {
+    refreshETFPricesBackground(); // fire-and-forget
   }
+  res.json({ etfs: list, loading: etfPriceLoading, cacheTime: etfCacheTime || null });
 });
 
 // ─── MACRO ────────────────────────────────────────────────────────────────────
@@ -874,8 +891,14 @@ app.get('/api/macro', async (req, res) => {
 // Caricamento iniziale
 refreshData();
 
+// Prezzi ETF in background (parte subito, non blocca il server)
+setTimeout(refreshETFPricesBackground, 3000);
+
 // Auto-refresh ogni 10 minuti
 setInterval(refreshData, REFRESH_INTERVAL);
+
+// Auto-refresh ETF ogni ora
+setInterval(refreshETFPricesBackground, ETF_CACHE_TTL);
 
 app.listen(PORT, () => {
   console.log(`\n✅ Bond Monitor avviato su http://localhost:${PORT}`);

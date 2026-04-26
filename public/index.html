@@ -710,6 +710,10 @@
           </label>
           <span id="etfCount" style="font-size:12px;color:var(--text2);"></span>
         </div>
+        <div id="etfLoadingBanner" style="display:none;align-items:center;gap:8px;font-size:12px;color:var(--amber);background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:6px;padding:6px 12px;">
+          <span style="animation:spin 1.2s linear infinite;display:inline-block;">⏳</span>
+          Prezzi in caricamento dal mercato — la tabella si aggiorna automaticamente tra ~2 minuti
+        </div>
       </div>
       <div style="overflow-x:auto;flex:1;">
         <table class="etf-table">
@@ -1780,22 +1784,56 @@
   // ─────────────────────────────────────────────
   let allETFs = [], etfSortField = 'cat', etfSortDir = 'asc', etfLoaded = false;
 
+  let etfRefreshTimer = null;
+
   async function loadETFPanel() {
     if (etfLoaded) { renderETF(); return; }
+    await fetchAndRenderETF();
+  }
+
+  async function fetchAndRenderETF() {
     try {
       const res = await fetch('/api/etf');
-      allETFs = await res.json();
+      const data = await res.json();
+      // Supporta sia { etfs:[], loading:bool } sia array diretto (retrocompat)
+      const etfList = Array.isArray(data) ? data : (data.etfs || []);
+      const isLoading = !Array.isArray(data) && data.loading;
+
+      allETFs = etfList;
       etfLoaded = true;
-      const cats = [...new Set(allETFs.map(e => e.cat).filter(Boolean))].sort();
+
+      // Popola filtro categorie (solo la prima volta)
       const sel = document.getElementById('etfCatFilter');
-      cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+      if (sel.options.length <= 1) {
+        const cats = [...new Set(allETFs.map(e => e.cat).filter(Boolean))].sort();
+        cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+      }
+
+      // Banner "prezzi in caricamento"
+      const banner = document.getElementById('etfLoadingBanner');
+      if (banner) banner.style.display = isLoading ? 'flex' : 'none';
+
       renderETF();
+
+      // Se i prezzi sono ancora in caricamento, ri-prova fra 90 secondi
+      if (isLoading && !etfRefreshTimer) {
+        etfRefreshTimer = setTimeout(() => {
+          etfRefreshTimer = null;
+          etfLoaded = false;
+          fetchAndRenderETF();
+        }, 90000);
+      }
     } catch (e) {
-      document.getElementById('etfBody').innerHTML = `<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--red);">Errore caricamento ETF</td></tr>`;
+      document.getElementById('etfBody').innerHTML = `<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--red);">Errore caricamento ETF — riprova tra qualche minuto</td></tr>`;
     }
   }
 
-  function reloadETF() { etfLoaded = false; document.getElementById('etfBody').innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text2);">⏳ Ricaricamento...</td></tr>'; loadETFPanel(); }
+  function reloadETF() {
+    if (etfRefreshTimer) { clearTimeout(etfRefreshTimer); etfRefreshTimer = null; }
+    etfLoaded = false;
+    document.getElementById('etfBody').innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text2);">⏳ Ricaricamento...</td></tr>';
+    fetchAndRenderETF();
+  }
 
   function sortETF(field) {
     if (etfSortField === field) etfSortDir = etfSortDir === 'asc' ? 'desc' : 'asc';
