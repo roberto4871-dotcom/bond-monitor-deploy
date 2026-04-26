@@ -2280,6 +2280,21 @@
         });
       }
 
+      // Yield history da JustETF → usala per il grafico se Yahoo non ha dividendi
+      if (d.yieldHistory?.length && etfDetailYieldPts.length === 0) {
+        // Costruisci serie sintetica: un punto per anno + eventuale punto corrente
+        const pts = d.yieldHistory.map(({ year, yieldPct }) => {
+          // Usa 1° luglio come punto di riferimento dell'anno
+          return [new Date(year, 6, 1).getTime(), yieldPct];
+        });
+        // Aggiungi punto corrente con yield di oggi (se disponibile)
+        const latestYield = d.distYield || (d.yieldHistory[d.yieldHistory.length - 1]?.yieldPct);
+        if (latestYield) pts.push([Date.now(), latestYield]);
+        etfDetailYieldPts = pts;
+        // Se siamo già sul tab rendimento, ridisegna il grafico
+        if (etfDetailTab === 'yield') renderETFDetailChart();
+      }
+
       // Top Holdings
       if (d.holdings?.length) {
         const sec = document.getElementById('edHoldingsSection');
@@ -2409,10 +2424,10 @@
     const isYield  = etfDetailTab === 'yield';
     const sourceAll = isYield ? etfDetailYieldPts : etfDetailAllPts;
 
-    // Se yield richiesto ma non disponibile
+    // Se yield richiesto ma non ancora disponibile (JustETF in caricamento)
     if (isYield && sourceAll.length < 2) {
       loading.style.display = 'flex';
-      loading.innerHTML = '📉 Dati di rendimento non disponibili per questo ETF<br><span style="font-size:11px;color:var(--text2);">Yahoo Finance non fornisce dividendi storici per questo ticker</span>';
+      loading.innerHTML = '⏳ Caricamento storico rendimenti da JustETF...<br><span style="font-size:11px;color:var(--text2);">Potrebbe richiedere qualche secondo</span>';
       canvas.style.display = 'none';
       return;
     }

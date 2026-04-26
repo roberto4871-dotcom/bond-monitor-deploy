@@ -916,11 +916,125 @@ async function refreshETFYieldsBackground() {
       }));
       if (i + CHUNK < etfsWithSym.length) await new Promise(r => setTimeout(r, 1200));
     }
-    console.log(`[ETF Yields] Completato: ${found}/${etfsWithSym.length} rendimenti trovati`);
+    console.log(`[ETF Yields] Yahoo: ${found}/${etfsWithSym.length} rendimenti trovati`);
   } catch (err) {
-    console.error('[ETF Yields] Errore:', err.message);
+    console.error('[ETF Yields] Errore Yahoo:', err.message);
   } finally {
     etfYieldLoading = false;
+  }
+  // Terzo passaggio: JustETF scraping per i rendimenti mancanti (e storico per tutti)
+  setTimeout(refreshETFJustETFYields, 5000);
+}
+
+// ── JustETF scraping ──────────────────────────────────────────────────────────
+// Cache: { isin → { ts, currentYield, history: [{year, yieldPct}] } }
+const justETFCache = {};
+const JUST_ETF_TTL = 20 * 60 * 60 * 1000; // 20 ore
+
+async function fetchJustETFDistributions(isin) {
+  const cached = justETFCache[isin];
+  if (cached && Date.now() - cached.ts < JUST_ETF_TTL) return cached;
+
+  const url = `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
+  try {
+    const resp = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.justetf.com/',
+      },
+      timeout: 20000,
+    });
+
+    const $ = cheerio.load(resp.data);
+    const history = [];
+    let currentYield = null;
+
+    // Cerca tutte le righe di tabella con 3 celle: (anno, importo EUR, yield%)
+    $('tr').each((_, row) => {
+      const cells = $(row).find('td');
+      if (cells.length < 2) return;
+
+      const c0 = $(cells[0]).text().trim();
+      // Ultima cella con percentuale
+      let yieldPct = null;
+      for (let ci = cells.length - 1; ci >= 1; ci--) {
+        const txt = $(cells[ci]).text().trim().replace(',', '.');
+        const m = txt.match(/^(\d+\.?\d*)\s*%$/);
+        if (m) { yieldPct = parseFloat(m[1]); break; }
+      }
+      if (yieldPct == null || isNaN(yieldPct) || yieldPct <= 0 || yieldPct > 80) return;
+
+      const yearM = c0.match(/^(20\d{2})$/);
+      const ttmM  = c0.match(/1\s*year/i);
+
+      if (yearM) {
+        history.push({ year: parseInt(yearM[1]), yieldPct });
+      } else if (ttmM && !currentYield) {
+        currentYield = yieldPct;
+      }
+    });
+
+    // Ordina storia cronologicamente
+    history.sort((a, b) => a.year - b.year);
+
+    // Fallback current yield: ultima dell'anno corrente o più recente
+    if (!currentYield && history.length > 0) {
+      currentYield = history[history.length - 1].yieldPct;
+    }
+
+    // Se ancora nulla, cerca nel body pattern "X.XX%" vicino a "dividend yield"
+    if (!currentYield) {
+      const html = resp.data;
+      const m = html.match(/dividend[^<]{0,60}?(\d+[.,]\d+)\s*%/i)
+             || html.match(/(\d+[.,]\d+)\s*%[^<]{0,60}?dividend/i);
+      if (m) currentYield = parseFloat(m[1].replace(',', '.'));
+    }
+
+    const result = { ts: Date.now(), currentYield, history };
+    justETFCache[isin] = result;
+    return result;
+  } catch (e) {
+    console.log(`  [JustETF] ${isin}: ${e.message}`);
+    return null;
+  }
+}
+
+// Terzo passaggio: scraping JustETF per tutti gli ETF
+// (sia per i rendimenti mancanti in tabella, sia per lo storico nel pannello)
+let etfJustETFLoading = false;
+async function refreshETFJustETFYields() {
+  if (etfJustETFLoading) return;
+  etfJustETFLoading = true;
+  console.log('[JustETF] Avvio scraping rendimenti da JustETF...');
+  let updated = 0;
+
+  try {
+    // Priorità: ETF senza yield Yahoo (tabella) + tutti per lo storico
+    const CHUNK = 2;
+    for (let i = 0; i < ETF_LIST.length; i += CHUNK) {
+      const chunk = ETF_LIST.slice(i, i + CHUNK);
+      await Promise.allSettled(chunk.map(async (etf) => {
+        try {
+          const data = await fetchJustETFDistributions(etf.isin);
+          if (!data) return;
+          // Aggiorna resa in tabella se non già presente da Yahoo
+          if (data.currentYield != null && !etfPriceData[etf.isin]?.yld) {
+            if (!etfPriceData[etf.isin]) etfPriceData[etf.isin] = {};
+            etfPriceData[etf.isin].yld = +data.currentYield.toFixed(2);
+            updated++;
+            console.log(`  [JustETF] ${etf.isin}: ${data.currentYield.toFixed(2)}% (${data.history.length} anni storia)`);
+          }
+        } catch (e) {}
+      }));
+      if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 1500));
+    }
+    console.log(`[JustETF] Completato: ${updated} nuovi rendimenti aggiunti`);
+  } catch (err) {
+    console.error('[JustETF] Errore:', err.message);
+  } finally {
+    etfJustETFLoading = false;
   }
 }
 
@@ -1050,6 +1164,19 @@ app.get('/api/etf/:isin', async (req, res) => {
       console.log(`[ETF detail] quoteSummary ${sym}: ${e.message}`);
     }
   }
+
+  // JustETF: storico rendimenti (per grafico) + yield fallback per tabella
+  try {
+    const je = await fetchJustETFDistributions(isin);
+    if (je) {
+      if (je.history?.length) detail.yieldHistory = je.history;
+      // Usa JustETF come fallback se Yahoo non ha restituito lo yield
+      if (!detail.distYield && je.currentYield) {
+        detail.distYield = +je.currentYield.toFixed(2);
+        detail.yieldSource = 'JustETF';
+      }
+    }
+  } catch (e) {}
 
   res.json(detail);
 });
