@@ -364,6 +364,40 @@
     .projection-section { margin-top:20px; padding:0 4px; }
     .projection-canvas-wrap { position:relative; height:220px; }
 
+    /* ETF DETAIL MODAL */
+    .etf-detail-overlay {
+      position:fixed;inset:0;background:rgba(0,0,0,0.78);
+      display:none;align-items:center;justify-content:center;z-index:300;padding:16px;
+    }
+    .etf-detail-overlay.show { display:flex; }
+    .etf-detail-panel {
+      background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+      width:min(96vw,860px);max-height:92vh;overflow-y:auto;
+      display:flex;flex-direction:column;
+    }
+    .etf-d-header {
+      padding:22px 24px 16px;border-bottom:1px solid var(--border);
+      display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+      position:sticky;top:0;background:var(--bg2);z-index:1;border-radius:16px 16px 0 0;
+    }
+    .etf-d-kpi-row {
+      display:grid;grid-template-columns:repeat(4,1fr);
+      background:var(--border);gap:1px;border-bottom:1px solid var(--border);
+    }
+    @media(max-width:600px){ .etf-d-kpi-row{grid-template-columns:repeat(2,1fr);} }
+    .etf-d-kpi { background:var(--bg2);padding:14px 18px; }
+    .etf-d-kpi-label { font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text2);margin-bottom:5px; }
+    .etf-d-kpi-value { font-size:20px;font-weight:700; }
+    .etf-d-chart { padding:20px 24px; }
+    .etf-d-section { padding:0 24px 20px; }
+    .etf-d-section-title { font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.9px;margin-bottom:10px; }
+    .etf-d-footer { padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap; }
+    .etf-d-btn-primary { padding:9px 18px;background:var(--blue);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:12px;font-weight:600; }
+    .etf-d-btn-secondary { padding:9px 18px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px; }
+    .etf-d-rating-bar { display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:6px; }
+    .etf-d-holdings-row { display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px; }
+    .etf-d-holdings-row:last-child { border-bottom:none; }
+
     /* SOTTO LA PARI */
     tbody tr.under-par { border-left: 3px solid var(--teal); }
     tbody tr.under-par td:first-child { padding-left: 9px; }
@@ -723,6 +757,7 @@
             <th onclick="sortETF('name')">Nome <span id="esort-name"></span></th>
             <th onclick="sortETF('cat')">Categoria <span id="esort-cat"></span></th>
             <th onclick="sortETF('price')">Prezzo <span id="esort-price"></span></th>
+            <th onclick="sortETF('yld')" title="Distribution Yield (fonte Yahoo Finance)">Rend.% <span id="esort-yld"></span></th>
             <th onclick="sortETF('changePercent')">Var% <span id="esort-changePercent"></span></th>
             <th onclick="sortETF('ytdReturn')">YTD% <span id="esort-ytdReturn"></span></th>
             <th onclick="sortETF('low52w')">52w Min <span id="esort-low52w"></span></th>
@@ -733,7 +768,7 @@
             <th></th>
           </tr></thead>
           <tbody id="etfBody">
-            <tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text2);">
+            <tr><td colspan="14" style="text-align:center;padding:40px;color:var(--text2);">
               <div style="font-size:28px;margin-bottom:8px;">⏳</div>Caricamento ETF...
             </td></tr>
           </tbody>
@@ -913,6 +948,71 @@
         <div id="chartErrorMsg" style="font-size:13px;">Il titolo potrebbe non essere quotato su Yahoo Finance</div>
       </div>
       <canvas id="chartCanvas" style="width:100%;"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ETF DETAIL MODAL -->
+<div class="etf-detail-overlay" id="etfDetailModal" onclick="if(event.target===this)closeETFDetail()">
+  <div class="etf-detail-panel">
+    <div class="etf-d-header">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <span id="edTicker" style="font-family:monospace;font-size:16px;font-weight:700;color:var(--blue)"></span>
+          <span id="edCat" class="cat-badge"></span>
+          <span id="edIsin" style="font-size:11px;color:var(--text2);font-family:monospace"></span>
+        </div>
+        <div id="edName" style="font-size:18px;font-weight:700;line-height:1.25;margin-bottom:10px;"></div>
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+          <span id="edPrice" style="font-size:28px;font-weight:700;letter-spacing:-0.5px;"></span>
+          <span id="edChange" style="font-size:14px;font-weight:600;"></span>
+          <span id="edYTD" style="font-size:12px;color:var(--text2);"></span>
+        </div>
+      </div>
+      <button onclick="closeETFDetail()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:4px 8px;line-height:1;flex-shrink:0;border-radius:6px;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">✕</button>
+    </div>
+
+    <!-- KPI Grid: 8 celle 4×2 -->
+    <div class="etf-d-kpi-row" id="edKpiGrid"></div>
+
+    <!-- Grafico storico -->
+    <div class="etf-d-chart">
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+        <button class="period-btn active" id="edpb-1y"  onclick="loadETFDetailChart('1y')">1 Anno</button>
+        <button class="period-btn"        id="edpb-2y"  onclick="loadETFDetailChart('2y')">2 Anni</button>
+        <button class="period-btn"        id="edpb-3y"  onclick="loadETFDetailChart('3y')">3 Anni</button>
+        <button class="period-btn"        id="edpb-5y"  onclick="loadETFDetailChart('5y')">5 Anni</button>
+        <button class="period-btn"        id="edpb-max" onclick="loadETFDetailChart('max')">Storico</button>
+        <span id="edChartSrc" style="font-size:10px;color:var(--text2);margin-left:auto;"></span>
+      </div>
+      <div style="position:relative;height:220px;background:var(--bg3);border-radius:10px;overflow:hidden;">
+        <canvas id="etfDetailCanvas" style="width:100%;height:100%;"></canvas>
+        <div id="etfDetailLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text2);font-size:13px;background:var(--bg3);">
+          <span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span> Caricamento grafico...
+        </div>
+      </div>
+    </div>
+
+    <!-- Holdings (se disponibili da Yahoo) -->
+    <div class="etf-d-section" id="edHoldingsSection" style="display:none;">
+      <div class="etf-d-section-title">Top Holdings</div>
+      <div id="edHoldingsBody"></div>
+    </div>
+
+    <!-- Bond Ratings (se disponibili) -->
+    <div class="etf-d-section" id="edRatingsSection" style="display:none;">
+      <div class="etf-d-section-title">Credit Quality</div>
+      <div id="edRatingsBody"></div>
+    </div>
+
+    <!-- Footer link -->
+    <div class="etf-d-footer">
+      <a id="edLinkJustETF" href="#" target="_blank" rel="noopener" style="text-decoration:none;">
+        <button class="etf-d-btn-primary">📊 JustETF Factsheet</button>
+      </a>
+      <a id="edLinkBorsa" href="#" target="_blank" rel="noopener" style="text-decoration:none;">
+        <button class="etf-d-btn-secondary">🏛 Borsa Italiana</button>
+      </a>
     </div>
   </div>
 </div>
@@ -1825,14 +1925,14 @@
         }, 90000);
       }
     } catch (e) {
-      document.getElementById('etfBody').innerHTML = `<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--red);">Errore caricamento ETF — riprova tra qualche minuto</td></tr>`;
+      document.getElementById('etfBody').innerHTML = `<tr><td colspan="14" style="text-align:center;padding:40px;color:var(--red);">Errore caricamento ETF — riprova tra qualche minuto</td></tr>`;
     }
   }
 
   function reloadETF() {
     if (etfRefreshTimer) { clearTimeout(etfRefreshTimer); etfRefreshTimer = null; }
     etfLoaded = false;
-    document.getElementById('etfBody').innerHTML = '<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--text2);">⏳ Ricaricamento...</td></tr>';
+    document.getElementById('etfBody').innerHTML = '<tr><td colspan="14" style="text-align:center;padding:40px;color:var(--text2);">⏳ Ricaricamento...</td></tr>';
     fetchAndRenderETF();
   }
 
@@ -1878,6 +1978,7 @@
         <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(e.name)}">${escHtml(e.name)}</td>
         <td><span class="cat-badge">${escHtml(e.cat)}</span></td>
         <td style="font-weight:600">${e.price != null ? e.price.toFixed(2) + ' ' + (e.currency||'EUR') : '—'}</td>
+        <td style="color:var(--green);font-weight:600">${e.yld != null ? e.yld.toFixed(2) + '%' : '—'}</td>
         <td class="${pctCls(e.changePercent)}">${fmtPct(e.changePercent)}</td>
         <td class="${pctCls(ytdV)}">${fmtPct(ytdV)}</td>
         <td style="color:var(--text2)">${e.low52w != null ? e.low52w.toFixed(2) : '—'}</td>
@@ -1890,47 +1991,191 @@
         </td>
         <td onclick="event.stopPropagation()"><button class="btn-add-port" onclick="addETFToPortfolio('${e.isin}')">+ Port.</button></td>
       </tr>`;
-    }).join('') : `<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--text2);">Nessun ETF corrisponde ai filtri</td></tr>`;
+    }).join('') : `<tr><td colspan="14" style="text-align:center;padding:30px;color:var(--text2);">Nessun ETF corrisponde ai filtri</td></tr>`;
   }
 
-  // Apre il modal del grafico per un ETF (riusa lo stesso modal dei bond)
+  // ─── ETF DETAIL MODAL ──────────────────────────────────────────────────────
+  let etfDetailChartInst = null;
+  let currentETFDetailIsin = null;
+
+  function closeETFDetail() {
+    document.getElementById('etfDetailModal').classList.remove('show');
+    if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
+  }
+
   function openETFChart(isin) {
     const etf = allETFs.find(e => e.isin === isin);
     if (!etf) return;
+    currentETFDetailIsin = isin;
 
-    currentChartIsin = isin;
-    document.getElementById('modalIsin').textContent = isin;
-    document.getElementById('modalDesc').textContent = etf.name;
+    // Header
+    document.getElementById('edTicker').textContent = etf.ticker || '—';
+    document.getElementById('edCat').textContent    = etf.cat    || '';
+    document.getElementById('edIsin').textContent   = isin;
+    document.getElementById('edName').textContent   = etf.name;
 
-    const meta = [
-      etf.ticker ? `Ticker: ${etf.ticker}` : '',
-      etf.cat    ? etf.cat : '',
-      etf.ter  != null ? `TER: ${etf.ter.toFixed(2)}%` : '',
-      etf.dur  != null ? `Duration est.: ${etf.dur.toFixed(1)}` : '',
-      etf.price != null ? `Ultimo: ${etf.price.toFixed(2)} ${etf.currency || 'EUR'}` : '',
-    ].filter(Boolean).join('  ·  ');
-    document.getElementById('modalMeta').textContent = meta;
+    const p = etf.price;
+    document.getElementById('edPrice').textContent = p != null ? p.toFixed(2) + ' ' + (etf.currency || 'EUR') : '—';
+    const chgEl = document.getElementById('edChange');
+    const ytdEl = document.getElementById('edYTD');
+    if (etf.changePercent != null) {
+      const sign = etf.changePercent >= 0;
+      chgEl.textContent = (sign ? '▲ +' : '▼ ') + etf.changePercent.toFixed(2) + '%';
+      chgEl.style.color = sign ? 'var(--green)' : 'var(--red)';
+    } else { chgEl.textContent = ''; }
+    if (etf.ytdReturn != null) {
+      const ytdPct = etf.ytdReturn * 100;
+      ytdEl.textContent = 'YTD ' + (ytdPct >= 0 ? '+' : '') + ytdPct.toFixed(2) + '%';
+      ytdEl.style.color = ytdPct >= 0 ? 'var(--green)' : 'var(--red)';
+    } else { ytdEl.textContent = ''; }
 
-    // Links: Borsa Italiana + JustETF (al posto di simpletoolsforinvestors)
-    const linkBI = document.getElementById('linkBorsaIt');
-    const linkST = document.getElementById('linkSimpleTools');
-    linkBI.href = `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
-    linkBI.style.display = 'inline-block';
-    linkST.href = `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
-    linkST.textContent = '📊 JustETF';
-    linkST.style.display = 'inline-block';
+    // KPI Grid 4×2
+    const fmtN = (v, dec=2) => v != null ? v.toFixed(dec) : '—';
+    const kpis = [
+      { label:'Rendimento dist.',   value: etf.yld    != null ? etf.yld.toFixed(2)+'%' : '⏳', color:'var(--green)',  id:'edKpi_yld'    },
+      { label:'Duration est.',      value: fmtN(etf.dur,1),                                      color:'var(--teal)'                     },
+      { label:'TER annuo',          value: etf.ter   != null ? etf.ter.toFixed(2)+'%' : '—',    color:'var(--amber)'                    },
+      { label:'AUM',                value:'⏳',                                                   color:'var(--text)',  id:'edKpi_aum'    },
+      { label:'52w Min',            value: fmtN(etf.low52w),                                     color:'var(--red)'                      },
+      { label:'52w Max',            value: fmtN(etf.high52w),                                    color:'var(--green)'                    },
+      { label:'YTD',                value: etf.ytdReturn != null ? (etf.ytdReturn*100).toFixed(2)+'%' : '—', color: etf.ytdReturn >= 0 ? 'var(--green)' : 'var(--red)' },
+      { label:'Inizio fondo',       value:'⏳',                                                   color:'var(--text2)', id:'edKpi_incep'  },
+    ];
+    document.getElementById('edKpiGrid').innerHTML = kpis.map(k =>
+      `<div class="etf-d-kpi"${k.id ? ` id="${k.id}"` : ''}>
+        <div class="etf-d-kpi-label">${k.label}</div>
+        <div class="etf-d-kpi-value" style="color:${k.color}">${k.value}</div>
+      </div>`
+    ).join('');
 
-    // Reset periodo e tab
-    currentRange = '1y';
-    currentTab = 'price';
-    document.querySelectorAll('.modal-periods .period-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('pb-1y').classList.add('active');
-    document.getElementById('tabPrice').classList.add('active');
-    document.getElementById('tabYield').classList.remove('active');
-    document.getElementById('tabZspread').classList.remove('active');
+    // Links
+    document.getElementById('edLinkJustETF').href = `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
+    document.getElementById('edLinkBorsa').href   = `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
 
-    document.getElementById('chartModal').classList.add('show');
-    loadChart('1y');
+    // Reset sezioni opzionali
+    document.getElementById('edHoldingsSection').style.display = 'none';
+    document.getElementById('edRatingsSection').style.display  = 'none';
+
+    // Apri modal + carica grafico + dati dettaglio in parallelo
+    document.getElementById('etfDetailModal').classList.add('show');
+    loadETFDetailChart('1y');
+    fetchETFDetailData(isin, etf);
+  }
+
+  async function fetchETFDetailData(isin, etf) {
+    try {
+      const res  = await fetch(`/api/etf/${isin}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // Aggiorna KPI con dati da quoteSummary
+      if (data.distYield != null) {
+        const el = document.getElementById('edKpi_yld');
+        if (el) { el.querySelector('.etf-d-kpi-value').textContent = data.distYield.toFixed(2) + '%'; el.querySelector('.etf-d-kpi-label').textContent = 'Rend. dist. (30d)'; }
+      }
+      if (data.totalAssets != null) {
+        const el = document.getElementById('edKpi_aum');
+        if (el) {
+          const v = data.totalAssets >= 1e9 ? (data.totalAssets/1e9).toFixed(1)+'B' : (data.totalAssets/1e6).toFixed(0)+'M';
+          el.querySelector('.etf-d-kpi-value').textContent = '€' + v;
+        }
+      } else {
+        const el = document.getElementById('edKpi_aum'); if (el) el.querySelector('.etf-d-kpi-value').textContent = '—';
+      }
+      if (data.fundInceptionDate != null) {
+        const el = document.getElementById('edKpi_incep');
+        if (el) { const yr = new Date(data.fundInceptionDate * 1000).getFullYear(); el.querySelector('.etf-d-kpi-value').textContent = yr; }
+      } else {
+        const el = document.getElementById('edKpi_incep'); if (el) el.querySelector('.etf-d-kpi-value').textContent = '—';
+      }
+
+      // Holdings
+      if (data.holdings?.length) {
+        const sec = document.getElementById('edHoldingsSection');
+        sec.style.display = 'block';
+        document.getElementById('edHoldingsBody').innerHTML = data.holdings.map(h => {
+          const pct = h.holdingPercent != null ? (h.holdingPercent * 100).toFixed(2) + '%' : '—';
+          const bar = h.holdingPercent != null ? `<div style="width:${Math.min(h.holdingPercent*400,100)}%;height:3px;background:var(--blue);border-radius:2px;margin-top:3px;"></div>` : '';
+          return `<div class="etf-d-holdings-row">
+            <div>${escHtml(h.holdingName || h.symbol || '—')}</div>
+            <div style="text-align:right;min-width:70px;">
+              <span style="color:var(--teal);font-weight:600;">${pct}</span>${bar}
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      // Bond Ratings
+      if (data.bondRatings?.length) {
+        const ratingColors = { 'AAA':'#22c55e','AA':'#4ade80','A':'#86efac','BBB':'#fbbf24','BB':'#fb923c','B':'#f87171','CCC':'#ef4444','Other':'#6b7280' };
+        const sec = document.getElementById('edRatingsSection');
+        sec.style.display = 'block';
+        const total = data.bondRatings.reduce((s, r) => s + (r.holdingPercent || 0), 0);
+        document.getElementById('edRatingsBody').innerHTML =
+          `<div class="etf-d-rating-bar">${data.bondRatings.map(r => {
+            const pct = total > 0 ? (r.holdingPercent / total * 100) : 0;
+            const col  = ratingColors[r.maxMaturityClass] || ratingColors['Other'];
+            return `<div title="${r.maxMaturityClass}: ${pct.toFixed(1)}%" style="width:${pct}%;background:${col};"></div>`;
+          }).join('')}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${data.bondRatings.map(r => {
+            const pct = total > 0 ? (r.holdingPercent / total * 100).toFixed(1) : '—';
+            const col  = ratingColors[r.maxMaturityClass] || ratingColors['Other'];
+            return `<span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${col};display:inline-block;"></span>${r.maxMaturityClass} ${pct}%</span>`;
+          }).join('')}</div>`;
+      }
+    } catch (e) {}
+  }
+
+  async function loadETFDetailChart(range) {
+    ['1y','2y','3y','5y','max'].forEach(r => {
+      const b = document.getElementById(`edpb-${r}`);
+      if (b) b.classList.toggle('active', r === range);
+    });
+    const loading = document.getElementById('etfDetailLoading');
+    const canvas  = document.getElementById('etfDetailCanvas');
+    loading.style.display = 'flex';
+    canvas.style.display  = 'none';
+    if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
+
+    try {
+      const res = await fetch(`/api/chart/${currentETFDetailIsin}?range=${range}`);
+      if (!res.ok) { loading.innerHTML = '📉 Dati storici non disponibili'; return; }
+      const data = await res.json();
+      const pts  = data.price || [];
+      if (pts.length < 2) { loading.innerHTML = '📉 Dati insufficienti'; return; }
+
+      document.getElementById('edChartSrc').textContent = data.source ? '· ' + data.source : '';
+      loading.style.display = 'none';
+      canvas.style.display  = 'block';
+
+      const labels = pts.map(([ts]) => {
+        const d = new Date(ts);
+        return d.toLocaleDateString('it-IT', { month:'short', year:'2-digit' });
+      });
+      const prices  = pts.map(([,v]) => v);
+      const isUp    = prices[prices.length-1] >= prices[0];
+      const color   = isUp ? '#22c55e' : '#f87171';
+      const ctx     = canvas.getContext('2d');
+
+      etfDetailChartInst = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [{
+          data: prices, borderColor: color, backgroundColor: color + '18',
+          borderWidth: 2, pointRadius: 0, fill: true, tension: 0.2,
+        }]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { mode:'index', intersect:false, callbacks: { label: c => c.parsed.y.toFixed(2) } },
+          },
+          scales: {
+            x: { ticks: { maxTicksLimit:8, color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'} },
+            y: { ticks: { color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'} },
+          },
+        },
+      });
+    } catch (e) { loading.innerHTML = '📉 Errore caricamento dati'; }
   }
 
   function addETFToPortfolio(isin) {

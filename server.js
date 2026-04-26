@@ -705,7 +705,14 @@ async function fetchETFQuoteViaChart(etf) {
       const low52w  = Math.min(...prices);
       const high52w = Math.max(...prices);
 
-      console.log(`  [ETF] ${sym}: ${last.close.toFixed(2)} ${result.meta?.currency || 'EUR'}`);
+      // Prova yield (distribution yield) via quoteSummary sullo stesso simbolo
+      let yld = null;
+      try {
+        const qs = await yahooFinance.quoteSummary(sym, { modules: ['summaryDetail'] }, { validateResult: false });
+        if (qs?.summaryDetail?.yield != null) yld = qs.summaryDetail.yield * 100;
+      } catch (_) {}
+
+      console.log(`  [ETF] ${sym}: ${last.close.toFixed(2)} ${result.meta?.currency || 'EUR'}${yld != null ? ' yield:'+yld.toFixed(2)+'%' : ''}`);
       return {
         ...etf,
         price:         last.close,
@@ -715,6 +722,7 @@ async function fetchETFQuoteViaChart(etf) {
         ytdReturn,
         low52w,
         high52w,
+        yld,
         symbol:        sym,
       };
     } catch (e) {
@@ -825,8 +833,8 @@ async function refreshETFPricesBackground() {
       }));
       for (const r of settled) {
         if (r.status === 'fulfilled' && r.value?.isin) {
-          const { isin, price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source } = r.value;
-          etfPriceData[isin] = { price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source };
+          const { isin, price, currency, changePercent, change1d, ytdReturn, low52w, high52w, yld, symbol, source } = r.value;
+          etfPriceData[isin] = { price, currency, changePercent, change1d, ytdReturn, low52w, high52w, yld, symbol, source };
           if (price != null) successCount++;
         }
       }
@@ -891,6 +899,42 @@ app.get('/api/etf/debug', async (req, res) => {
   } catch (e) { out.tests.fetchPriceFromStooq = { error: e.message }; }
 
   res.json(out);
+});
+
+// Dettaglio singolo ETF: quoteSummary con yield, AUM, inception date, holdings
+app.get('/api/etf/:isin', async (req, res) => {
+  const isin = req.params.isin.toUpperCase();
+  const etf  = ETF_LIST.find(e => e.isin === isin);
+  if (!etf) return res.status(404).json({ error: 'ETF non trovato' });
+
+  const cached = etfPriceData[isin] || {};
+  const sym    = cached.symbol;
+  const detail = { ...etf, ...cached };
+
+  if (sym) {
+    try {
+      const qs = await yahooFinance.quoteSummary(sym, {
+        modules: ['summaryDetail', 'defaultKeyStatistics', 'topHoldings'],
+      }, { validateResult: false });
+
+      const sd = qs?.summaryDetail;
+      if (sd) {
+        if (sd.yield       != null) detail.distYield   = +(sd.yield * 100).toFixed(2);
+        if (sd.totalAssets != null) detail.totalAssets = sd.totalAssets;
+        if (sd.beta        != null) detail.beta        = +sd.beta.toFixed(2);
+      }
+      const dks = qs?.defaultKeyStatistics;
+      if (dks?.fundInceptionDate != null) detail.fundInceptionDate = dks.fundInceptionDate;
+
+      const th = qs?.topHoldings;
+      if (th?.holdings?.length)  detail.holdings    = th.holdings.slice(0, 8);
+      if (th?.bondRatings?.length) detail.bondRatings = th.bondRatings;
+    } catch (e) {
+      console.log(`[ETF detail] quoteSummary ${sym}: ${e.message}`);
+    }
+  }
+
+  res.json(detail);
 });
 
 // ─── MACRO ────────────────────────────────────────────────────────────────────
