@@ -1972,6 +1972,13 @@
       renderTable();
       updateStats();
     }
+    // Aggiorna Maturity Ladder in tempo reale se è visibile e in modalità "Filtrati"
+    const ladderPanel = document.getElementById('panelLadder');
+    const ladderScope = document.getElementById('ladderScope');
+    if (ladderPanel && ladderPanel.style.display !== 'none' &&
+        ladderScope && ladderScope.value === 'filtered') {
+      renderLadder();
+    }
   };
 
   // ─────────────────────────────────────────────
