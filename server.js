@@ -754,27 +754,91 @@ async function fetchETFQuoteViaChart(etf) {
   return { ...etf, price: null };
 }
 
+// Fonte alternativa: Stooq.com — CSV gratuito, dati storici giornalieri
+// Include 52w min/max, YTD e variazione giornaliera
+async function fetchPriceFromStooq(etf) {
+  const trySymbols = [
+    etf.ticker ? `${etf.ticker.toLowerCase()}.mi` : null, // Borsa Italiana
+    etf.ticker ? `${etf.ticker.toLowerCase()}.de` : null, // XETRA
+    etf.ticker ? `${etf.ticker.toLowerCase()}.l`  : null, // London
+    etf.ticker ? `${etf.ticker.toLowerCase()}.f`  : null, // Frankfurt
+    `${etf.isin.toLowerCase()}.mi`,
+  ].filter(Boolean);
+
+  for (const sym of trySymbols) {
+    try {
+      // Storico giornaliero ultimi ~370 giorni
+      const url = `https://stooq.com/q/d/l/?s=${sym}&i=d`;
+      const resp = await axios.get(url, { timeout: 12000, headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      }});
+      // CSV: Date,Open,High,Low,Close,Volume (prima riga = header)
+      const lines = resp.data.trim().split('\n').filter(l => l && !l.startsWith('Date'));
+      if (lines.length < 2) continue;
+
+      const parseRow = (l) => {
+        const parts = l.split(',');
+        return { date: parts[0], open: parseFloat(parts[1]), close: parseFloat(parts[4]) };
+      };
+      const rows = lines.map(parseRow).filter(r => !isNaN(r.close) && r.close > 0);
+      if (rows.length < 2) continue;
+
+      const last   = rows[rows.length - 1];
+      const prev   = rows[rows.length - 2];
+      const closes = rows.map(r => r.close);
+      const yearNow = new Date().getFullYear();
+      const jan1row = rows.find(r => r.date.startsWith(String(yearNow)));
+      const ytdReturn = jan1row ? (last.close - jan1row.close) / jan1row.close : null;
+
+      console.log(`  [Stooq] ${sym}: ${last.close}`);
+      return {
+        ...etf,
+        price:         last.close,
+        currency:      'EUR',
+        changePercent: (last.close - prev.close) / prev.close * 100,
+        change1d:      last.close - prev.close,
+        ytdReturn,
+        low52w:        Math.min(...closes),
+        high52w:       Math.max(...closes),
+        symbol:        sym.toUpperCase(),
+        source:        'Stooq',
+      };
+    } catch (e) { /* prova simbolo successivo */ }
+  }
+  return { ...etf, price: null };
+}
+
 // Aggiorna prezzi ETF in background senza bloccare l'HTTP response
+// Tenta Yahoo Finance prima (dati più ricchi), poi Stooq come fallback
 async function refreshETFPricesBackground() {
   if (etfPriceLoading) return; // già in corso
   etfPriceLoading = true;
   console.log('[ETF] Avvio aggiornamento prezzi in background...');
+  let successCount = 0;
   try {
     const CHUNK = 5;
     for (let i = 0; i < ETF_LIST.length; i += CHUNK) {
       const chunk = ETF_LIST.slice(i, i + CHUNK);
-      const settled = await Promise.allSettled(chunk.map(etf => fetchETFQuoteViaChart(etf)));
+      const settled = await Promise.allSettled(chunk.map(async (etf) => {
+        // 1) Yahoo Finance via chart()
+        const yahoo = await fetchETFQuoteViaChart(etf);
+        if (yahoo.price != null) return yahoo;
+        // 2) Stooq.com come fallback
+        return fetchPriceFromStooq(etf);
+      }));
       for (const r of settled) {
         if (r.status === 'fulfilled' && r.value?.isin) {
-          const { isin, price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol } = r.value;
-          etfPriceData[isin] = { price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol };
+          const { isin, price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source } = r.value;
+          etfPriceData[isin] = { price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source };
+          if (price != null) successCount++;
         }
       }
-      if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 600));
+      if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 800));
     }
-    etfCacheTime = Date.now();
-    const loaded = Object.keys(etfPriceData).length;
-    console.log(`[ETF] Aggiornamento prezzi completato: ${loaded}/${ETF_LIST.length} ETF`);
+    // Aggiorna il timestamp SOLO se almeno qualche prezzo è stato trovato
+    // (altrimenti al prossimo reload il cache sarebbe ancora "fresco" con tutti null)
+    if (successCount > 0) etfCacheTime = Date.now();
+    console.log(`[ETF] Aggiornamento prezzi: ${successCount}/${ETF_LIST.length} ETF con prezzo`);
   } catch (err) {
     console.error('[ETF] Errore aggiornamento background:', err.message);
   } finally {
