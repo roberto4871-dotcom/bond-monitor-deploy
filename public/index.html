@@ -1058,13 +1058,19 @@
     <!-- ── Grafico storico ── -->
     <div class="etf-d-chart">
       <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-        <button class="period-btn" id="edpb-ytd" onclick="loadETFDetailChart('ytd')">YTD</button>
-        <button class="period-btn active" id="edpb-1y" onclick="loadETFDetailChart('1y')">1 Anno</button>
-        <button class="period-btn" id="edpb-2y" onclick="loadETFDetailChart('2y')">2 Anni</button>
-        <button class="period-btn" id="edpb-3y" onclick="loadETFDetailChart('3y')">3 Anni</button>
-        <button class="period-btn" id="edpb-5y" onclick="loadETFDetailChart('5y')">5 Anni</button>
-        <button class="period-btn" id="edpb-max" onclick="loadETFDetailChart('max')">Storico</button>
-        <span id="edChartSrc" style="font-size:10px;color:var(--text2);margin-left:auto;"></span>
+        <!-- Periodi -->
+        <button class="period-btn" id="edpb-ytd" onclick="setETFChartRange('ytd')">YTD</button>
+        <button class="period-btn active" id="edpb-1y" onclick="setETFChartRange('1y')">1 Anno</button>
+        <button class="period-btn" id="edpb-2y" onclick="setETFChartRange('2y')">2 Anni</button>
+        <button class="period-btn" id="edpb-3y" onclick="setETFChartRange('3y')">3 Anni</button>
+        <button class="period-btn" id="edpb-5y" onclick="setETFChartRange('5y')">5 Anni</button>
+        <button class="period-btn" id="edpb-max" onclick="setETFChartRange('max')">Storico</button>
+        <!-- Dataset toggle -->
+        <div style="margin-left:auto;display:flex;gap:3px;align-items:center;">
+          <button class="period-btn active" id="edtab-price" onclick="setETFChartTab('price')">Prezzo</button>
+          <button class="period-btn" id="edtab-yield" onclick="setETFChartTab('yield')">Rendimento %</button>
+        </div>
+        <span id="edChartSrc" style="font-size:10px;color:var(--text2);white-space:nowrap;"></span>
       </div>
       <div style="position:relative;height:240px;background:var(--bg3);border-radius:10px;overflow:hidden;">
         <canvas id="etfDetailCanvas" style="width:100%;height:100%;"></canvas>
@@ -2110,12 +2116,16 @@
   let etfDetailChartInst = null;
   let currentETFDetailIsin = null;
   let currentETFCurrency = 'EUR';
-  let etfDetailAllPts = []; // cached max-range data for period computation
+  let etfDetailAllPts  = []; // cached price series (max range)
+  let etfDetailYieldPts = []; // cached TTM yield series (max range)
+  let etfDetailRange = '1y';
+  let etfDetailTab   = 'price'; // 'price' | 'yield'
 
   function closeETFDetail() {
     document.getElementById('etfDetailModal').classList.remove('show');
     if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
-    etfDetailAllPts = [];
+    etfDetailAllPts   = [];
+    etfDetailYieldPts = [];
   }
 
   function openETFChart(isin) {
@@ -2184,9 +2194,21 @@
     document.getElementById('edHoldingsSection').style.display = 'none';
     document.getElementById('edRatingsSection').style.display  = 'none';
 
+    // Reset tab/range state
+    etfDetailRange = '1y';
+    etfDetailTab   = 'price';
+    ['ytd','1y','2y','3y','5y','max'].forEach(r => {
+      const b = document.getElementById('edpb-' + r);
+      if (b) b.classList.toggle('active', r === '1y');
+    });
+    ['price','yield'].forEach(t => {
+      const b = document.getElementById('edtab-' + t);
+      if (b) b.classList.toggle('active', t === 'price');
+    });
+
     // ── Open + parallel load ──
     document.getElementById('etfDetailModal').classList.add('show');
-    loadETFDetailChart('1y');       // fetches max range, computes perf strip, then renders
+    loadETFDetailChart();           // fetches max-range data, computes perf strip, renders
     fetchETFDetailData(isin, etf);  // quoteSummary: yield, AUM, holdings, ratings, desc
   }
 
@@ -2302,12 +2324,28 @@
     } catch (e) { console.error('[ETF detail]', e); }
   }
 
-  // ── loadETFDetailChart — fetches max range, computes perf strip, renders chart ──
-  async function loadETFDetailChart(range) {
+  // ── Cambia periodo del grafico ETF ──
+  function setETFChartRange(range) {
+    etfDetailRange = range;
     ['ytd','1y','2y','3y','5y','max'].forEach(r => {
-      const b = document.getElementById(`edpb-${r}`);
+      const b = document.getElementById('edpb-' + r);
       if (b) b.classList.toggle('active', r === range);
     });
+    renderETFDetailChart();
+  }
+
+  // ── Cambia tab Prezzo / Rendimento % ──
+  function setETFChartTab(tab) {
+    etfDetailTab = tab;
+    ['price','yield'].forEach(t => {
+      const b = document.getElementById('edtab-' + t);
+      if (b) b.classList.toggle('active', t === tab);
+    });
+    renderETFDetailChart();
+  }
+
+  // ── Carica dati (prima volta o dopo reset), poi renderizza ──
+  async function loadETFDetailChart() {
     const loading = document.getElementById('etfDetailLoading');
     const canvas  = document.getElementById('etfDetailCanvas');
     loading.style.display = 'flex';
@@ -2316,43 +2354,36 @@
     if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
 
     try {
-      // Always fetch max range so we can compute all performance periods once
-      let allPts = etfDetailAllPts;
-      if (!allPts.length) {
+      if (!etfDetailAllPts.length) {
         const res = await fetch(`/api/chart/${currentETFDetailIsin}?range=max`);
         if (!res.ok) { loading.innerHTML = '📉 Dati storici non disponibili'; return; }
         const data = await res.json();
-        allPts = data.price || [];
-        etfDetailAllPts = allPts;
-        document.getElementById('edChartSrc').textContent = data.source ? '· ' + data.source : '';
+        etfDetailAllPts   = data.price     || [];
+        etfDetailYieldPts = data.yieldData || [];
+        document.getElementById('edChartSrc').textContent =
+          data.source ? '· ' + data.source : '';
       }
-      if (allPts.length < 2) { loading.innerHTML = '📉 Dati insufficienti'; return; }
+      if (etfDetailAllPts.length < 2) { loading.innerHTML = '📉 Dati insufficienti'; return; }
 
-      // ── Compute performance periods ──
+      // ── Performance strip (sempre da prezzi, max range) ──
       const DAY    = 86400000;
-      const nowPt  = allPts[allPts.length - 1];
-      const nowTs  = nowPt[0];
-      const nowVal = nowPt[1];
+      const nowPt  = etfDetailAllPts[etfDetailAllPts.length - 1];
+      const nowTs  = nowPt[0], nowVal = nowPt[1];
+      const ytdStart = new Date(new Date(nowTs).getFullYear(), 0, 1).getTime();
 
       const priceAt = (targetTs) => {
         let v = null;
-        for (const [ts, val] of allPts) { if (ts <= targetTs) v = val; else break; }
+        for (const [ts, val] of etfDetailAllPts) { if (ts <= targetTs) v = val; else break; }
         return v;
       };
       const perfPct = (msAgo) => {
         const v = priceAt(nowTs - msAgo);
         return v != null ? (nowVal - v) / v * 100 : null;
       };
-      const ytdStart = new Date(new Date(nowTs).getFullYear(), 0, 1).getTime();
-
       const perfs = {
-        '1m':  perfPct(30  * DAY),
-        '3m':  perfPct(91  * DAY),
-        '6m':  perfPct(182 * DAY),
-        'ytd': (() => { const v = priceAt(ytdStart); return v != null ? (nowVal-v)/v*100 : null; })(),
-        '1y':  perfPct(365 * DAY),
-        '3y':  perfPct(3   * 365 * DAY),
-        '5y':  perfPct(5   * 365 * DAY),
+        '1m': perfPct(30 * DAY), '3m': perfPct(91 * DAY), '6m': perfPct(182 * DAY),
+        'ytd': (() => { const v = priceAt(ytdStart); return v ? (nowVal-v)/v*100 : null; })(),
+        '1y': perfPct(365 * DAY), '3y': perfPct(3*365*DAY), '5y': perfPct(5*365*DAY),
       };
       Object.entries(perfs).forEach(([k, val]) => {
         const el = document.getElementById('eperf-' + k);
@@ -2361,52 +2392,98 @@
         else { el.textContent = (val >= 0 ? '+' : '') + val.toFixed(2) + '%'; el.style.color = val >= 0 ? 'var(--green)' : 'var(--red)'; }
       });
 
-      // ── Filter to selected range ──
-      const cutoff = (() => {
-        switch (range) {
-          case 'ytd': return ytdStart;
-          case '1y':  return nowTs - 365 * DAY;
-          case '2y':  return nowTs - 2 * 365 * DAY;
-          case '3y':  return nowTs - 3 * 365 * DAY;
-          case '5y':  return nowTs - 5 * 365 * DAY;
-          default:    return 0;
-        }
-      })();
-      const pts = cutoff > 0 ? allPts.filter(([ts]) => ts >= cutoff) : allPts;
-      if (pts.length < 2) { loading.innerHTML = '📉 Dati insufficienti per questo periodo'; return; }
+      renderETFDetailChart();
+    } catch (e) {
+      document.getElementById('etfDetailLoading').innerHTML = '📉 Errore caricamento dati';
+      console.error(e);
+    }
+  }
 
-      loading.style.display = 'none';
-      canvas.style.display  = 'block';
+  // ── Renderizza il grafico con range e tab correnti ──
+  function renderETFDetailChart() {
+    const loading = document.getElementById('etfDetailLoading');
+    const canvas  = document.getElementById('etfDetailCanvas');
+    if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
 
-      const labels = pts.map(([ts]) => new Date(ts).toLocaleDateString('it-IT', { month:'short', year:'2-digit' }));
-      const prices = pts.map(([, v]) => v);
-      const isUp   = prices[prices.length-1] >= prices[0];
-      const color  = isUp ? '#22c55e' : '#f87171';
+    // Scegli dataset
+    const isYield  = etfDetailTab === 'yield';
+    const sourceAll = isYield ? etfDetailYieldPts : etfDetailAllPts;
 
-      etfDetailChartInst = new Chart(canvas.getContext('2d'), {
-        type: 'line',
-        data: { labels, datasets: [{
-          data: prices, borderColor: color, backgroundColor: color + '14',
-          borderWidth: 2, pointRadius: 0, fill: true, tension: 0.15,
-        }]},
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              mode:'index', intersect:false,
-              backgroundColor:'#1c2230', borderColor:'#2a3347', borderWidth:1,
-              titleColor:'#7a8fa8', bodyColor:'#e0e8f0',
-              callbacks: { label: c => '  ' + c.parsed.y.toFixed(2) + ' ' + currentETFCurrency },
-            },
-          },
-          scales: {
-            x: { ticks:{ maxTicksLimit:8, color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'} },
-            y: { ticks:{ color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'}, position:'right' },
+    // Se yield richiesto ma non disponibile
+    if (isYield && sourceAll.length < 2) {
+      loading.style.display = 'flex';
+      loading.innerHTML = '📉 Dati di rendimento non disponibili per questo ETF<br><span style="font-size:11px;color:var(--text2);">Yahoo Finance non fornisce dividendi storici per questo ticker</span>';
+      canvas.style.display = 'none';
+      return;
+    }
+    if (sourceAll.length < 2) {
+      loading.style.display = 'flex';
+      loading.innerHTML = '📉 Dati insufficienti';
+      canvas.style.display = 'none';
+      return;
+    }
+
+    // Filtra per range
+    const DAY = 86400000;
+    const nowTs = etfDetailAllPts[etfDetailAllPts.length - 1]?.[0] || Date.now();
+    const ytdStart = new Date(new Date(nowTs).getFullYear(), 0, 1).getTime();
+    const cutoff = (() => {
+      switch (etfDetailRange) {
+        case 'ytd': return ytdStart;
+        case '1y':  return nowTs - 365 * DAY;
+        case '2y':  return nowTs - 2 * 365 * DAY;
+        case '3y':  return nowTs - 3 * 365 * DAY;
+        case '5y':  return nowTs - 5 * 365 * DAY;
+        default:    return 0;
+      }
+    })();
+    const pts = cutoff > 0 ? sourceAll.filter(([ts]) => ts >= cutoff) : sourceAll;
+
+    if (pts.length < 2) {
+      loading.style.display = 'flex';
+      loading.innerHTML = '📉 Dati insufficienti per questo periodo';
+      canvas.style.display = 'none';
+      return;
+    }
+
+    loading.style.display = 'none';
+    canvas.style.display  = 'block';
+
+    const labels = pts.map(([ts]) => new Date(ts).toLocaleDateString('it-IT', { month:'short', year:'2-digit' }));
+    const values = pts.map(([, v]) => v);
+    const isUp   = values[values.length-1] >= values[0];
+    // Per lo yield usa sempre teal/verde indipendentemente dalla direzione
+    const color  = isYield ? '#22d3ee' : (isUp ? '#22c55e' : '#f87171');
+    const decimals = isYield ? 2 : 2;
+    const suffix   = isYield ? '%' : ' ' + currentETFCurrency;
+
+    etfDetailChartInst = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets: [{
+        data: values, borderColor: color, backgroundColor: color + '14',
+        borderWidth: 2, pointRadius: 0, fill: true, tension: 0.15,
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode:'index', intersect:false,
+            backgroundColor:'#1c2230', borderColor:'#2a3347', borderWidth:1,
+            titleColor:'#7a8fa8', bodyColor:'#e0e8f0',
+            callbacks: { label: c => '  ' + c.parsed.y.toFixed(decimals) + suffix },
           },
         },
-      });
-    } catch (e) { loading.innerHTML = '📉 Errore caricamento dati'; console.error(e); }
+        scales: {
+          x: { ticks:{ maxTicksLimit:8, color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'} },
+          y: {
+            ticks:{ color:'#7a8fa8', font:{size:10},
+              callback: v => isYield ? v.toFixed(2) + '%' : v.toFixed(2) },
+            grid:{color:'#2a3347'}, position:'right',
+          },
+        },
+      },
+    });
   }
 
   function expandETFDesc() {

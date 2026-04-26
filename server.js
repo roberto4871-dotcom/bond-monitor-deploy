@@ -461,7 +461,30 @@ function calcPeriod1(range) {
   }
 }
 
+// Calcola serie storica yield TTM da dividendi + prezzi
+// dividends: [{date: seconds, amount: x}, ...]
+// pricePoints: [[ms, close], ...]
+// Restituisce [[ms, yieldPct], ...] — solo punti dove il TTM è > 0
+function computeETFYieldSeries(pricePoints, dividends) {
+  if (!dividends || dividends.length === 0) return [];
+  const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+  const result  = [];
+  // Per ogni punto prezzo calcola la somma dividendi negli ultimi 12 mesi
+  for (const [ts, price] of pricePoints) {
+    if (!price || price <= 0) continue;
+    const cutoff = ts - YEAR_MS;
+    let ttmSum = 0;
+    for (const d of dividends) {
+      const dTs = d.date * 1000; // Yahoo restituisce secondi
+      if (dTs >= cutoff && dTs <= ts) ttmSum += d.amount;
+    }
+    if (ttmSum > 0) result.push([ts, (ttmSum / price) * 100]);
+  }
+  return result;
+}
+
 // Tenta Yahoo Finance con diversi suffissi di borsa
+// Richiede anche i dividendi (events:'div') per calcolare lo yield TTM degli ETF
 async function tryYahooFinance(isin) {
   const prefix = isin.substring(0, 2).toUpperCase();
   const suffixes = YAHOO_SUFFIXES[prefix] || ['.MI', '.F'];
@@ -470,18 +493,31 @@ async function tryYahooFinance(isin) {
   for (const suffix of suffixes) {
     const symbol = isin + suffix;
     try {
-      const result = await yahooFinance.chart(symbol, { period1, interval: '1d' }, { validateResult: false });
+      const result = await yahooFinance.chart(symbol, { period1, interval: '1d', events: 'div' }, { validateResult: false });
       const quotes = (result.quotes || []).filter(q => q.close != null);
       if (quotes.length >= 20) {
         const currency = result.meta?.currency || 'EUR';
-        console.log(`  [CHART] Yahoo OK: ${symbol} — ${quotes.length} punti`);
+        const pricePoints = quotes.map(q => [new Date(q.date).getTime(), q.close]);
+
+        // Estrai dividendi (oggetto {timestamp: {amount, date}} oppure array)
+        const divRaw = result.events?.dividends || {};
+        const dividends = Array.isArray(divRaw)
+          ? divRaw
+          : Object.values(divRaw);
+
+        const yieldData = computeETFYieldSeries(pricePoints, dividends);
+        if (yieldData.length > 0)
+          console.log(`  [CHART] ${symbol}: ${quotes.length} prezzi, ${yieldData.length} punti yield TTM`);
+        else
+          console.log(`  [CHART] Yahoo OK: ${symbol} — ${quotes.length} punti (no dividends)`);
+
         return {
           source: 'Yahoo Finance',
           symbol,
           currency,
-          price: quotes.map(q => [new Date(q.date).getTime(), q.close]),
-          yieldData: [],   // Yahoo non ha yield per bonds
-          zspreadData: [], // Yahoo non ha z-spread
+          price:      pricePoints,
+          yieldData,          // TTM distribution yield (%) — vuoto per bond gov.
+          zspreadData: [],
         };
       }
     } catch (e) {
@@ -494,16 +530,19 @@ async function tryYahooFinance(isin) {
     const search = await yahooFinance.search(isin, { quotesCount: 3, newsCount: 0 }, { validateResult: false });
     for (const q of (search.quotes || [])) {
       try {
-        const result = await yahooFinance.chart(q.symbol, { period1, interval: '1d' }, { validateResult: false });
+        const result = await yahooFinance.chart(q.symbol, { period1, interval: '1d', events: 'div' }, { validateResult: false });
         const quotes = (result.quotes || []).filter(r => r.close != null);
         if (quotes.length >= 20) {
+          const pricePoints = quotes.map(r => [new Date(r.date).getTime(), r.close]);
+          const divRaw = result.events?.dividends || {};
+          const dividends = Array.isArray(divRaw) ? divRaw : Object.values(divRaw);
           console.log(`  [CHART] Yahoo Search OK: ${q.symbol} — ${quotes.length} punti`);
           return {
             source: 'Yahoo Finance',
             symbol: q.symbol,
             currency: result.meta?.currency || 'EUR',
-            price: quotes.map(r => [new Date(r.date).getTime(), r.close]),
-            yieldData: [],
+            price:      pricePoints,
+            yieldData:  computeETFYieldSeries(pricePoints, dividends),
             zspreadData: [],
           };
         }
