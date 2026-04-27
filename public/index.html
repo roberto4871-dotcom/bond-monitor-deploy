@@ -354,9 +354,29 @@
     .etf-table th:hover { color:var(--text); }
     .etf-table td { padding:6px 10px; border-bottom:1px solid var(--border); color:var(--text); }
     .etf-table tr:hover td { background:var(--bg3); }
+    /* group header rows */
+    .etf-grp-hdr td { padding:0; border-bottom:none; }
+    .etf-grp-hdr-btn { width:100%; background:rgba(255,255,255,0.03); border:none; cursor:pointer;
+      padding:7px 10px; display:flex; align-items:center; gap:8px; border-left:3px solid var(--gc,#555);
+      border-top:1px solid var(--border); }
+    .etf-grp-hdr-btn:hover { background:rgba(255,255,255,0.06); }
+    .etf-grp-arrow { font-size:9px; color:var(--text2); transition:transform .2s; display:inline-block; }
+    .etf-grp-arrow.collapsed { transform:rotate(-90deg); }
+    .etf-grp-icon { font-size:14px; }
+    .etf-grp-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text); }
+    .etf-grp-count { font-size:10px; color:var(--text2); margin-left:auto; }
+    /* data rows — colored left border per group */
+    .etf-table tbody tr.etf-row { position:relative; }
+    .etf-table tbody tr.etf-row td:first-child { padding-left:13px; position:relative; }
+    .etf-table tbody tr.etf-row td:first-child::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--gc,transparent); }
     .cat-badge { display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; background:var(--bg3); color:var(--text2); white-space:nowrap; }
     .etf-search { padding:6px 10px; background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; width:180px; }
     .etf-cat-select { padding:6px 8px; background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:12px; }
+    /* GROUP CHIPS */
+    .etf-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .etf-chip { padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg3); color:var(--text2); transition:all .15s; white-space:nowrap; }
+    .etf-chip:hover { border-color:rgba(255,255,255,0.25); color:var(--text); }
+    .etf-chip.active { background:var(--chip-c,#3b82f6); border-color:var(--chip-c,#3b82f6); color:#fff; }
     .pos-change { color:#22c55e; }
     .neg-change { color:#ef4444; }
     /* ─── MACRO ─── */
@@ -825,13 +845,21 @@
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <input type="text" class="etf-search" id="etfSearch" placeholder="Cerca ticker / nome..." oninput="renderETF()">
-          <select class="etf-cat-select" id="etfCatFilter" onchange="renderETF()">
-            <option value="">Tutte le categorie</option>
-          </select>
           <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;">
             <input type="checkbox" id="etfOnlyPrice" onchange="renderETF()"> Solo con prezzo
           </label>
           <span id="etfCount" style="font-size:12px;color:var(--text2);"></span>
+        </div>
+        <!-- GROUP CHIPS -->
+        <div class="etf-chips" id="etfChips">
+          <button class="etf-chip active" style="--chip-c:#8b949e" onclick="setEtfGroup('',this)">Tutti</button>
+          <button class="etf-chip" style="--chip-c:#3b82f6" onclick="setEtfGroup('gov-eur',this)">🏛 Gov EUR</button>
+          <button class="etf-chip" style="--chip-c:#6366f1" onclick="setEtfGroup('gov-usd',this)">🇺🇸 Gov USD</button>
+          <button class="etf-chip" style="--chip-c:#f59e0b" onclick="setEtfGroup('em',this)">🌍 Emergenti</button>
+          <button class="etf-chip" style="--chip-c:#2dd4bf" onclick="setEtfGroup('ig-corp',this)">🏢 Corp IG</button>
+          <button class="etf-chip" style="--chip-c:#ef4444" onclick="setEtfGroup('hy',this)">⚡ High Yield</button>
+          <button class="etf-chip" style="--chip-c:#a855f7" onclick="setEtfGroup('speciali',this)">🔧 Speciali</button>
+          <button class="etf-chip" style="--chip-c:#6b7280" onclick="setEtfGroup('lev',this)">📊 Leva</button>
         </div>
         <div id="etfLoadingBanner" style="display:none;align-items:center;gap:8px;font-size:12px;color:var(--amber);background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:6px;padding:6px 12px;">
           <span style="animation:spin 1.2s linear infinite;display:inline-block;flex-shrink:0;">⏳</span>
@@ -2142,7 +2170,45 @@
   // ─────────────────────────────────────────────
   // ETF SECTION
   // ─────────────────────────────────────────────
+  const ETF_GROUPS = [
+    { key:'gov-eur',  label:'Governativi EUR',            icon:'🏛',  color:'#3b82f6',
+      cats:['Gov EUR 1-3Y','Gov EUR 3-5Y','Gov EUR 5-7Y','Gov EUR 7-10Y','Gov EUR 10-15Y','Gov EUR 15+Y','Gov EUR 10+Y','Gov EUR Blend','Gov Inflation EUR'] },
+    { key:'gov-usd',  label:'Governativi USD',            icon:'🇺🇸', color:'#6366f1',
+      cats:['Gov USD 1-3Y','Gov USD 7-10Y','Gov USD 10+Y','Gov Inflation USD'] },
+    { key:'em',       label:'Mercati Emergenti',          icon:'🌍',  color:'#f59e0b',
+      cats:['EM Gov USD','EM Gov EUR H','EM Gov Local','EM Corp USD','Gov Cina'] },
+    { key:'ig-corp',  label:'Corporate Investment Grade', icon:'🏢',  color:'#2dd4bf',
+      cats:['IG Corp EUR','IG Corp USD','Aggregate EUR'] },
+    { key:'hy',       label:'High Yield & Subordinati',   icon:'⚡',  color:'#ef4444',
+      cats:['HY Corp EUR','HY Corp USD','AT1 / CoCo'] },
+    { key:'speciali', label:'Speciali & Alternativi',     icon:'🔧',  color:'#a855f7',
+      cats:['Green Bond','Convertibili','Float Rate USD','Money Market','Preferred','Gov GLB EUR H','Gov Inflation GLB'] },
+    { key:'lev',      label:'Leva / Inversi',             icon:'📊',  color:'#6b7280',
+      cats:['Lev/Inverse'] },
+  ];
+  function etfGroupForCat(cat) {
+    for (const g of ETF_GROUPS) if (g.cats.includes(cat)) return g;
+    return { key:'other', label:'Altro', icon:'📋', color:'#8b949e', cats:[] };
+  }
+
   let allETFs = [], etfSortField = 'cat', etfSortDir = 'asc', etfLoaded = false;
+  let etfGroupFilter = '', etfCollapsed = new Set();
+
+  function setEtfGroup(key, btn) {
+    etfGroupFilter = key;
+    document.querySelectorAll('.etf-chip').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderETF();
+  }
+  function toggleEtfGroup(key) {
+    if (etfCollapsed.has(key)) etfCollapsed.delete(key);
+    else etfCollapsed.add(key);
+    const arrow = document.getElementById('etfga-' + key);
+    if (arrow) arrow.classList.toggle('collapsed', etfCollapsed.has(key));
+    document.querySelectorAll('[data-grp="' + key + '"]').forEach(tr => {
+      tr.style.display = etfCollapsed.has(key) ? 'none' : '';
+    });
+  }
 
   let etfRefreshTimer = null;
 
@@ -2162,13 +2228,6 @@
 
       allETFs   = etfList;
       etfLoaded = true;
-
-      // Popola filtro categorie (solo la prima volta)
-      const sel = document.getElementById('etfCatFilter');
-      if (sel.options.length <= 1) {
-        const cats = [...new Set(allETFs.map(e => e.cat).filter(Boolean))].sort();
-        cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
-      }
 
       // Banner adattivo: prezzi / rendimenti / nascosto
       const banner  = document.getElementById('etfLoadingBanner');
@@ -2219,35 +2278,44 @@
   function renderETF() {
     if (!etfLoaded) return;
     const search = (document.getElementById('etfSearch').value || '').toLowerCase();
-    const cat    = document.getElementById('etfCatFilter').value;
     const onlyP  = document.getElementById('etfOnlyPrice').checked;
-    let list = allETFs.filter(e => {
+
+    // which groups to show
+    const groupsToShow = etfGroupFilter
+      ? ETF_GROUPS.filter(g => g.key === etfGroupFilter)
+      : ETF_GROUPS;
+
+    // base filter (search + onlyPrice)
+    const baseFilter = e => {
       if (onlyP && !e.price) return false;
-      if (cat && e.cat !== cat) return false;
       if (search && !((e.ticker||'').toLowerCase().includes(search)) &&
                    !e.name.toLowerCase().includes(search) &&
                    !e.isin.toLowerCase().includes(search)) return false;
       return true;
-    });
-    list.sort((a, b) => {
+    };
+
+    // sorter within each group
+    const sorter = (a, b) => {
       let av = a[etfSortField], bv = b[etfSortField];
       if (av == null) return 1; if (bv == null) return -1;
       if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
       return av < bv ? (etfSortDir === 'asc' ? -1 : 1) : av > bv ? (etfSortDir === 'asc' ? 1 : -1) : 0;
-    });
-    document.getElementById('etfCount').textContent = list.length + ' ETF';
+    };
+
     const fmtPct = v => v != null ? (v >= 0 ? '+' : '') + v.toFixed(2) + '%' : '—';
     const pctCls = v => v == null ? '' : v >= 0 ? 'pos-change' : 'neg-change';
     const jurl   = isin => `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
     const burl   = isin => `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
-    document.getElementById('etfBody').innerHTML = list.length ? list.map(e => {
+
+    const etfRow = (e, gc) => {
       const inPort = portfolio[e.isin] ? 'in-list' : '';
       const ytdV   = e.ytdReturn != null ? e.ytdReturn * 100 : null;
-      return `<tr style="cursor:pointer" onclick="openETFChart('${e.isin}')">
+      const catBadgeStyle = `background:${gc}22;color:${gc};border:1px solid ${gc}44`;
+      return `<tr class="etf-row" style="--gc:${gc};cursor:pointer" data-grp="${etfGroupForCat(e.cat).key}" onclick="openETFChart('${e.isin}')">
         <td onclick="event.stopPropagation()"><button class="wl-star c1 ${inPort}" style="font-size:16px;font-style:normal;" onclick="addETFToPortfolio('${e.isin}')" title="+ Portafoglio">+</button></td>
-        <td style="font-weight:600;font-family:monospace;color:var(--blue)">${e.ticker || '—'}</td>
+        <td style="font-weight:600;font-family:monospace;color:${gc}">${e.ticker || '—'}</td>
         <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(e.name)}">${escHtml(e.name)}</td>
-        <td><span class="cat-badge">${escHtml(e.cat)}</span></td>
+        <td><span class="cat-badge" style="${catBadgeStyle}">${escHtml(e.cat)}</span></td>
         <td style="font-weight:600">${e.price != null ? e.price.toFixed(2) + ' ' + (e.currency||'EUR') : '—'}</td>
         <td style="color:var(--green);font-weight:600">${e.yld != null ? e.yld.toFixed(2) + '%' : '—'}</td>
         <td class="${pctCls(e.changePercent)}">${fmtPct(e.changePercent)}</td>
@@ -2262,7 +2330,31 @@
         </td>
         <td onclick="event.stopPropagation()"><button class="btn-add-port" onclick="addETFToPortfolio('${e.isin}')">+ Port.</button></td>
       </tr>`;
-    }).join('') : `<tr><td colspan="14" style="text-align:center;padding:30px;color:var(--text2);">Nessun ETF corrisponde ai filtri</td></tr>`;
+    };
+
+    let totalCount = 0;
+    let html = '';
+    groupsToShow.forEach(g => {
+      const rows = allETFs.filter(e => g.cats.includes(e.cat) && baseFilter(e)).sort(sorter);
+      if (rows.length === 0) return;
+      totalCount += rows.length;
+      const isCollapsed = etfCollapsed.has(g.key);
+      html += `<tr class="etf-grp-hdr">
+        <td colspan="14" style="padding:0">
+          <button class="etf-grp-hdr-btn" style="--gc:${g.color}" onclick="toggleEtfGroup('${g.key}')">
+            <span class="etf-grp-arrow${isCollapsed?' collapsed':''}" id="etfga-${g.key}">▼</span>
+            <span class="etf-grp-icon">${g.icon}</span>
+            <span class="etf-grp-title">${g.label}</span>
+            <span class="etf-grp-count">${rows.length} ETF</span>
+          </button>
+        </td>
+      </tr>`;
+      if (!isCollapsed) html += rows.map(e => etfRow(e, g.color)).join('');
+    });
+
+    document.getElementById('etfCount').textContent = totalCount + ' ETF';
+    document.getElementById('etfBody').innerHTML = html ||
+      `<tr><td colspan="14" style="text-align:center;padding:30px;color:var(--text2);">Nessun ETF corrisponde ai filtri</td></tr>`;
   }
 
   // ─── ETF DETAIL MODAL — Professional ──────────────────────────────────────
