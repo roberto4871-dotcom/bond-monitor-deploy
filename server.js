@@ -546,8 +546,15 @@ async function tryYahooFinance(isin, tickerHint = null, divSymbolHint = null) {
 
   let bestResult = null; // risultato con prezzo ma senza dividendi (fallback)
 
-  for (const suffix of suffixes) {
-    const symbol = isin + suffix;
+  // Prova prima con ISIN+suffisso, poi con ticker+suffisso (utile per ETF Amundi/LU che
+  // Yahoo Finance non indicizza con ISIN ma riconosce tramite ticker, es. EMI.MI)
+  const symbolsToTry = [
+    ...suffixes.map(s => isin + s),
+    ...(tickerHint ? suffixes.map(s => tickerHint + s) : []),
+  ];
+
+  for (const symbol of symbolsToTry) {
+    if (bestResult && symbolsToTry.indexOf(symbol) >= suffixes.length) break; // ha già prezzi → salta ticker
     try {
       const result = await yahooFinance.chart(symbol, { period1, interval: '1d', events: 'div' }, { validateResult: false });
       const quotes = (result.quotes || []).filter(q => q.close != null);
@@ -568,7 +575,7 @@ async function tryYahooFinance(isin, tickerHint = null, divSymbolHint = null) {
           bestResult = { source: 'Yahoo Finance', symbol, currency, price: pricePoints, zspreadData: [] };
         }
       }
-    } catch (e) { /* prova prossimo suffisso */ }
+    } catch (e) { /* prova prossimo simbolo */ }
   }
 
   // Helper: cerca dividendi su un exchange alternativo e li combina con i prezzi di base

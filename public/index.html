@@ -1082,12 +1082,7 @@
         <button class="period-btn" id="edpb-3y" onclick="setETFChartRange('3y')">3 Anni</button>
         <button class="period-btn" id="edpb-5y" onclick="setETFChartRange('5y')">5 Anni</button>
         <button class="period-btn" id="edpb-max" onclick="setETFChartRange('max')">Storico</button>
-        <!-- Dataset toggle -->
-        <div style="margin-left:auto;display:flex;gap:3px;align-items:center;">
-          <button class="period-btn active" id="edtab-price" onclick="setETFChartTab('price')">Prezzo</button>
-          <button class="period-btn" id="edtab-yield" onclick="setETFChartTab('yield')">Rendimento %</button>
-        </div>
-        <span id="edChartSrc" style="font-size:10px;color:var(--text2);white-space:nowrap;"></span>
+        <span id="edChartSrc" style="font-size:10px;color:var(--text2);white-space:nowrap;margin-left:auto;"></span>
       </div>
       <div style="position:relative;height:240px;background:var(--bg3);border-radius:10px;overflow:hidden;">
         <canvas id="etfDetailCanvas" style="width:100%;height:100%;"></canvas>
@@ -2134,17 +2129,11 @@
   let currentETFDetailIsin = null;
   let currentETFCurrency = 'EUR';
   let etfDetailAllPts  = []; // cached price series (max range)
-  let etfDetailYieldPts = []; // cached TTM yield series (max range)
   let etfDetailRange = '1y';
-  let etfDetailTab   = 'price'; // 'price' | 'yield'
-  let etfYieldPending = false;  // true mentre fetchETFDetailData è in corso (JustETF non ancora tornato)
-
   function closeETFDetail() {
     document.getElementById('etfDetailModal').classList.remove('show');
     if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
     etfDetailAllPts   = [];
-    etfDetailYieldPts = [];
-    etfYieldPending   = false;
   }
 
   function openETFChart(isin) {
@@ -2152,19 +2141,7 @@
     if (!etf) return;
     currentETFDetailIsin  = isin;
     currentETFCurrency    = etf.currency || 'EUR';
-    etfDetailAllPts       = [];
-    etfDetailYieldPts     = [];
-    etfYieldPending       = true;  // JustETF non ancora risposto
-
-    // Pre-popola subito lo storico rendimenti se già in cache dal background refresh
-    if (etf.yieldHistory?.length) {
-      const pts = etf.yieldHistory.map(({ year, yieldPct }) =>
-        [new Date(year, 6, 1).getTime(), yieldPct]
-      );
-      const latestYield = etf.yld ?? etf.yieldHistory[etf.yieldHistory.length - 1]?.yieldPct;
-      if (latestYield != null) pts.push([Date.now(), latestYield]);
-      etfDetailYieldPts = pts;
-    }
+    etfDetailAllPts = [];
 
     // ── Header ──
     const badge = document.getElementById('edProviderBadge');
@@ -2225,16 +2202,11 @@
     document.getElementById('edHoldingsSection').style.display = 'none';
     document.getElementById('edRatingsSection').style.display  = 'none';
 
-    // Reset tab/range state
+    // Reset range state
     etfDetailRange = '1y';
-    etfDetailTab   = 'price';
     ['ytd','1y','2y','3y','5y','max'].forEach(r => {
       const b = document.getElementById('edpb-' + r);
       if (b) b.classList.toggle('active', r === '1y');
-    });
-    ['price','yield'].forEach(t => {
-      const b = document.getElementById('edtab-' + t);
-      if (b) b.classList.toggle('active', t === 'price');
     });
 
     // ── Open + parallel load ──
@@ -2311,19 +2283,7 @@
         });
       }
 
-      // JustETF risposto → aggiorna yield history e ridisegna se necessario
-      etfYieldPending = false;
-      if (d.yieldHistory?.length && etfDetailYieldPts.length === 0) {
-        // Costruisci serie sintetica: un punto per anno + eventuale punto corrente
-        const pts = d.yieldHistory.map(({ year, yieldPct }) =>
-          [new Date(year, 6, 1).getTime(), yieldPct]
-        );
-        const latestYield = d.distYield || d.yieldHistory[d.yieldHistory.length - 1]?.yieldPct;
-        if (latestYield) pts.push([Date.now(), latestYield]);
-        etfDetailYieldPts = pts;
-      }
-      // Ridisegna sempre se siamo sul tab rendimento (anche se già non disponibile → aggiorna messaggio)
-      if (etfDetailTab === 'yield') renderETFDetailChart();
+      // (yield history rimossa — sezione Rendimento % non più presente)
 
       // Top Holdings
       if (d.holdings?.length) {
@@ -2366,11 +2326,7 @@
           </span>`;
         }).join('');
       }
-    } catch (e) {
-      console.error('[ETF detail]', e);
-      etfYieldPending = false;
-      if (etfDetailTab === 'yield') renderETFDetailChart();
-    }
+    } catch (e) { console.error('[ETF detail]', e); }
   }
 
   // ── Cambia periodo del grafico ETF ──
@@ -2379,16 +2335,6 @@
     ['ytd','1y','2y','3y','5y','max'].forEach(r => {
       const b = document.getElementById('edpb-' + r);
       if (b) b.classList.toggle('active', r === range);
-    });
-    renderETFDetailChart();
-  }
-
-  // ── Cambia tab Prezzo / Rendimento % ──
-  function setETFChartTab(tab) {
-    etfDetailTab = tab;
-    ['price','yield'].forEach(t => {
-      const b = document.getElementById('edtab-' + t);
-      if (b) b.classList.toggle('active', t === tab);
     });
     renderETFDetailChart();
   }
@@ -2408,11 +2354,6 @@
         if (!res.ok) { loading.innerHTML = '📉 Dati storici non disponibili'; return; }
         const data = await res.json();
         etfDetailAllPts = data.price || [];
-        // Usa yieldData Yahoo (serie TTM giornaliera) solo se ha dati utili;
-        // altrimenti conserva i punti JustETF annuali già pre-popolati
-        if ((data.yieldData || []).length >= 2) {
-          etfDetailYieldPts = data.yieldData;
-        }
         document.getElementById('edChartSrc').textContent =
           data.source ? '· ' + data.source : '';
       }
@@ -2458,24 +2399,9 @@
     const canvas  = document.getElementById('etfDetailCanvas');
     if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
 
-    // Scegli dataset
-    const isYield  = etfDetailTab === 'yield';
-    const sourceAll = isYield ? etfDetailYieldPts : etfDetailAllPts;
+    // Solo prezzi
+    const sourceAll = etfDetailAllPts;
 
-    // Se yield richiesto ma non ancora disponibile
-    if (isYield && sourceAll.length < 2) {
-      loading.style.display = 'flex';
-      if (etfYieldPending) {
-        // JustETF non ancora risposto — mostra spinner (non "non disponibile" prematuramente)
-        loading.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span>&nbsp;Caricamento rendimenti...';
-      } else if (etfDetailAllPts.length > 0) {
-        loading.innerHTML = '📉 Storico rendimenti non disponibile per questo ETF';
-      } else {
-        loading.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span>&nbsp;Caricamento dati...';
-      }
-      canvas.style.display = 'none';
-      return;
-    }
     if (sourceAll.length < 2) {
       loading.style.display = 'flex';
       loading.innerHTML = '📉 Dati insufficienti';
@@ -2512,10 +2438,8 @@
     const labels = pts.map(([ts]) => new Date(ts).toLocaleDateString('it-IT', { month:'short', year:'2-digit' }));
     const values = pts.map(([, v]) => v);
     const isUp   = values[values.length-1] >= values[0];
-    // Per lo yield usa sempre teal/verde indipendentemente dalla direzione
-    const color  = isYield ? '#22d3ee' : (isUp ? '#22c55e' : '#f87171');
-    const decimals = isYield ? 2 : 2;
-    const suffix   = isYield ? '%' : ' ' + currentETFCurrency;
+    const color  = isUp ? '#22c55e' : '#f87171';
+    const suffix = ' ' + currentETFCurrency;
 
     etfDetailChartInst = new Chart(canvas.getContext('2d'), {
       type: 'line',
@@ -2531,14 +2455,14 @@
             mode:'index', intersect:false,
             backgroundColor:'#1c2230', borderColor:'#2a3347', borderWidth:1,
             titleColor:'#7a8fa8', bodyColor:'#e0e8f0',
-            callbacks: { label: c => '  ' + c.parsed.y.toFixed(decimals) + suffix },
+            callbacks: { label: c => '  ' + c.parsed.y.toFixed(2) + suffix },
           },
         },
         scales: {
           x: { ticks:{ maxTicksLimit:8, color:'#7a8fa8', font:{size:10} }, grid:{color:'#2a3347'} },
           y: {
             ticks:{ color:'#7a8fa8', font:{size:10},
-              callback: v => isYield ? v.toFixed(2) + '%' : v.toFixed(2) },
+              callback: v => v.toFixed(2) },
             grid:{color:'#2a3347'}, position:'right',
           },
         },
