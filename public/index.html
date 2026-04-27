@@ -578,33 +578,39 @@
     .tmpl-bar-wrap{height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:8px;}
     .tmpl-bar{height:100%;border-radius:2px;transition:width .3s;}
     .tmpl-comp-desc-txt{font-size:11px;color:var(--text2);margin-bottom:9px;}
-    .tmpl-etf-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-    .tmpl-etf-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:6px;border:1px solid;cursor:pointer;font-size:11px;font-weight:700;font-family:monospace;transition:opacity .15s,transform .1s;background:transparent;}
-    .tmpl-etf-btn:hover{opacity:.75;transform:scale(.97);}
-    .tmpl-etf-btn .tmpl-etf-sub{font-size:9px;font-weight:400;font-family:inherit;opacity:.65;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .tmpl-etf-btn.added{opacity:.5;cursor:default;}
+    .tmpl-sug-list{margin-top:4px;}
     .tmpl-footer{padding:16px 24px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;}
     .tmpl-disclaimer{font-size:10px;color:var(--text2);max-width:290px;line-height:1.6;}
     .tmpl-add-all-btn{padding:11px 26px;background:var(--blue);border:none;border-radius:9px;color:#fff;cursor:pointer;font-size:13px;font-weight:700;transition:background .15s;white-space:nowrap;}
     .tmpl-add-all-btn:hover{background:#2563eb;}
-    /* Bond suggestions inside template components */
-    .tmpl-bonds-section{margin-top:10px;border-top:1px dashed rgba(255,255,255,.07);padding-top:10px;}
-    .tmpl-bonds-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:8px;}
-    .tmpl-bond-row{display:grid;grid-template-columns:1fr 82px 70px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);}
-    .tmpl-bond-row:last-of-type{border-bottom:none;}
-    .tmpl-bond-row.hidden{display:none;}
-    .tmpl-bond-info{min-width:0;}
-    .tmpl-bond-desc{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
-    .tmpl-bond-meta{display:flex;gap:7px;margin-top:2px;flex-wrap:wrap;}
-    .tmpl-bond-meta span{font-size:10px;color:var(--text2);}
-    .tmpl-bond-yield{color:#22c55e!important;font-weight:600!important;}
-    .tmpl-bond-nom-input{width:100%;padding:4px 7px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;text-align:right;}
-    .tmpl-bond-nom-input:focus{outline:none;border-color:var(--blue);}
-    .tmpl-bond-add-btn{padding:4px 8px;font-size:11px;font-weight:600;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap;}
-    .tmpl-bond-add-btn:hover{border-color:var(--green);color:var(--green);}
-    .tmpl-bond-add-btn.done{border-color:var(--green);color:var(--green);cursor:default;}
-    .tmpl-bonds-more{font-size:10px;color:var(--blue);cursor:pointer;margin-top:8px;padding:3px 0;}
-    .tmpl-bonds-more:hover{text-decoration:underline;}
+    /* ── UNIFIED suggestion rows (ETF + Titoli stessa riga) ── */
+    .tmpl-suggestions{margin-top:8px;}
+    .tmpl-sug-row{display:grid;grid-template-columns:36px 1fr 52px 82px 66px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+    .tmpl-sug-row:last-of-type{border-bottom:none;}
+    .tmpl-sug-row.hidden{display:none;}
+    .tmpl-sug-badge{display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;padding:2px 4px;border-radius:4px;text-transform:uppercase;letter-spacing:.2px;white-space:nowrap;}
+    .tmpl-sug-badge.etf{background:rgba(59,130,246,.18);color:#3b82f6;}
+    .tmpl-sug-badge.bond{background:rgba(34,197,94,.14);color:#22c55e;}
+    .tmpl-sug-name{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+    .tmpl-sug-metric{font-size:11px;font-weight:700;color:#22c55e;text-align:right;white-space:nowrap;}
+    .tmpl-sug-nom{width:100%;padding:4px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;text-align:right;}
+    .tmpl-sug-nom:focus{outline:none;border-color:var(--blue);}
+    .tmpl-sug-btn{padding:4px 8px;font-size:11px;font-weight:600;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .tmpl-sug-btn:hover{border-color:var(--green);color:var(--green);}
+    .tmpl-sug-btn.done{border-color:var(--green);color:var(--green);}
+    .tmpl-sug-more{font-size:10px;color:var(--blue);cursor:pointer;margin-top:6px;display:inline-block;}
+    .tmpl-sug-more:hover{text-decoration:underline;}
+    /* ── Inline search panel ── */
+    .tmpl-search-wrap{margin-top:10px;}
+    .tmpl-search-toggle{width:100%;padding:7px 12px;background:transparent;border:1px dashed rgba(255,255,255,.13);border-radius:7px;color:var(--text2);cursor:pointer;font-size:11px;text-align:left;display:flex;align-items:center;gap:7px;transition:all .15s;}
+    .tmpl-search-toggle:hover{border-color:var(--blue);color:var(--blue);}
+    .tmpl-search-panel{display:none;margin-top:8px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;}
+    .tmpl-search-panel.open{display:block;}
+    .tmpl-search-input{width:100%;padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;box-sizing:border-box;}
+    .tmpl-search-input:focus{outline:none;border-color:var(--blue);}
+    .tmpl-search-results{margin-top:8px;max-height:220px;overflow-y:auto;}
+    .tmpl-search-empty{font-size:11px;color:var(--text2);padding:10px 0;text-align:center;}
+    .tmpl-search-sep{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin:8px 0 4px;}
 
     /* CALCULATOR MODAL */
     .calc-modal {
@@ -3292,9 +3298,85 @@
     }
   }
 
-  function showMoreTmplBonds(wrapId, btn) {
-    document.querySelectorAll('#' + wrapId + ' .tmpl-bond-row.hidden').forEach(r => r.classList.remove('hidden'));
+  // ── helper: build one suggestion row (ETF or Bond, same format) ──────
+  function buildSugRow(type, badge, name, metric, isin, inputId, nom, hidden, onclickStr, extraCls) {
+    const h  = hidden   ? ' hidden' : '';
+    const dc = extraCls ? ' '+extraCls : '';
+    return '<div class="tmpl-sug-row'+h+'">'
+      + '<span class="tmpl-sug-badge '+type+'">'+escHtml(badge)+'</span>'
+      + '<span class="tmpl-sug-name" title="'+escHtml(name)+'">'+escHtml(name)+'</span>'
+      + '<span class="tmpl-sug-metric">'+(metric||'')+'</span>'
+      + '<input type="number" class="tmpl-sug-nom" id="'+inputId+'" value="'+nom+'" step="1000" min="1000">'
+      + '<button class="tmpl-sug-btn'+dc+'" onclick="'+onclickStr+'">+ Port.</button>'
+      +'</div>';
+  }
+
+  function showMoreSug(btn) {
+    const comp = btn.closest('.tmpl-comp');
+    if (comp) comp.querySelectorAll('.tmpl-sug-row.hidden').forEach(r => r.classList.remove('hidden'));
     btn.style.display = 'none';
+  }
+
+  function toggleTmplSearch(ci) {
+    const panel = document.getElementById('tmplsp-'+ci);
+    if (!panel) return;
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+      if (!etfLoaded) fetchAndRenderETF(); // preload silently
+      const inp = panel.querySelector('.tmpl-search-input');
+      if (inp) { inp.value = ''; inp.focus(); }
+      const res = document.getElementById('tmplsr-'+ci);
+      if (res) res.innerHTML = '<div class="tmpl-search-empty">Digita per cercare tra tutti i titoli e gli ETF disponibili...</div>';
+    }
+  }
+
+  function searchTmplItems(query, ci, defaultNom) {
+    const q = (query||'').toLowerCase().trim();
+    const container = document.getElementById('tmplsr-'+ci);
+    if (!container) return;
+    if (q.length < 2) {
+      container.innerHTML = '<div class="tmpl-search-empty">Digita almeno 2 caratteri...</div>';
+      return;
+    }
+    const bonds = allBonds.filter(b =>
+      b.tipo !== 'ETF' && b.yield > 0 &&
+      (b.isin.toLowerCase().includes(q) || (b.descrizione||'').toLowerCase().includes(q) ||
+       (b.emittente||'').toLowerCase().includes(q))
+    ).slice(0, 6);
+    const etfs = allETFs.filter(e =>
+      (e.ticker||'').toLowerCase().includes(q) ||
+      (e.name||'').toLowerCase().includes(q)   ||
+      (e.isin||'').toLowerCase().includes(q)
+    ).slice(0, 5);
+    if (!bonds.length && !etfs.length) {
+      container.innerHTML = '<div class="tmpl-search-empty">Nessun risultato per "'+escHtml(query)+'"</div>';
+      return;
+    }
+    let html = '';
+    if (bonds.length) {
+      html += '<div class="tmpl-search-sep">Titoli di stato / Bond</div>';
+      bonds.forEach((b, bi) => {
+        const id = 'tsr'+ci+'b'+bi;
+        const badge = (b.isin||'').substring(0,2) || 'GOV';
+        const metric = b.yield ? b.yield.toFixed(2)+'%' : '';
+        html += buildSugRow('bond', badge, b.descrizione, metric, b.isin, id, defaultNom, false,
+          'addTmplBond(\''+b.isin+'\',document.getElementById(\''+id+'\').value,this)', '');
+      });
+    }
+    if (etfs.length) {
+      if (!etfLoaded) html += '<div class="tmpl-search-empty" style="margin:6px 0">⏳ ETF in caricamento — riprova tra un momento</div>';
+      else {
+        html += '<div class="tmpl-search-sep">ETF</div>';
+        etfs.forEach((e, ei) => {
+          const id = 'tsr'+ci+'e'+ei;
+          const metric = e.yld ? e.yld.toFixed(2)+'%' : '';
+          const ticker = e.ticker||'ETF';
+          html += buildSugRow('etf', ticker, e.name, metric, e.isin, id, defaultNom, false,
+            'addTmplETF(\''+e.isin+'\',\''+escHtml(ticker)+'\',\''+escHtml(e.name)+'\',document.getElementById(\''+id+'\').value,this)', '');
+        });
+      }
+    }
+    container.innerHTML = html;
   }
 
   const PORTFOLIO_TEMPLATES = [
@@ -3589,77 +3671,64 @@
   function renderTmplComponents() {
     const t = currentTemplate;
     if (!t) return;
-    const fmt     = v => (v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
-    const BLIMIT  = 4; // bonds visible before "show more"
+    const fmt    = v => (v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+    const BLIMIT = 4;
 
-    const html = `
-      <div class="tmpl-comp-sec-title">Composizione consigliata</div>
-      ${t.components.map((c,ci) => {
-        const amt = tmplAmount * c.pct / 100;
-        const defaultNom = Math.max(1000, Math.round(amt / 1000) * 1000);
+    let html = '<div class="tmpl-comp-sec-title">Composizione consigliata</div>';
 
-        // ── ETF buttons ──────────────────────────────────────────
-        const etfBtns = (c.etfs||[]).map(e => {
-          const inPort = portfolio[e.isin] ? ' added' : '';
-          return '<button class="tmpl-etf-btn'+inPort+'" style="color:'+t.color+';border-color:'+t.color+'50"'
-            +' onclick="event.stopPropagation();addTmplETF(\''+e.isin+'\',\''+escHtml(e.ticker)+'\',\''+escHtml(e.name)+'\','+amt+',this)"'
-            +' title="'+escHtml(e.name)+'">'+e.ticker
-            +'<span class="tmpl-etf-sub">'+escHtml(e.name)+'</span></button>';
-        }).join('');
+    t.components.forEach((c, ci) => {
+      const amt        = tmplAmount * c.pct / 100;
+      const defaultNom = Math.max(1000, Math.round(amt / 1000) * 1000);
+      let rows = '';
 
-        // ── Bond suggestions ─────────────────────────────────────
-        let bondSection = '';
-        if (c.bonds) {
-          const bonds = getBondSuggestions(c.bonds);
-          const wrapId = 'tmplbonds'+ci;
-          if (bonds.length > 0) {
-            const rows = bonds.map((b,bi) => {
-              const scad = b.scadenza
-                ? new Date(b.scadenza).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'})
-                : '—';
-              const inputId = 'tmplbn'+bi+ci;
-              const hidden  = bi >= BLIMIT ? ' hidden' : '';
-              return '<div class="tmpl-bond-row'+hidden+'">'
-                +'<div class="tmpl-bond-info">'
-                +'<span class="tmpl-bond-desc" title="'+escHtml(b.descrizione)+'">'+escHtml(b.descrizione)+'</span>'
-                +'<div class="tmpl-bond-meta">'
-                +'<span>Scad. '+scad+'</span>'
-                +(b.yield  ? '<span class="tmpl-bond-yield">'+b.yield.toFixed(2)+'%</span>' : '')
-                +(b.prezzo ? '<span>'+b.prezzo.toFixed(2)+'</span>' : '')
-                +(b.duration ? '<span>Dur '+b.duration.toFixed(1)+'</span>' : '')
-                +'</div></div>'
-                +'<input type="number" class="tmpl-bond-nom-input" id="'+inputId+'" value="'+defaultNom+'" step="1000" min="1000">'
-                +'<button class="tmpl-bond-add-btn" onclick="addTmplBond(\''+b.isin+'\',document.getElementById(\''+inputId+'\').value,this)">+ Port.</button>'
-                +'</div>';
-            }).join('');
-            const moreN = bonds.length - BLIMIT;
-            const moreBtn = moreN > 0
-              ? '<div class="tmpl-bonds-more" onclick="showMoreTmplBonds(\''+wrapId+'\',this)">Mostra altri '+moreN+' titoli →</div>'
-              : '';
-            bondSection = '<div class="tmpl-bonds-section" id="'+wrapId+'">'
-              +'<div class="tmpl-bonds-title">🏛 Titoli di stato suggeriti'
-              +' <span style="opacity:.5;font-weight:400;text-transform:none;letter-spacing:0">('+bonds.length+' disponibili · modifica il nominale)</span></div>'
-              +rows+moreBtn+'</div>';
-          } else {
-            bondSection = '<div class="tmpl-bonds-section">'
-              +'<div class="tmpl-bonds-title" style="opacity:.5">🏛 Nessun titolo disponibile al momento</div>'
-              +'</div>';
-          }
+      // ── ETF rows ─────────────────────────────────────────────
+      (c.etfs||[]).forEach((e, ei) => {
+        const inPort  = portfolio[e.isin] ? ' done' : '';
+        const inputId = 'tmplei'+ci+'_'+ei;
+        const onclick = "event.stopPropagation();addTmplETF('"+e.isin+"','"+escHtml(e.ticker)+"','"+escHtml(e.name)+"',document.getElementById('"+inputId+"').value*1,this)";
+        rows += buildSugRow('etf', e.ticker, e.name, '—', e.isin, inputId, defaultNom, false, onclick, inPort);
+      });
+
+      // ── Bond suggestion rows ──────────────────────────────────
+      let moreBtn = '';
+      if (c.bonds) {
+        const bonds = getBondSuggestions(c.bonds);
+        bonds.forEach((b, bi) => {
+          const inPort  = portfolio[b.isin] ? ' done' : '';
+          const inputId = 'tmplbn'+ci+'_'+bi;
+          const badge   = b.paese || b.tipo || '–';
+          const metric  = b.yield ? b.yield.toFixed(2)+'%' : '—';
+          const onclick = "addTmplBond('"+b.isin+"',document.getElementById('"+inputId+"').value,this)";
+          rows += buildSugRow('bond', badge, b.descrizione, metric, b.isin, inputId, defaultNom, bi >= BLIMIT, onclick, inPort);
+        });
+        const moreN = bonds.length - BLIMIT;
+        if (moreN > 0) {
+          moreBtn = '<div class="tmpl-sug-more" onclick="showMoreSug(this)">→ '+moreN+' altri titoli disponibili</div>';
         }
+      }
 
-        return '<div class="tmpl-comp" style="--tc:'+t.color+'">'
-          +'<div class="tmpl-comp-top">'
-          +'<span class="tmpl-comp-lbl">'+c.label+'</span>'
-          +'<div class="tmpl-comp-metrics">'
-          +'<span class="tmpl-comp-pct" style="color:'+t.color+'">'+c.pct+'%</span>'
-          +'<span class="tmpl-comp-eur">'+fmt(amt)+'</span>'
-          +'</div></div>'
-          +'<div class="tmpl-bar-wrap"><div class="tmpl-bar" style="width:'+c.pct+'%;background:'+t.color+'"></div></div>'
-          +'<div class="tmpl-comp-desc-txt">'+c.desc+'</div>'
-          +(etfBtns ? '<div class="tmpl-etf-row">'+etfBtns+'</div>' : '')
-          +bondSection
-          +'</div>';
-      }).join('')}`;
+      // ── Inline search panel ───────────────────────────────────
+      const searchPanel = '<div class="tmpl-search-wrap">'
+        +'<button class="tmpl-search-toggle" onclick="toggleTmplSearch('+ci+')">🔍 Aggiungi altro titolo o ETF...</button>'
+        +'<div class="tmpl-search-panel" id="tmplsp-'+ci+'">'
+        +'<input class="tmpl-search-input" placeholder="Cerca ISIN, nome emittente, ticker..." oninput="searchTmplItems(this.value,'+ci+','+defaultNom+')">'
+        +'<div class="tmpl-search-results" id="tmplsr-'+ci+'"></div>'
+        +'</div></div>';
+
+      html += '<div class="tmpl-comp" style="--tc:'+t.color+'">'
+        +'<div class="tmpl-comp-top">'
+        +'<span class="tmpl-comp-lbl">'+c.label+'</span>'
+        +'<div class="tmpl-comp-metrics">'
+        +'<span class="tmpl-comp-pct" style="color:'+t.color+'">'+c.pct+'%</span>'
+        +'<span class="tmpl-comp-eur">'+fmt(amt)+'</span>'
+        +'</div></div>'
+        +'<div class="tmpl-bar-wrap"><div class="tmpl-bar" style="width:'+c.pct+'%;background:'+t.color+'"></div></div>'
+        +'<div class="tmpl-comp-desc-txt">'+c.desc+'</div>'
+        +(rows ? '<div class="tmpl-sug-list">'+rows+moreBtn+'</div>' : '')
+        +searchPanel
+        +'</div>';
+    });
+
     document.getElementById('tmplComponents').innerHTML = html;
   }
 
