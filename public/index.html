@@ -587,6 +587,24 @@
     .tmpl-disclaimer{font-size:10px;color:var(--text2);max-width:290px;line-height:1.6;}
     .tmpl-add-all-btn{padding:11px 26px;background:var(--blue);border:none;border-radius:9px;color:#fff;cursor:pointer;font-size:13px;font-weight:700;transition:background .15s;white-space:nowrap;}
     .tmpl-add-all-btn:hover{background:#2563eb;}
+    /* Bond suggestions inside template components */
+    .tmpl-bonds-section{margin-top:10px;border-top:1px dashed rgba(255,255,255,.07);padding-top:10px;}
+    .tmpl-bonds-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:8px;}
+    .tmpl-bond-row{display:grid;grid-template-columns:1fr 82px 70px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+    .tmpl-bond-row:last-of-type{border-bottom:none;}
+    .tmpl-bond-row.hidden{display:none;}
+    .tmpl-bond-info{min-width:0;}
+    .tmpl-bond-desc{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+    .tmpl-bond-meta{display:flex;gap:7px;margin-top:2px;flex-wrap:wrap;}
+    .tmpl-bond-meta span{font-size:10px;color:var(--text2);}
+    .tmpl-bond-yield{color:#22c55e!important;font-weight:600!important;}
+    .tmpl-bond-nom-input{width:100%;padding:4px 7px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;text-align:right;}
+    .tmpl-bond-nom-input:focus{outline:none;border-color:var(--blue);}
+    .tmpl-bond-add-btn{padding:4px 8px;font-size:11px;font-weight:600;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .tmpl-bond-add-btn:hover{border-color:var(--green);color:var(--green);}
+    .tmpl-bond-add-btn.done{border-color:var(--green);color:var(--green);cursor:default;}
+    .tmpl-bonds-more{font-size:10px;color:var(--blue);cursor:pointer;margin-top:8px;padding:3px 0;}
+    .tmpl-bonds-more:hover{text-decoration:underline;}
 
     /* CALCULATOR MODAL */
     .calc-modal {
@@ -3246,6 +3264,39 @@
   // ─────────────────────────────────────────────
   // PORTFOLIO TEMPLATES
   // ─────────────────────────────────────────────
+
+  // bonds: { paese, durMin, durMax, limit } — filters allBonds dynamically
+  function getBondSuggestions(criteria) {
+    if (!allBonds.length) return [];
+    return allBonds.filter(b => {
+      if (b.tipo === 'ETF') return false;
+      if (!b.yield || b.yield <= 0) return false;
+      if (criteria.paese && criteria.paese.length && !criteria.paese.includes(b.paese)) return false;
+      const dur = b.duration || 0;
+      if (criteria.durMin != null && dur < criteria.durMin) return false;
+      if (criteria.durMax != null && dur > criteria.durMax) return false;
+      return true;
+    }).sort((a, b) => (b.yield || 0) - (a.yield || 0));
+  }
+
+  function addTmplBond(isin, nominal, btn) {
+    const bond = allBonds.find(b => b.isin === isin);
+    if (!bond) return;
+    const nom = Math.max(1000, Math.round(parseFloat(nominal) / 1000) * 1000);
+    portfolio[isin] = { bond, nominale: nom };
+    savePortfolio();
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Aggiunto'; btn.classList.add('done'); btn.disabled = true;
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('done'); btn.disabled = false; }, 2500);
+    }
+  }
+
+  function showMoreTmplBonds(wrapId, btn) {
+    document.querySelectorAll('#' + wrapId + ' .tmpl-bond-row.hidden').forEach(r => r.classList.remove('hidden'));
+    btn.style.display = 'none';
+  }
+
   const PORTFOLIO_TEMPLATES = [
     {
       key:'prudente', icon:'🛡️', name:'Prudente', badge:'EUR',
@@ -3254,7 +3305,8 @@
       components:[
         { label:'Gov. EUR 1–3Y', pct:35, desc:'Protezione capitale, liquidità alta, volatilità minima',
           etfs:[{isin:'LU1650487413',ticker:'EM13',name:'Amundi Euro Gov Bond 1-3Y'},
-                {isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}] },
+                {isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}],
+          bonds:{paese:['IT','DE','FR','ES'],durMax:3} },
         { label:'Gov. EUR Blend', pct:25, desc:'Esposizione diversificata a tutta la curva eurozona',
           etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'},
                 {isin:'LU1437018598',ticker:'EGOV',name:'Amundi Euro Government Bond'}] },
@@ -3380,9 +3432,84 @@
           etfs:[{isin:'IE00BZ048462',ticker:'FLTR',name:'iShares $ Floating Rate Bond'}] },
         { label:'Gov. EUR 1–3Y', pct:20, desc:'T-Bill / BTP breve scadenza, molto liquidi',
           etfs:[{isin:'LU1650487413',ticker:'EM13',name:'Amundi Euro Gov Bond 1-3Y'},
-                {isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}] },
+                {isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}],
+          bonds:{paese:['IT','DE','FR'],durMax:3} },
         { label:'Treasury 1–3Y', pct:15, desc:'T-Bills americani breve scadenza',
           etfs:[{isin:'IE00B14X4S71',ticker:'IBTS',name:'iShares $ Treasury 1-3Y'}] },
+      ]
+    },
+    // ── BOND-FOCUSED TEMPLATES ──────────────────────────────────────────
+    {
+      key:'btp-ladder', icon:'🇮🇹', name:'BTP Ladder', badge:'BTP',
+      desc:'Solo titoli di stato italiani · Scadenze scaglionate',
+      currency:'EUR', yieldRange:'3.5–4.5%', durRange:'2–12', riskLevel:1, color:'#22c55e',
+      components:[
+        { label:'BTP Breve (0–3 anni)', pct:25,
+          desc:'Protezione capitale, bassa duration, cedole certe a breve scadenza',
+          etfs:[{isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}],
+          bonds:{paese:['IT'],durMin:0,durMax:3} },
+        { label:'BTP Medio (3–7 anni)', pct:35,
+          desc:'Nucleo del portafoglio, ottimo rapporto rendimento/rischio',
+          etfs:[{isin:'LU1287023003',ticker:'EM57',name:'Amundi Euro Gov Bond 5-7Y'}],
+          bonds:{paese:['IT'],durMin:3,durMax:7} },
+        { label:'BTP Lungo (7–15 anni)', pct:25,
+          desc:'Duration più alta, rendimento superiore, maggiore sensibilità ai tassi',
+          etfs:[{isin:'LU1287023185',ticker:'EM710',name:'Amundi Euro Gov Bond 7-10Y'}],
+          bonds:{paese:['IT'],durMin:7,durMax:15} },
+        { label:'BTP Lunghissimo (15+ anni)', pct:15,
+          desc:'Massima duration, ideale per chi ha orizzonte lungo e vuole bloccare i tassi alti',
+          etfs:[{isin:'LU1287023268',ticker:'EM15',name:'Amundi Euro Gov Bond 15+Y'}],
+          bonds:{paese:['IT'],durMin:15} },
+      ]
+    },
+    {
+      key:'eurozona-gov', icon:'🌍', name:'Eurozona Gov', badge:'GOV',
+      desc:'Governativi eurozona diversificati · IT + DE + FR + ES',
+      currency:'EUR', yieldRange:'3–4.5%', durRange:'4–9', riskLevel:1, color:'#3b82f6',
+      components:[
+        { label:'Italia — BTP', pct:35,
+          desc:'BTP 5–10 anni, carry più alto dell\'eurozona',
+          etfs:[{isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'},
+                {isin:'LU1437018598',ticker:'EGOV',name:'Amundi Euro Government Bond'}],
+          bonds:{paese:['IT'],durMin:4,durMax:12} },
+        { label:'Germania — Bund', pct:25,
+          desc:'Bund, massima qualità creditizia AAA, porto sicuro',
+          etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}],
+          bonds:{paese:['DE'],durMin:3,durMax:12} },
+        { label:'Francia — OAT', pct:25,
+          desc:'OAT francesi, rating AA, spread intermedio rispetto a BTP',
+          etfs:[{isin:'LU1287023003',ticker:'EM57',name:'Amundi Euro Gov Bond 5-7Y'}],
+          bonds:{paese:['FR'],durMin:3,durMax:12} },
+        { label:'Periferia — ES / PT / GR', pct:15,
+          desc:'Bonos spagnoli e OT portoghesi, spread extra sul core',
+          etfs:[{isin:'LU1437018598',ticker:'EGOV',name:'Amundi Euro Government Bond'}],
+          bonds:{paese:['ES','PT','GR'],durMin:2,durMax:10} },
+      ]
+    },
+    {
+      key:'ladder-globale', icon:'📅', name:'Ladder Scadenze', badge:'LAD',
+      desc:'Scadenze uniformemente distribuite · 1–20 anni · Qualsiasi paese',
+      currency:'EUR', yieldRange:'3.5–4.5%', durRange:'3–10', riskLevel:2, color:'#f59e0b',
+      components:[
+        { label:'Breve (0–3 anni)', pct:20,
+          desc:'Quota liquida, pronta per il reinvestimento o le spese',
+          etfs:[{isin:'LU1650487413',ticker:'EM13',name:'Amundi Euro Gov Bond 1-3Y'},
+                {isin:'IE00B14X4S71',ticker:'IBTS',name:'iShares $ Treasury 1-3Y'}],
+          bonds:{paese:['IT','DE','FR','ES','PT','US'],durMin:0,durMax:3} },
+        { label:'Medio-Breve (3–7 anni)', pct:30,
+          desc:'Cuore del portafoglio, equilibrio rendimento/duration',
+          etfs:[{isin:'LU1287023003',ticker:'EM57',name:'Amundi Euro Gov Bond 5-7Y'}],
+          bonds:{paese:['IT','DE','FR','ES','US'],durMin:3,durMax:7} },
+        { label:'Medio-Lungo (7–12 anni)', pct:30,
+          desc:'Duration media-alta, cattura più rendimento sulla curva',
+          etfs:[{isin:'LU1287023185',ticker:'EM710',name:'Amundi Euro Gov Bond 7-10Y'},
+                {isin:'IE00B1FZS798',ticker:'IBTM',name:'iShares $ Treasury 7-10Y'}],
+          bonds:{paese:['IT','DE','FR','US'],durMin:7,durMax:12} },
+        { label:'Lungo (12+ anni)', pct:20,
+          desc:'Scadenze lunghe per bloccare i rendimenti attuali nel tempo',
+          etfs:[{isin:'LU1287023268',ticker:'EM15',name:'Amundi Euro Gov Bond 15+Y'},
+                {isin:'LU1407890620',ticker:'US10',name:'Amundi Core US Treasury 10+Y'}],
+          bonds:{paese:['IT','DE','FR','US'],durMin:12} },
       ]
     },
   ];
@@ -3448,7 +3575,9 @@
     document.getElementById('tmplKpiYield').textContent = t.yieldRange;
     document.getElementById('tmplKpiDur').textContent   = t.durRange;
     document.getElementById('tmplKpiCur').textContent   = t.currency;
-    document.getElementById('tmplKpiN').textContent     = t.components.reduce((s,c)=>s+c.etfs.length,0) + ' ETF';
+    const nEtf   = t.components.reduce((s,c)=>s+(c.etfs||[]).length,0);
+    const nBonds = t.components.filter(c=>c.bonds).length;
+    document.getElementById('tmplKpiN').textContent = nEtf + ' ETF' + (nBonds ? ' + Titoli' : '');
     const badge = document.getElementById('tmplCurBadge');
     badge.textContent = t.badge;
     badge.style.cssText = `background:${t.color}20;color:${t.color};border-color:${t.color}50;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap;align-self:flex-start;margin-top:4px;`;
@@ -3460,32 +3589,76 @@
   function renderTmplComponents() {
     const t = currentTemplate;
     if (!t) return;
-    const fmt = v => (v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+    const fmt     = v => (v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+    const BLIMIT  = 4; // bonds visible before "show more"
+
     const html = `
       <div class="tmpl-comp-sec-title">Composizione consigliata</div>
       ${t.components.map((c,ci) => {
         const amt = tmplAmount * c.pct / 100;
-        const etfBtns = c.etfs.map(e => {
+        const defaultNom = Math.max(1000, Math.round(amt / 1000) * 1000);
+
+        // ── ETF buttons ──────────────────────────────────────────
+        const etfBtns = (c.etfs||[]).map(e => {
           const inPort = portfolio[e.isin] ? ' added' : '';
-          return `<button class="tmpl-etf-btn${inPort}" style="color:${t.color};border-color:${t.color}50"
-            onclick="event.stopPropagation();addTmplETF('${e.isin}','${escHtml(e.ticker)}','${escHtml(e.name)}',${amt},this)"
-            title="${escHtml(e.name)}">
-            ${e.ticker}
-            <span class="tmpl-etf-sub">${escHtml(e.name)}</span>
-          </button>`;
+          return '<button class="tmpl-etf-btn'+inPort+'" style="color:'+t.color+';border-color:'+t.color+'50"'
+            +' onclick="event.stopPropagation();addTmplETF(\''+e.isin+'\',\''+escHtml(e.ticker)+'\',\''+escHtml(e.name)+'\','+amt+',this)"'
+            +' title="'+escHtml(e.name)+'">'+e.ticker
+            +'<span class="tmpl-etf-sub">'+escHtml(e.name)+'</span></button>';
         }).join('');
-        return `<div class="tmpl-comp" style="--tc:${t.color}">
-          <div class="tmpl-comp-top">
-            <span class="tmpl-comp-lbl">${c.label}</span>
-            <div class="tmpl-comp-metrics">
-              <span class="tmpl-comp-pct" style="color:${t.color}">${c.pct}%</span>
-              <span class="tmpl-comp-eur">${fmt(amt)}</span>
-            </div>
-          </div>
-          <div class="tmpl-bar-wrap"><div class="tmpl-bar" style="width:${c.pct}%;background:${t.color}"></div></div>
-          <div class="tmpl-comp-desc-txt">${c.desc}</div>
-          <div class="tmpl-etf-row">${etfBtns}</div>
-        </div>`;
+
+        // ── Bond suggestions ─────────────────────────────────────
+        let bondSection = '';
+        if (c.bonds) {
+          const bonds = getBondSuggestions(c.bonds);
+          const wrapId = 'tmplbonds'+ci;
+          if (bonds.length > 0) {
+            const rows = bonds.map((b,bi) => {
+              const scad = b.scadenza
+                ? new Date(b.scadenza).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'})
+                : '—';
+              const inputId = 'tmplbn'+bi+ci;
+              const hidden  = bi >= BLIMIT ? ' hidden' : '';
+              return '<div class="tmpl-bond-row'+hidden+'">'
+                +'<div class="tmpl-bond-info">'
+                +'<span class="tmpl-bond-desc" title="'+escHtml(b.descrizione)+'">'+escHtml(b.descrizione)+'</span>'
+                +'<div class="tmpl-bond-meta">'
+                +'<span>Scad. '+scad+'</span>'
+                +(b.yield  ? '<span class="tmpl-bond-yield">'+b.yield.toFixed(2)+'%</span>' : '')
+                +(b.prezzo ? '<span>'+b.prezzo.toFixed(2)+'</span>' : '')
+                +(b.duration ? '<span>Dur '+b.duration.toFixed(1)+'</span>' : '')
+                +'</div></div>'
+                +'<input type="number" class="tmpl-bond-nom-input" id="'+inputId+'" value="'+defaultNom+'" step="1000" min="1000">'
+                +'<button class="tmpl-bond-add-btn" onclick="addTmplBond(\''+b.isin+'\',document.getElementById(\''+inputId+'\').value,this)">+ Port.</button>'
+                +'</div>';
+            }).join('');
+            const moreN = bonds.length - BLIMIT;
+            const moreBtn = moreN > 0
+              ? '<div class="tmpl-bonds-more" onclick="showMoreTmplBonds(\''+wrapId+'\',this)">Mostra altri '+moreN+' titoli →</div>'
+              : '';
+            bondSection = '<div class="tmpl-bonds-section" id="'+wrapId+'">'
+              +'<div class="tmpl-bonds-title">🏛 Titoli di stato suggeriti'
+              +' <span style="opacity:.5;font-weight:400;text-transform:none;letter-spacing:0">('+bonds.length+' disponibili · modifica il nominale)</span></div>'
+              +rows+moreBtn+'</div>';
+          } else {
+            bondSection = '<div class="tmpl-bonds-section">'
+              +'<div class="tmpl-bonds-title" style="opacity:.5">🏛 Nessun titolo disponibile al momento</div>'
+              +'</div>';
+          }
+        }
+
+        return '<div class="tmpl-comp" style="--tc:'+t.color+'">'
+          +'<div class="tmpl-comp-top">'
+          +'<span class="tmpl-comp-lbl">'+c.label+'</span>'
+          +'<div class="tmpl-comp-metrics">'
+          +'<span class="tmpl-comp-pct" style="color:'+t.color+'">'+c.pct+'%</span>'
+          +'<span class="tmpl-comp-eur">'+fmt(amt)+'</span>'
+          +'</div></div>'
+          +'<div class="tmpl-bar-wrap"><div class="tmpl-bar" style="width:'+c.pct+'%;background:'+t.color+'"></div></div>'
+          +'<div class="tmpl-comp-desc-txt">'+c.desc+'</div>'
+          +(etfBtns ? '<div class="tmpl-etf-row">'+etfBtns+'</div>' : '')
+          +bondSection
+          +'</div>';
       }).join('')}`;
     document.getElementById('tmplComponents').innerHTML = html;
   }
@@ -3520,19 +3693,28 @@
     if (btn) { btn.textContent = '⏳ Caricamento...'; btn.disabled = true; }
     if (!etfLoaded) await fetchAndRenderETF();
     for (const comp of currentTemplate.components) {
-      const e = comp.etfs[0];
-      const etf = allETFs.find(x => x.isin === e.isin);
       const nom = Math.max(1000, Math.round(tmplAmount * comp.pct / 100 / 1000) * 1000);
-      portfolio[e.isin] = {
-        bond: {
-          isin: e.isin, descrizione: etf ? etf.name : e.name, emittente: e.ticker,
-          scadenza: null, prezzo: etf ? (etf.price || 100) : 100,
-          yield: etf ? etf.yld || null : null, duration: etf ? etf.dur || null : null,
-          divisa: etf ? (etf.currency || 'EUR') : 'EUR', tipo: 'ETF',
-          cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
-        },
-        nominale: nom,
-      };
+      if (comp.etfs && comp.etfs.length) {
+        // Add primary ETF
+        const e   = comp.etfs[0];
+        const etf = allETFs.find(x => x.isin === e.isin);
+        portfolio[e.isin] = {
+          bond: {
+            isin: e.isin, descrizione: etf ? etf.name : e.name, emittente: e.ticker,
+            scadenza: null, prezzo: etf ? (etf.price || 100) : 100,
+            yield: etf ? etf.yld || null : null, duration: etf ? etf.dur || null : null,
+            divisa: etf ? (etf.currency || 'EUR') : 'EUR', tipo: 'ETF',
+            cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
+          },
+          nominale: nom,
+        };
+      } else if (comp.bonds) {
+        // No ETF → add first matching bond instead
+        const bonds = getBondSuggestions(comp.bonds);
+        if (bonds.length) {
+          portfolio[bonds[0].isin] = { bond: bonds[0], nominale: nom };
+        }
+      }
     }
     savePortfolio();
     closeTmpl();
