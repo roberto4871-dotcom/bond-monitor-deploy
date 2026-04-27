@@ -4,6 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Monitor Sovranazionali & Governativi</title>
+  <!-- Auto-reload quando il server viene aggiornato (cache-busting automatico) -->
+  <script>
+    (function () {
+      var STORE_KEY = 'bond_build_v2';
+      fetch('/api/version').then(function (r) { return r.json(); }).then(function (data) {
+        var fresh = String(data.build);
+        var stored = sessionStorage.getItem(STORE_KEY);
+        if (stored && stored !== fresh) {
+          // Nuovo deploy rilevato — ricarica con URL univoco per bypassare la cache
+          sessionStorage.setItem(STORE_KEY, fresh);
+          window.location.replace(window.location.pathname + '?v=' + fresh);
+        } else {
+          sessionStorage.setItem(STORE_KEY, fresh);
+        }
+      }).catch(function () {});
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -2134,6 +2151,17 @@
     currentETFDetailIsin  = isin;
     currentETFCurrency    = etf.currency || 'EUR';
     etfDetailAllPts       = [];
+    etfDetailYieldPts     = [];
+
+    // Pre-popola subito lo storico rendimenti se già in cache dal background refresh
+    if (etf.yieldHistory?.length) {
+      const pts = etf.yieldHistory.map(({ year, yieldPct }) =>
+        [new Date(year, 6, 1).getTime(), yieldPct]
+      );
+      const latestYield = etf.yld ?? etf.yieldHistory[etf.yieldHistory.length - 1]?.yieldPct;
+      if (latestYield != null) pts.push([Date.now(), latestYield]);
+      etfDetailYieldPts = pts;
+    }
 
     // ── Header ──
     const badge = document.getElementById('edProviderBadge');
@@ -2373,8 +2401,12 @@
         const res = await fetch(`/api/chart/${currentETFDetailIsin}?range=max`);
         if (!res.ok) { loading.innerHTML = '📉 Dati storici non disponibili'; return; }
         const data = await res.json();
-        etfDetailAllPts   = data.price     || [];
-        etfDetailYieldPts = data.yieldData || [];
+        etfDetailAllPts = data.price || [];
+        // Usa yieldData Yahoo (serie TTM giornaliera) solo se ha dati utili;
+        // altrimenti conserva i punti JustETF annuali già pre-popolati
+        if ((data.yieldData || []).length >= 2) {
+          etfDetailYieldPts = data.yieldData;
+        }
         document.getElementById('edChartSrc').textContent =
           data.source ? '· ' + data.source : '';
       }
@@ -2424,10 +2456,15 @@
     const isYield  = etfDetailTab === 'yield';
     const sourceAll = isYield ? etfDetailYieldPts : etfDetailAllPts;
 
-    // Se yield richiesto ma non ancora disponibile (JustETF in caricamento)
+    // Se yield richiesto ma non ancora disponibile
     if (isYield && sourceAll.length < 2) {
       loading.style.display = 'flex';
-      loading.innerHTML = '⏳ Caricamento storico rendimenti da JustETF...<br><span style="font-size:11px;color:var(--text2);">Potrebbe richiedere qualche secondo</span>';
+      // Se abbiamo i dividendi dal grafico prezzi, prova a costruirli on-the-fly
+      if (etfDetailAllPts.length > 0) {
+        loading.innerHTML = '📉 Storico rendimenti non disponibile per questo ETF';
+      } else {
+        loading.innerHTML = '⏳ Caricamento dati...<br><span style="font-size:11px;color:var(--text2);">Attendere il completamento del grafico prezzi</span>';
+      }
       canvas.style.display = 'none';
       return;
     }

@@ -2,11 +2,15 @@ const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const path = require('path');
+const fs = require('fs');
 // yahoo-finance2 v3: .default è la classe, va istanziata con new
 const yahooFinance = new (require('yahoo-finance2').default)();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Timestamp univoco per questa istanza del server — usato per forzare il reload del browser
+const SERVER_BUILD = Date.now();
 
 // Tutti i monitor della sezione "Sovranazionali e Governativi"
 const MONITORS = [
@@ -390,7 +394,36 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// API: versione build — il client lo usa per rilevare deploy e ricaricare automaticamente
+app.get('/api/version', (req, res) => {
+  res.json({ build: SERVER_BUILD });
+});
+
+// Serve index.html in modo dinamico — inietta il build stamp per invalidare la cache del browser
+const INDEX_PATH = path.join(__dirname, 'public/index.html');
+app.get(['/', '/index.html'], (req, res) => {
+  try {
+    let html = fs.readFileSync(INDEX_PATH, 'utf8');
+    // Inserisce un <meta name="build"> con il timestamp — cambia ad ogni deploy
+    html = html.replace(
+      '<meta charset="UTF-8" />',
+      `<meta charset="UTF-8" />\n  <meta name="build" content="${SERVER_BUILD}" />`
+    );
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('ETag', `"${SERVER_BUILD}"`);
+    res.send(html);
+  } catch (e) {
+    res.status(500).send('Errore caricamento pagina');
+  }
+});
+
+// Serve static files (CSS, JS, immagini) — HTML gestito sopra
+app.use(express.static(path.join(__dirname, 'public'), {
+  index: false, // non servire index.html automaticamente (gestito sopra)
+}));
 
 // API: tutti i titoli
 app.get('/api/bonds', (req, res) => {
@@ -470,25 +503,43 @@ function computeETFYieldSeries(pricePoints, dividends) {
   const YEAR_MS = 365.25 * 24 * 3600 * 1000;
   const result  = [];
   // Per ogni punto prezzo calcola la somma dividendi negli ultimi 12 mesi
+  // Pre-converti i timestamp dividendi una volta sola (Yahoo può restituire secondi, ms, o ISO string)
+  const divTimestamps = dividends.map(d => {
+    let t;
+    if (typeof d.date === 'number') {
+      t = d.date > 1e12 ? d.date : d.date * 1000; // secondi → ms
+    } else {
+      t = new Date(d.date).getTime(); // ISO string o Date object → ms
+    }
+    return { ts: t, amount: d.amount };
+  }).filter(d => !isNaN(d.ts));
+
   for (const [ts, price] of pricePoints) {
     if (!price || price <= 0) continue;
     const cutoff = ts - YEAR_MS;
     let ttmSum = 0;
-    for (const d of dividends) {
-      const dTs = d.date * 1000; // Yahoo restituisce secondi
-      if (dTs >= cutoff && dTs <= ts) ttmSum += d.amount;
+    for (const d of divTimestamps) {
+      if (d.ts >= cutoff && d.ts <= ts) ttmSum += d.amount;
     }
     if (ttmSum > 0) result.push([ts, (ttmSum / price) * 100]);
   }
   return result;
 }
 
+// Exchange alternativi dove cercare dividendi quando il simbolo principale non li ha
+// XETRA (.DE) e Francoforte (.F) riportano spesso dividendi per ETF europei
+const DIV_FALLBACK_SUFFIXES = ['.DE', '.F', '.PA', '.L', '.AS'];
+
 // Tenta Yahoo Finance con diversi suffissi di borsa
 // Richiede anche i dividendi (events:'div') per calcolare lo yield TTM degli ETF
-async function tryYahooFinance(isin) {
+// tickerHint:  ticker dell'ETF (es. 'EM13') — usato per cercare dividendi su exchange alternativi
+// divSymbolHint: simbolo specifico da cui prendere i dividendi (es. 'EGV3.DE' per EM13)
+async function tryYahooFinance(isin, tickerHint = null, divSymbolHint = null) {
   const prefix = isin.substring(0, 2).toUpperCase();
   const suffixes = YAHOO_SUFFIXES[prefix] || ['.MI', '.F'];
   const period1 = new Date(Date.now() - 6 * 365 * 24 * 3600 * 1000); // 6 anni
+
+  let bestResult = null; // risultato con prezzo ma senza dividendi (fallback)
 
   for (const suffix of suffixes) {
     const symbol = isin + suffix;
@@ -499,35 +550,61 @@ async function tryYahooFinance(isin) {
         const currency = result.meta?.currency || 'EUR';
         const pricePoints = quotes.map(q => [new Date(q.date).getTime(), q.close]);
 
-        // Estrai dividendi (oggetto {timestamp: {amount, date}} oppure array)
         const divRaw = result.events?.dividends || {};
-        const dividends = Array.isArray(divRaw)
-          ? divRaw
-          : Object.values(divRaw);
-
+        const dividends = Array.isArray(divRaw) ? divRaw : Object.values(divRaw);
         const yieldData = computeETFYieldSeries(pricePoints, dividends);
-        if (yieldData.length > 0)
-          console.log(`  [CHART] ${symbol}: ${quotes.length} prezzi, ${yieldData.length} punti yield TTM`);
-        else
-          console.log(`  [CHART] Yahoo OK: ${symbol} — ${quotes.length} punti (no dividends)`);
 
-        return {
-          source: 'Yahoo Finance',
-          symbol,
-          currency,
-          price:      pricePoints,
-          yieldData,          // TTM distribution yield (%) — vuoto per bond gov.
-          zspreadData: [],
-        };
+        if (yieldData.length > 0) {
+          console.log(`  [CHART] ${symbol}: ${quotes.length} prezzi, ${yieldData.length} punti yield TTM`);
+          return { source: 'Yahoo Finance', symbol, currency, price: pricePoints, yieldData, zspreadData: [] };
+        }
+
+        if (!bestResult) {
+          bestResult = { source: 'Yahoo Finance', symbol, currency, price: pricePoints, zspreadData: [] };
+        }
       }
-    } catch (e) {
-      // prova prossimo suffisso
-    }
+    } catch (e) { /* prova prossimo suffisso */ }
   }
 
-  // Ultimo tentativo: ricerca per ISIN
+  // Helper: cerca dividendi su un exchange alternativo e li combina con i prezzi di base
+  async function findDividendsOnAltExchange(basePricePoints) {
+    // 1. Se esiste un divSymbol specifico (es. EGV3.DE per EM13), usalo prima
+    const directSymbols = divSymbolHint ? [divSymbolHint] : [];
+    // 2. Poi prova ticker + exchange fallback
+    const tickerSymbols = tickerHint ? DIV_FALLBACK_SUFFIXES.map(s => tickerHint + s) : [];
+    const allCandidates = [...directSymbols, ...tickerSymbols];
+
+    for (const altSym of allCandidates) {
+      try {
+        const r = await yahooFinance.chart(altSym, { period1, interval: '1d', events: 'div' }, { validateResult: false });
+        const divRaw = r.events?.dividends || {};
+        const divs = Array.isArray(divRaw) ? divRaw : Object.values(divRaw);
+        if (divs.length > 0) {
+          const yieldData = computeETFYieldSeries(basePricePoints, divs);
+          if (yieldData.length > 0) {
+            console.log(`  [CHART] Dividendi da ${altSym} (${divs.length} div) → ${yieldData.length} punti yield TTM`);
+            return yieldData;
+          }
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  if (bestResult) {
+    // Cerca dividendi su exchange alternativi usando il ticker
+    const yieldData = await findDividendsOnAltExchange(bestResult.price);
+    console.log(`  [CHART] ${bestResult.symbol}: ${bestResult.price.length} punti${yieldData?.length ? ', '+yieldData.length+' yield TTM' : ' (no dividends)'}`);
+    return { ...bestResult, yieldData: yieldData || [] };
+  }
+
+  // Ultimo tentativo: ricerca per ISIN (simbolo non trovato nei suffissi standard)
+  // Strategia: primo risultato con prezzo ok → usarlo per prezzi
+  //            continua a scorrere i risultati cercando uno con dividendi
   try {
-    const search = await yahooFinance.search(isin, { quotesCount: 3, newsCount: 0 }, { validateResult: false });
+    const search = await yahooFinance.search(isin, { quotesCount: 5, newsCount: 0 }, { validateResult: false });
+    let searchBest = null; // primo risultato con prezzi (potrebbe non avere dividendi)
+
     for (const q of (search.quotes || [])) {
       try {
         const result = await yahooFinance.chart(q.symbol, { period1, interval: '1d', events: 'div' }, { validateResult: false });
@@ -536,17 +613,32 @@ async function tryYahooFinance(isin) {
           const pricePoints = quotes.map(r => [new Date(r.date).getTime(), r.close]);
           const divRaw = result.events?.dividends || {};
           const dividends = Array.isArray(divRaw) ? divRaw : Object.values(divRaw);
-          console.log(`  [CHART] Yahoo Search OK: ${q.symbol} — ${quotes.length} punti`);
-          return {
-            source: 'Yahoo Finance',
-            symbol: q.symbol,
-            currency: result.meta?.currency || 'EUR',
-            price:      pricePoints,
-            yieldData:  computeETFYieldSeries(pricePoints, dividends),
-            zspreadData: [],
-          };
+
+          if (!searchBest) {
+            // Salva come best: ha prezzi, potrebbe non avere dividendi
+            searchBest = {
+              source: 'Yahoo Finance', symbol: q.symbol,
+              currency: result.meta?.currency || 'EUR',
+              price: pricePoints, zspreadData: [],
+            };
+          }
+
+          if (dividends.length > 0) {
+            // Trovati dividendi: usa prezzi del best (o questo se è il primo) + questi dividendi
+            const basePts = searchBest.price;
+            const yieldData = computeETFYieldSeries(basePts, dividends);
+            console.log(`  [CHART] Yahoo Search OK: ${q.symbol} — ${quotes.length} punti, ${dividends.length} dividendi`);
+            return { ...searchBest, symbol: searchBest.symbol, yieldData };
+          }
         }
       } catch (e) {}
+    }
+
+    // Nessun simbolo con dividendi trovato: prova exchange alternativi con ticker
+    if (searchBest) {
+      const yieldData = await findDividendsOnAltExchange(searchBest.price);
+      console.log(`  [CHART] Yahoo Search OK: ${searchBest.symbol} — ${searchBest.price.length} punti${yieldData?.length ? ', '+yieldData.length+' yield TTM' : ' (no dividends)'}`);
+      return { ...searchBest, yieldData: yieldData || [] };
     }
   } catch (e) {}
 
@@ -622,14 +714,17 @@ app.get('/api/chart/:isin', async (req, res) => {
     return res.json(filterByRange(cached.data, range));
   }
 
-  const bond = state.bonds.find(b => b.isin === isin);
+  const bond      = state.bonds.find(b => b.isin === isin);
+  const etfEntry  = ETF_LIST.find(e => e.isin === isin);
+  const ticker    = etfEntry?.ticker    || null;
+  const divSymbol = etfEntry?.divSymbol || null; // simbolo specifico con dati dividendi (es. EGV3.DE)
 
   try {
-    console.log(`[CHART] Recupero dati per ${isin}...`);
+    console.log(`[CHART] Recupero dati per ${isin}${ticker ? ' ('+ticker+(divSymbol?'/'+divSymbol:'')+')' : ''}...`);
 
     // Tenta entrambe le fonti in parallelo
     const [yahoo, site] = await Promise.allSettled([
-      tryYahooFinance(isin),
+      tryYahooFinance(isin, ticker, divSymbol),
       trySiteChart(bond),
     ]);
 
@@ -665,10 +760,10 @@ const ETF_LIST = [
   { isin:'LU0290357929', ticker:'XGIN',   name:'Xtrackers Glob Infl Link EUR H', cat:'Gov Inflation GLB', ter:0.20, dur:7.0  },
   { isin:'LU1390062831', ticker:'INFU',   name:'Amundi US$ 10Y Infl Exp',        cat:'Gov Inflation USD', ter:0.16, dur:7.5  },
   { isin:'IE00B1FZSC47', ticker:'ITPS',   name:'iShares $ TIPS',                 cat:'Gov Inflation USD', ter:0.10, dur:7.5  },
-  { isin:'LU1650487413', ticker:'EM13',   name:'Amundi Euro Gov Bond 1-3Y',      cat:'Gov EUR 1-3Y',      ter:0.14, dur:1.9  },
+  { isin:'LU1650487413', ticker:'EM13',   divSymbol:'EGV3.DE', name:'Amundi Euro Gov Bond 1-3Y',      cat:'Gov EUR 1-3Y',      ter:0.14, dur:1.9  },
   { isin:'LU1598691050', ticker:'BTP13',  name:'Amundi EMTS 1-3Y ITA BTP',       cat:'Gov EUR 1-3Y',      ter:0.15, dur:1.9  },
-  { isin:'LU1650488494', ticker:'EM35',   name:'Amundi Euro Gov Bond 3-5Y',      cat:'Gov EUR 3-5Y',      ter:0.14, dur:3.8  },
-  { isin:'LU1287023003', ticker:'EM57',   name:'Amundi Euro Gov Bond 5-7Y',      cat:'Gov EUR 5-7Y',      ter:0.14, dur:5.5  },
+  { isin:'LU1650488494', ticker:'EM35',   divSymbol:'EGV5.DE', name:'Amundi Euro Gov Bond 3-5Y',      cat:'Gov EUR 3-5Y',      ter:0.14, dur:3.8  },
+  { isin:'LU1287023003', ticker:'EM57',   divSymbol:'EGV7.DE', name:'Amundi Euro Gov Bond 5-7Y',      cat:'Gov EUR 5-7Y',      ter:0.14, dur:5.5  },
   { isin:'LU1287023185', ticker:'EM710',  name:'Amundi Euro Gov Bond 7-10Y',     cat:'Gov EUR 7-10Y',     ter:0.14, dur:7.5  },
   { isin:'LU1650489385', ticker:'EM1015', name:'Amundi Euro Gov Bond 10-15Y',    cat:'Gov EUR 10-15Y',    ter:0.14, dur:11.0 },
   { isin:'LU1287023268', ticker:'EM15',   name:'Amundi Euro Gov Bond 15+Y',      cat:'Gov EUR 15+Y',      ter:0.14, dur:14.0 },
@@ -866,7 +961,13 @@ async function refreshETFPricesBackground() {
       for (const r of settled) {
         if (r.status === 'fulfilled' && r.value?.isin) {
           const { isin, price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source } = r.value;
-          etfPriceData[isin] = { price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source };
+          // Preserva yieldHistory e yld già presenti (da JustETF/Yahoo passes precedenti)
+          const prev = etfPriceData[isin] || {};
+          etfPriceData[isin] = {
+            price, currency, changePercent, change1d, ytdReturn, low52w, high52w, symbol, source,
+            ...(prev.yld          != null ? { yld: prev.yld }                   : {}),
+            ...(prev.yieldHistory != null ? { yieldHistory: prev.yieldHistory } : {}),
+          };
           if (price != null) successCount++;
         }
       }
@@ -957,17 +1058,25 @@ async function fetchJustETFDistributions(isin) {
       if (cells.length < 2) return;
 
       const c0 = $(cells[0]).text().trim();
-      // Ultima cella con percentuale
+
+      // Salta righe di volatilità, drawdown, performance, etc.
+      // (es. "Volatility 1 year (in EUR)" che JustETF usa nella sezione risk)
+      if (/volatil|drawdown|performance|return|sharpe|max\s*loss/i.test(c0)) return;
+
+      // Ultima cella con percentuale positiva senza segno (es. "3.45%")
+      // Esclude percentuali con segno +/- (performance di prezzo)
       let yieldPct = null;
       for (let ci = cells.length - 1; ci >= 1; ci--) {
-        const txt = $(cells[ci]).text().trim().replace(',', '.');
-        const m = txt.match(/^(\d+\.?\d*)\s*%$/);
+        const raw = $(cells[ci]).text().trim().replace(',', '.');
+        const m = raw.match(/^(\d+\.?\d*)\s*%$/); // solo numeri positivi senza segno
         if (m) { yieldPct = parseFloat(m[1]); break; }
       }
-      if (yieldPct == null || isNaN(yieldPct) || yieldPct <= 0 || yieldPct > 80) return;
+      if (yieldPct == null || isNaN(yieldPct) || yieldPct <= 0 || yieldPct > 30) return;
 
+      // Anno esatto (es. "2022") → storico
       const yearM = c0.match(/^(20\d{2})$/);
-      const ttmM  = c0.match(/1\s*year/i);
+      // TTM: la prima cella deve essere ESATTAMENTE "1 year" o "1 Year" (non "Volatility 1 year")
+      const ttmM  = /^\s*1\s*year\s*$/i.test(c0);
 
       if (yearM) {
         history.push({ year: parseInt(yearM[1]), yieldPct });
@@ -1019,12 +1128,16 @@ async function refreshETFJustETFYields() {
         try {
           const data = await fetchJustETFDistributions(etf.isin);
           if (!data) return;
+          if (!etfPriceData[etf.isin]) etfPriceData[etf.isin] = {};
+          // Salva sempre lo storico rendimenti (per il grafico nel pannello ETF)
+          if (data.history?.length) {
+            etfPriceData[etf.isin].yieldHistory = data.history;
+          }
           // Aggiorna resa in tabella se non già presente da Yahoo
-          if (data.currentYield != null && !etfPriceData[etf.isin]?.yld) {
-            if (!etfPriceData[etf.isin]) etfPriceData[etf.isin] = {};
+          if (data.currentYield != null && !etfPriceData[etf.isin].yld) {
             etfPriceData[etf.isin].yld = +data.currentYield.toFixed(2);
             updated++;
-            console.log(`  [JustETF] ${etf.isin}: ${data.currentYield.toFixed(2)}% (${data.history.length} anni storia)`);
+            console.log(`  [JustETF] ${etf.isin}: ${data.currentYield.toFixed(2)}% (${data.history?.length ?? 0} anni storia)`);
           }
         } catch (e) {}
       }));
