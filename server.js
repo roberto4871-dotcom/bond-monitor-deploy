@@ -399,21 +399,26 @@ app.get('/api/version', (req, res) => {
   res.json({ build: SERVER_BUILD });
 });
 
-// Serve index.html in modo dinamico — inietta il build stamp per invalidare la cache del browser
+// Serve index.html con redirect forzato alla versione corrente — bypassare la cache del browser
+// Visita /  →  redirect 302 (non cacheable) a /?v=BUILD  →  HTML fresco senza cache
+// Anche se il browser ha / o /?v=OLD in cache, il redirect passerà sempre dal server
 const INDEX_PATH = path.join(__dirname, 'public/index.html');
 app.get(['/', '/index.html'], (req, res) => {
+  const clientV = req.query.v;
+  // Se la versione nel query param non corrisponde al build corrente → redirect al build corrente
+  if (String(clientV) !== String(SERVER_BUILD)) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    return res.redirect(302, `/?v=${SERVER_BUILD}`);
+  }
+  // Versione corretta → servi l'HTML senza cache
   try {
-    let html = fs.readFileSync(INDEX_PATH, 'utf8');
-    // Inserisce un <meta name="build"> con il timestamp — cambia ad ogni deploy
-    html = html.replace(
-      '<meta charset="UTF-8" />',
-      `<meta charset="UTF-8" />\n  <meta name="build" content="${SERVER_BUILD}" />`
-    );
+    const html = fs.readFileSync(INDEX_PATH, 'utf8');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.setHeader('ETag', `"${SERVER_BUILD}"`);
     res.send(html);
   } catch (e) {
     res.status(500).send('Errore caricamento pagina');
