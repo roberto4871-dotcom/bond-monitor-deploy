@@ -598,20 +598,16 @@
 <!-- STATS -->
 <div class="stats-bar">
   <div class="stat-card">
-    <div class="stat-label">Titoli totali</div>
+    <div class="stat-label">Titoli</div>
     <div class="stat-value blue" id="statTotal">—</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Filtrati</div>
-    <div class="stat-value" id="statFiltered">—</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Yield medio</div>
     <div class="stat-value green" id="statAvgYield">—</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">Yield max</div>
-    <div class="stat-value amber" id="statMaxYield">—</div>
+    <div class="stat-label">Yield mediano</div>
+    <div class="stat-value amber" id="statMedianYield">—</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Valute</div>
@@ -1569,18 +1565,24 @@
   // STATISTICHE
   // ─────────────────────────────────────────────
   function updateStats() {
-    document.getElementById('statTotal').textContent = allBonds.length.toLocaleString('it-IT');
-    document.getElementById('statFiltered').textContent = filteredBonds.length.toLocaleString('it-IT');
+    const total = allBonds.length;
+    const filtered = filteredBonds.length;
+    document.getElementById('statTotal').textContent =
+      filtered < total
+        ? filtered.toLocaleString('it-IT') + ' / ' + total.toLocaleString('it-IT')
+        : total.toLocaleString('it-IT');
 
     const withYield = filteredBonds.filter(b => b.yield !== null);
     if (withYield.length > 0) {
       const avg = withYield.reduce((s,b) => s + b.yield, 0) / withYield.length;
-      const max = Math.max(...withYield.map(b => b.yield));
+      const sorted = withYield.map(b => b.yield).sort((a,b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
       document.getElementById('statAvgYield').textContent = avg.toFixed(2) + '%';
-      document.getElementById('statMaxYield').textContent = max.toFixed(2) + '%';
+      document.getElementById('statMedianYield').textContent = median.toFixed(2) + '%';
     } else {
       document.getElementById('statAvgYield').textContent = '—';
-      document.getElementById('statMaxYield').textContent = '—';
+      document.getElementById('statMedianYield').textContent = '—';
     }
 
     const currencies = new Set(filteredBonds.map(b => b.divisa).filter(Boolean));
