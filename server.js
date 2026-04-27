@@ -1206,6 +1206,51 @@ app.get('/api/etf/debug', async (req, res) => {
   res.json(out);
 });
 
+// Debug dividendi: testa il recupero dividendi Yahoo per un ETF specifico
+app.get('/api/etf/debug-yield/:isin', async (req, res) => {
+  const isin = req.params.isin.toUpperCase();
+  const etfEntry = ETF_LIST.find(e => e.isin === isin);
+  const period1 = new Date(Date.now() - 2 * 365 * 24 * 3600 * 1000); // 2 anni
+  const out = { isin, etfEntry, results: [] };
+
+  // Candidati: ISIN con suffissi standard + ticker con suffissi alternativi
+  const prefix = isin.substring(0, 2).toUpperCase();
+  const mainSuffixes = YAHOO_SUFFIXES[prefix] || ['.MI', '.F'];
+  const tickerHint = etfEntry?.ticker;
+  const divSymbol = etfEntry?.divSymbol;
+
+  const candidates = [
+    ...mainSuffixes.map(s => isin + s),
+    ...(divSymbol ? [divSymbol] : []),
+    ...(tickerHint ? DIV_FALLBACK_SUFFIXES.map(s => tickerHint + s) : []),
+  ];
+
+  for (const sym of candidates) {
+    try {
+      const r = await yahooFinance.chart(sym, { period1, interval: '1mo', events: 'div' }, { validateResult: false });
+      const quotes = (r.quotes || []).filter(q => q.close != null);
+      const divRaw = r.events?.dividends || {};
+      const divs = Array.isArray(divRaw) ? divRaw : Object.values(divRaw);
+      out.results.push({
+        symbol: sym, quotes: quotes.length, dividends: divs.length,
+        currency: r.meta?.currency,
+        firstDiv: divs[0] ? { date: divs[0].date, amount: divs[0].amount } : null,
+        lastDiv:  divs.at(-1) ? { date: divs.at(-1).date, amount: divs.at(-1).amount } : null,
+      });
+    } catch (e) {
+      out.results.push({ symbol: sym, error: e.message });
+    }
+  }
+
+  // JustETF
+  try {
+    const je = await fetchJustETFDistributions(isin);
+    out.justETF = je ? { currentYield: je.currentYield, historyLen: je.history?.length, history: je.history } : null;
+  } catch (e) { out.justETF = { error: e.message }; }
+
+  res.json(out);
+});
+
 // Dettaglio singolo ETF: quoteSummary con tutti i moduli disponibili
 app.get('/api/etf/:isin', async (req, res) => {
   const isin = req.params.isin.toUpperCase();

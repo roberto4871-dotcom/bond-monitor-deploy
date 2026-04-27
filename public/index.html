@@ -2137,12 +2137,14 @@
   let etfDetailYieldPts = []; // cached TTM yield series (max range)
   let etfDetailRange = '1y';
   let etfDetailTab   = 'price'; // 'price' | 'yield'
+  let etfYieldPending = false;  // true mentre fetchETFDetailData è in corso (JustETF non ancora tornato)
 
   function closeETFDetail() {
     document.getElementById('etfDetailModal').classList.remove('show');
     if (etfDetailChartInst) { etfDetailChartInst.destroy(); etfDetailChartInst = null; }
     etfDetailAllPts   = [];
     etfDetailYieldPts = [];
+    etfYieldPending   = false;
   }
 
   function openETFChart(isin) {
@@ -2152,6 +2154,7 @@
     currentETFCurrency    = etf.currency || 'EUR';
     etfDetailAllPts       = [];
     etfDetailYieldPts     = [];
+    etfYieldPending       = true;  // JustETF non ancora risposto
 
     // Pre-popola subito lo storico rendimenti se già in cache dal background refresh
     if (etf.yieldHistory?.length) {
@@ -2308,20 +2311,19 @@
         });
       }
 
-      // Yield history da JustETF → usala per il grafico se Yahoo non ha dividendi
+      // JustETF risposto → aggiorna yield history e ridisegna se necessario
+      etfYieldPending = false;
       if (d.yieldHistory?.length && etfDetailYieldPts.length === 0) {
         // Costruisci serie sintetica: un punto per anno + eventuale punto corrente
-        const pts = d.yieldHistory.map(({ year, yieldPct }) => {
-          // Usa 1° luglio come punto di riferimento dell'anno
-          return [new Date(year, 6, 1).getTime(), yieldPct];
-        });
-        // Aggiungi punto corrente con yield di oggi (se disponibile)
-        const latestYield = d.distYield || (d.yieldHistory[d.yieldHistory.length - 1]?.yieldPct);
+        const pts = d.yieldHistory.map(({ year, yieldPct }) =>
+          [new Date(year, 6, 1).getTime(), yieldPct]
+        );
+        const latestYield = d.distYield || d.yieldHistory[d.yieldHistory.length - 1]?.yieldPct;
         if (latestYield) pts.push([Date.now(), latestYield]);
         etfDetailYieldPts = pts;
-        // Se siamo già sul tab rendimento, ridisegna il grafico
-        if (etfDetailTab === 'yield') renderETFDetailChart();
       }
+      // Ridisegna sempre se siamo sul tab rendimento (anche se già non disponibile → aggiorna messaggio)
+      if (etfDetailTab === 'yield') renderETFDetailChart();
 
       // Top Holdings
       if (d.holdings?.length) {
@@ -2364,7 +2366,11 @@
           </span>`;
         }).join('');
       }
-    } catch (e) { console.error('[ETF detail]', e); }
+    } catch (e) {
+      console.error('[ETF detail]', e);
+      etfYieldPending = false;
+      if (etfDetailTab === 'yield') renderETFDetailChart();
+    }
   }
 
   // ── Cambia periodo del grafico ETF ──
@@ -2459,11 +2465,13 @@
     // Se yield richiesto ma non ancora disponibile
     if (isYield && sourceAll.length < 2) {
       loading.style.display = 'flex';
-      // Se abbiamo i dividendi dal grafico prezzi, prova a costruirli on-the-fly
-      if (etfDetailAllPts.length > 0) {
+      if (etfYieldPending) {
+        // JustETF non ancora risposto — mostra spinner (non "non disponibile" prematuramente)
+        loading.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span>&nbsp;Caricamento rendimenti...';
+      } else if (etfDetailAllPts.length > 0) {
         loading.innerHTML = '📉 Storico rendimenti non disponibile per questo ETF';
       } else {
-        loading.innerHTML = '⏳ Caricamento dati...<br><span style="font-size:11px;color:var(--text2);">Attendere il completamento del grafico prezzi</span>';
+        loading.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span>&nbsp;Caricamento dati...';
       }
       canvas.style.display = 'none';
       return;
