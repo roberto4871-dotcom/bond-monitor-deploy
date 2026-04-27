@@ -469,16 +469,17 @@ const CHART_CACHE_TTL = 60 * 60 * 1000; // 1 ora
 // Suffissi Yahoo Finance per paese ISIN
 const YAHOO_SUFFIXES = {
   IT: ['.MI', '.F'],
-  DE: ['.F', '.BE', '.MI'],
+  DE: ['.DE', '.F', '.BE', '.MI'],
   FR: ['.PA', '.F', '.MI'],
   ES: ['.MC', '.MI'],
   PT: ['.LS', '.MI'],
   GR: ['.AT', '.MI'],
-  AT: ['.VI', '.F', '.MI'],
+  AT: ['.VI', '.DE', '.F', '.MI'],
   NL: ['.AS', '.F', '.MI'],
   BE: ['.BR', '.F', '.MI'],
-  FI: ['.HE', '.MI'],
-  IE: ['.MI', '.F'],
+  FI: ['.HE', '.F', '.MI'],
+  IE: ['.MI', '.L', '.DE', '.F'],   // iShares: Borsa Italiana, LSE (ticker), XETRA, Frankfurt
+  LU: ['.MI', '.DE', '.F'],          // Amundi/Xtrackers: Borsa Italiana, XETRA, Frankfurt
   XS: ['.MI', '.F', '.PA'],   // Eurobond/Sovranazionali
   EU: ['.MI', '.F'],           // EU bonds
   XF: ['.MI', '.F'],
@@ -546,15 +547,18 @@ async function tryYahooFinance(isin, tickerHint = null, divSymbolHint = null) {
 
   let bestResult = null; // risultato con prezzo ma senza dividendi (fallback)
 
-  // Prova prima con ISIN+suffisso, poi con ticker+suffisso (utile per ETF Amundi/LU che
-  // Yahoo Finance non indicizza con ISIN ma riconosce tramite ticker, es. EMI.MI)
-  const symbolsToTry = [
-    ...suffixes.map(s => isin + s),
-    ...(tickerHint ? suffixes.map(s => tickerHint + s) : []),
-  ];
+  // Suffissi per il fallback ticker (più ampi di quelli ISIN)
+  const TICKER_FALLBACK = ['.DE', '.MI', '.F', '.L', '.AS', '.PA'];
+
+  // Prova prima con ISIN+suffisso, poi con ticker+suffisso (utile per ETF che Yahoo Finance
+  // non indicizza con ISIN ma riconosce tramite ticker, es. XEMB.DE, EMI.MI, IHYG.L)
+  const isinSymbols   = suffixes.map(s => isin + s);
+  const tickerSymbols = tickerHint ? TICKER_FALLBACK.map(s => tickerHint + s) : [];
+  const symbolsToTry  = [...isinSymbols, ...tickerSymbols];
 
   for (const symbol of symbolsToTry) {
-    if (bestResult && symbolsToTry.indexOf(symbol) >= suffixes.length) break; // ha già prezzi → salta ticker
+    // Se abbiamo già prezzi e siamo nella parte ticker → passa direttamente al fallback dividendi
+    if (bestResult && !isinSymbols.includes(symbol)) break;
     try {
       const result = await yahooFinance.chart(symbol, { period1, interval: '1d', events: 'div' }, { validateResult: false });
       const quotes = (result.quotes || []).filter(q => q.close != null);
