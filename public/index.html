@@ -527,7 +527,7 @@
     .port-empty-icon { font-size:44px; margin-bottom:12px; opacity:.65; }
     .port-empty-title { font-size:18px; font-weight:700; color:var(--text); }
     .port-empty-sub { font-size:13px; color:var(--text2); margin-top:6px; line-height:1.65; }
-    .port-ideas { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:28px; width:100%; max-width:800px; text-align:left; }
+    .port-ideas { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; margin-top:28px; width:100%; text-align:left; }
     .port-idea-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:18px 20px; transition:border-color .18s,transform .18s,box-shadow .18s; }
     .port-idea-card:hover { border-color:rgba(59,130,246,.45); transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,.35); }
     .port-idea-icon { font-size:22px; margin-bottom:8px; }
@@ -540,7 +540,53 @@
     .port-idea-stats { display:flex; gap:7px; flex-wrap:wrap; }
     .port-idea-yield { font-size:10px; font-weight:600; background:rgba(34,197,94,.1); color:#22c55e; border:1px solid rgba(34,197,94,.2); padding:2px 8px; border-radius:20px; }
     .port-idea-dur { font-size:10px; font-weight:600; background:rgba(59,130,246,.1); color:#3b82f6; border:1px solid rgba(59,130,246,.2); padding:2px 8px; border-radius:20px; }
-    @media(max-width:700px){.port-ideas{grid-template-columns:1fr}.port-kpi-bar{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:700px){.port-kpi-bar{grid-template-columns:repeat(2,1fr)}}
+    /* TEMPLATE MODAL */
+    .tmpl-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9100;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
+    .tmpl-overlay.show{display:flex;}
+    .tmpl-modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;width:100%;max-width:720px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.65);}
+    .tmpl-hdr{padding:22px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+    .tmpl-hdr-left{display:flex;align-items:center;gap:14px;}
+    .tmpl-hdr-icon{font-size:38px;flex-shrink:0;}
+    .tmpl-hdr-title{font-size:20px;font-weight:700;color:var(--text);letter-spacing:-.3px;}
+    .tmpl-hdr-sub{font-size:12px;color:var(--text2);margin-top:3px;}
+    .tmpl-cur-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap;align-self:flex-start;margin-top:4px;}
+    .tmpl-close-btn{background:none;border:none;cursor:pointer;color:var(--text2);font-size:18px;padding:5px 7px;border-radius:7px;flex-shrink:0;}
+    .tmpl-close-btn:hover{background:var(--bg3);color:var(--text);}
+    .tmpl-amount-sec{padding:16px 24px;}
+    .tmpl-amount-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:9px;}
+    .tmpl-amount-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .tmpl-eur-wrap{position:relative;display:flex;align-items:center;}
+    .tmpl-eur-sign{position:absolute;left:11px;font-size:17px;color:var(--text2);pointer-events:none;}
+    .tmpl-amount-input{font-size:21px;font-weight:700;padding:9px 12px 9px 30px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);width:175px;transition:border-color .15s;}
+    .tmpl-amount-input:focus{outline:none;border-color:var(--blue);}
+    .tmpl-quick-row{display:flex;gap:5px;flex-wrap:wrap;}
+    .tmpl-quick-btn{padding:5px 11px;font-size:11px;font-weight:600;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;transition:all .12s;}
+    .tmpl-quick-btn:hover{border-color:rgba(255,255,255,.3);color:var(--text);}
+    .tmpl-kpi-strip{display:flex;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:0 24px;}
+    .tmpl-kpi{background:var(--bg2);padding:11px 14px;flex:1;text-align:center;min-width:0;}
+    .tmpl-kpi-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);}
+    .tmpl-kpi-val{font-size:14px;font-weight:700;color:var(--text);margin-top:4px;}
+    .tmpl-comp-section{padding:16px 24px 0;}
+    .tmpl-comp-sec-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px;}
+    .tmpl-comp{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:13px 14px;margin-bottom:8px;border-left:3px solid var(--tc);}
+    .tmpl-comp-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;}
+    .tmpl-comp-lbl{font-size:13px;font-weight:600;color:var(--text);}
+    .tmpl-comp-metrics{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+    .tmpl-comp-pct{font-size:14px;font-weight:700;}
+    .tmpl-comp-eur{font-size:12px;color:var(--text2);white-space:nowrap;}
+    .tmpl-bar-wrap{height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:8px;}
+    .tmpl-bar{height:100%;border-radius:2px;transition:width .3s;}
+    .tmpl-comp-desc-txt{font-size:11px;color:var(--text2);margin-bottom:9px;}
+    .tmpl-etf-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+    .tmpl-etf-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:6px;border:1px solid;cursor:pointer;font-size:11px;font-weight:700;font-family:monospace;transition:opacity .15s,transform .1s;background:transparent;}
+    .tmpl-etf-btn:hover{opacity:.75;transform:scale(.97);}
+    .tmpl-etf-btn .tmpl-etf-sub{font-size:9px;font-weight:400;font-family:inherit;opacity:.65;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .tmpl-etf-btn.added{opacity:.5;cursor:default;}
+    .tmpl-footer{padding:16px 24px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;}
+    .tmpl-disclaimer{font-size:10px;color:var(--text2);max-width:290px;line-height:1.6;}
+    .tmpl-add-all-btn{padding:11px 26px;background:var(--blue);border:none;border-radius:9px;color:#fff;cursor:pointer;font-size:13px;font-weight:700;transition:background .15s;white-space:nowrap;}
+    .tmpl-add-all-btn:hover{background:#2563eb;}
 
     /* CALCULATOR MODAL */
     .calc-modal {
@@ -977,50 +1023,7 @@
         <div class="port-empty-icon">💼</div>
         <div class="port-empty-title">Portafoglio vuoto</div>
         <div class="port-empty-sub">Aggiungi titoli dalla tabella principale cliccando <strong>+ Port.</strong><br>oppure esplora le idee di allocazione qui sotto</div>
-        <div class="port-ideas">
-          <div class="port-idea-card">
-            <div class="port-idea-icon">🛡️</div>
-            <div class="port-idea-name">Prudente</div>
-            <div class="port-idea-desc">Bassa volatilità · Duration corta</div>
-            <div class="port-idea-alloc">
-              <div class="port-idea-row"><span>Gov. Investment Grade</span><strong>60%</strong></div>
-              <div class="port-idea-row"><span>Titoli di Stato breve</span><strong>30%</strong></div>
-              <div class="port-idea-row"><span>Corp. IG breve</span><strong>10%</strong></div>
-            </div>
-            <div class="port-idea-stats">
-              <span class="port-idea-yield">Yield ~3–4%</span>
-              <span class="port-idea-dur">Duration ~2–4</span>
-            </div>
-          </div>
-          <div class="port-idea-card">
-            <div class="port-idea-icon">⚖️</div>
-            <div class="port-idea-name">Bilanciato</div>
-            <div class="port-idea-desc">Rendimento / rischio equilibrato</div>
-            <div class="port-idea-alloc">
-              <div class="port-idea-row"><span>Gov. core (IT / DE / FR)</span><strong>40%</strong></div>
-              <div class="port-idea-row"><span>Corp. Investment Grade</span><strong>35%</strong></div>
-              <div class="port-idea-row"><span>ETF obbligazionari</span><strong>25%</strong></div>
-            </div>
-            <div class="port-idea-stats">
-              <span class="port-idea-yield">Yield ~4–5%</span>
-              <span class="port-idea-dur">Duration ~5–7</span>
-            </div>
-          </div>
-          <div class="port-idea-card">
-            <div class="port-idea-icon">🚀</div>
-            <div class="port-idea-name">Rendimento</div>
-            <div class="port-idea-desc">Massimizzare il flusso cedolare</div>
-            <div class="port-idea-alloc">
-              <div class="port-idea-row"><span>Corp. High Yield</span><strong>40%</strong></div>
-              <div class="port-idea-row"><span>Emergenti (EM)</span><strong>35%</strong></div>
-              <div class="port-idea-row"><span>Subordinati / Tier 2</span><strong>25%</strong></div>
-            </div>
-            <div class="port-idea-stats">
-              <span class="port-idea-yield">Yield ~6–8%</span>
-              <span class="port-idea-dur">Duration ~5–8</span>
-            </div>
-          </div>
-        </div>
+        <div class="port-ideas" id="portTemplateCards"></div>
       </div>
 
       <div id="portfolioSummary"></div>
@@ -1814,6 +1817,7 @@
     populateYCPaese();
     loadPortfolioFromStorage();
     applyWlNames();
+    initTemplateCards();
   });
 
   // Polling ogni 5 minuti per verificare aggiornamenti
@@ -3239,6 +3243,376 @@
     window.print();
   }
 
+  // ─────────────────────────────────────────────
+  // PORTFOLIO TEMPLATES
+  // ─────────────────────────────────────────────
+  const PORTFOLIO_TEMPLATES = [
+    {
+      key:'prudente', icon:'🛡️', name:'Prudente', badge:'EUR',
+      desc:'Bassa volatilità · duration corta · capitale protetto',
+      currency:'EUR', yieldRange:'3–4%', durRange:'2–4', riskLevel:1, color:'#22c55e',
+      components:[
+        { label:'Gov. EUR 1–3Y', pct:35, desc:'Protezione capitale, liquidità alta, volatilità minima',
+          etfs:[{isin:'LU1650487413',ticker:'EM13',name:'Amundi Euro Gov Bond 1-3Y'},
+                {isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}] },
+        { label:'Gov. EUR Blend', pct:25, desc:'Esposizione diversificata a tutta la curva eurozona',
+          etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'},
+                {isin:'LU1437018598',ticker:'EGOV',name:'Amundi Euro Government Bond'}] },
+        { label:'Corp. IG EUR', pct:25, desc:'Spread aggiuntivo su investment grade europeo',
+          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'},
+                {isin:'LU1829219127',ticker:'CRPE',name:'Amundi Euro Corp Bond'}] },
+        { label:'Aggregate EUR', pct:15, desc:'Diversificazione broad market, mix gov+corp',
+          etfs:[{isin:'IE00B3DKXQ41',ticker:'IEAG',name:'iShares EU Aggregate Bond'}] },
+      ]
+    },
+    {
+      key:'bilanciato', icon:'⚖️', name:'Bilanciato', badge:'EUR',
+      desc:'Rendimento / rischio equilibrato · duration media',
+      currency:'EUR', yieldRange:'4–5%', durRange:'5–7', riskLevel:2, color:'#3b82f6',
+      components:[
+        { label:'Gov. EUR 5–10Y', pct:30, desc:'Nucleo governativo, duration media',
+          etfs:[{isin:'LU1287023003',ticker:'EM57',name:'Amundi Euro Gov Bond 5-7Y'},
+                {isin:'LU1287023185',ticker:'EM710',name:'Amundi Euro Gov Bond 7-10Y'}] },
+        { label:'Gov. EUR Blend', pct:20, desc:'Diversificazione sull\'intera curva EUR',
+          etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}] },
+        { label:'Corp. IG EUR', pct:30, desc:'Investment grade europeo, carry aggiuntivo',
+          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'},
+                {isin:'LU1829219127',ticker:'CRPE',name:'Amundi Euro Corp Bond'}] },
+        { label:'HY Corp EUR', pct:20, desc:'High yield per incrementare il rendimento totale',
+          etfs:[{isin:'IE00B66F4759',ticker:'IHYG',name:'iShares EUR HY Corp Bond'},
+                {isin:'LU1812090543',ticker:'HY',name:'Amundi EUR HY Corp Bond ESG'}] },
+      ]
+    },
+    {
+      key:'rendimento', icon:'🚀', name:'Rendimento', badge:'EUR',
+      desc:'Massimizzare flusso cedolare · rischio medio-alto',
+      currency:'EUR', yieldRange:'6–8%', durRange:'4–6', riskLevel:3, color:'#ef4444',
+      components:[
+        { label:'HY Corp EUR', pct:35, desc:'High yield eurozona, cedole elevate',
+          etfs:[{isin:'IE00B66F4759',ticker:'IHYG',name:'iShares EUR HY Corp Bond'},
+                {isin:'LU1681040496',ticker:'AHYE',name:'Amundi Euro HY Liq Bond'}] },
+        { label:'AT1 / CoCo', pct:20, desc:'Subordinati bancari, yield spesso >7%',
+          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',name:'Invesco AT1 Capital Bond'},
+                {isin:'IE00BZ0XVF52',ticker:'CCBO',name:'WisdomTree AT1 CoCo Bond'}] },
+        { label:'EM Gov EUR Hedged', pct:25, desc:'Emergenti coperti in EUR, carry EM',
+          etfs:[{isin:'LU0321462953',ticker:'XEMB',name:'Xtrackers II EM Bond EUR'}] },
+        { label:'Corp. IG EUR', pct:20, desc:'Ancora investment grade per stabilità',
+          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'}] },
+      ]
+    },
+    {
+      key:'dollaro', icon:'💵', name:'Dollaro', badge:'USD',
+      desc:'Esposizione valutaria USD · Treasuries + Corporate',
+      currency:'USD', yieldRange:'4.5–6%', durRange:'4–8', riskLevel:2, color:'#6366f1',
+      components:[
+        { label:'Treasury 1–3Y', pct:30, desc:'T-Bills breve termine, alta qualità, basso rischio',
+          etfs:[{isin:'IE00B14X4S71',ticker:'IBTS',name:'iShares $ Treasury 1-3Y'}] },
+        { label:'Treasury 7–10Y', pct:25, desc:'Benchmark governativo USA, duration media',
+          etfs:[{isin:'IE00B1FZS798',ticker:'IBTM',name:'iShares $ Treasury 7-10Y'},
+                {isin:'LU1407890620',ticker:'US10',name:'Amundi Core US Treasury 10+Y'}] },
+        { label:'Corp. IG USD', pct:30, desc:'Corporate americano investment grade, spread +150bps',
+          etfs:[{isin:'IE0032895942',ticker:'LQDE',name:'iShares $ Corp Bond'}] },
+        { label:'HY Corp USD', pct:15, desc:'High yield USD per extra rendimento',
+          etfs:[{isin:'IE00B4PY7Y77',ticker:'IHYU',name:'iShares $ HY Corp'},
+                {isin:'IE00BF8HV600',ticker:'STHE',name:'PIMCO US SH Term HY EUR H'}] },
+      ]
+    },
+    {
+      key:'emergenti', icon:'🌍', name:'Emergenti', badge:'EM',
+      desc:'Mercati emergenti · Multi-valuta · Carry elevato',
+      currency:'MULTI', yieldRange:'5–7%', durRange:'5–7', riskLevel:3, color:'#f59e0b',
+      components:[
+        { label:'EM Gov USD', pct:35, desc:'Governativi emergenti in dollari, massima liquidità',
+          etfs:[{isin:'IE00B2NPKV68',ticker:'IEMB',name:'iShares JPM $ EM Bond'},
+                {isin:'IE00BF553838',ticker:'EMSA',name:'iShares JPM Advanced $ EM Bond'}] },
+        { label:'EM Gov EUR Hedged', pct:25, desc:'EM con copertura valutaria EUR',
+          etfs:[{isin:'LU0321462953',ticker:'XEMB',name:'Xtrackers II EM Bond EUR'}] },
+        { label:'EM Corp USD', pct:20, desc:'Corporate emergenti, spread aggiuntivo',
+          etfs:[{isin:'IE00B6TLBW47',ticker:'EMCR',name:'iShares JPM $ EM Corp Bond'}] },
+        { label:'EM Local Currency', pct:20, desc:'Valute locali, diversificazione FX',
+          etfs:[{isin:'IE00B5M4WH52',ticker:'SEML',name:'iShares JPM EM Local Gov Bond'}] },
+      ]
+    },
+    {
+      key:'inflation', icon:'🔥', name:'Anti-Inflazione', badge:'INFL',
+      desc:'Protezione reale · Inflation-linked EUR + USD',
+      currency:'EUR/USD', yieldRange:'CPI +1–2%', durRange:'6–9', riskLevel:2, color:'#f97316',
+      components:[
+        { label:'Inflation Linked EUR', pct:40, desc:'BTPi e linker eurozona, reindicizzati IPC EUR',
+          etfs:[{isin:'IE00B0M62X26',ticker:'IBCI',name:'iShares Infl Linked EUR Gov'},
+                {isin:'LU1650491282',ticker:'EMI',name:'Amundi EUR Gov Infl Linked'}] },
+        { label:'TIPS USA', pct:30, desc:'Treasury Inflation-Protected Securities, CPI USA',
+          etfs:[{isin:'IE00B1FZSC47',ticker:'ITPS',name:'iShares $ TIPS'},
+                {isin:'LU1390062831',ticker:'INFU',name:'Amundi US$ 10Y Infl Exp'}] },
+        { label:'Inflation GLB Hedged', pct:20, desc:'Linker globali con copertura EUR, diversificazione CPI',
+          etfs:[{isin:'LU0290357929',ticker:'XGIN',name:'Xtrackers Glob Infl Link EUR H'}] },
+        { label:'Gov. EUR Blend', pct:10, desc:'Parte nominale per liquidità e stabilità',
+          etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}] },
+      ]
+    },
+    {
+      key:'income', icon:'⚡', name:'Income Max', badge:'HY',
+      desc:'Massimo flusso cedolare · Rischio alto · Multi-asset',
+      currency:'EUR', yieldRange:'7–10%', durRange:'3–5', riskLevel:4, color:'#a855f7',
+      components:[
+        { label:'HY Corp EUR', pct:30, desc:'High yield eurozona, cedole trimestrali/mensili',
+          etfs:[{isin:'IE00B66F4759',ticker:'IHYG',name:'iShares EUR HY Corp Bond'},
+                {isin:'LU1681040496',ticker:'AHYE',name:'Amundi Euro HY Liq Bond'}] },
+        { label:'AT1 / CoCo Bonds', pct:25, desc:'Ibridi bancari perpetui, yield spesso >8%',
+          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',name:'Invesco AT1 Capital Bond'},
+                {isin:'IE00BZ0XVF52',ticker:'CCBO',name:'WisdomTree AT1 CoCo Bond'}] },
+        { label:'HY Corp USD', pct:20, desc:'High yield americano, tassi USA più alti',
+          etfs:[{isin:'IE00B4PY7Y77',ticker:'IHYU',name:'iShares $ HY Corp'},
+                {isin:'IE00BF8HV600',ticker:'STHE',name:'PIMCO US SH Term HY EUR H'}] },
+        { label:'EM Gov USD', pct:25, desc:'Emergenti USD, spread EM + carry dollaro',
+          etfs:[{isin:'IE00B2NPKV68',ticker:'IEMB',name:'iShares JPM $ EM Bond'},
+                {isin:'LU1686830909',ticker:'EMKTB',name:'Amundi IBX $ Liquid EM Sov'}] },
+      ]
+    },
+    {
+      key:'liquidita', icon:'🏖️', name:'Parcheggio', badge:'MM',
+      desc:'Liquidità · Duration bassissima · Rischio minimo',
+      currency:'EUR/USD', yieldRange:'2.5–3.5%', durRange:'0–1', riskLevel:1, color:'#2dd4bf',
+      components:[
+        { label:'Money Market EUR', pct:40, desc:'Tasso overnight reinvestito, volatilità quasi zero',
+          etfs:[{isin:'LU0321465469',ticker:'XFFE',name:'Xtrackers II USD OVN Rate Swap'}] },
+        { label:'Float Rate USD', pct:25, desc:'Tasso variabile USD, quasi nessuna sensibilità ai tassi',
+          etfs:[{isin:'IE00BZ048462',ticker:'FLTR',name:'iShares $ Floating Rate Bond'}] },
+        { label:'Gov. EUR 1–3Y', pct:20, desc:'T-Bill / BTP breve scadenza, molto liquidi',
+          etfs:[{isin:'LU1650487413',ticker:'EM13',name:'Amundi Euro Gov Bond 1-3Y'},
+                {isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}] },
+        { label:'Treasury 1–3Y', pct:15, desc:'T-Bills americani breve scadenza',
+          etfs:[{isin:'IE00B14X4S71',ticker:'IBTS',name:'iShares $ Treasury 1-3Y'}] },
+      ]
+    },
+  ];
+
+  let currentTemplate = null, tmplAmount = 10000;
+
+  function initTemplateCards() {
+    const container = document.getElementById('portTemplateCards');
+    if (!container) return;
+    const riskLabels = ['','Basso','Medio-Basso','Medio','Alto','Molto Alto'];
+    container.innerHTML = PORTFOLIO_TEMPLATES.map(t => `
+      <div class="port-idea-card" onclick="openTemplate('${t.key}')" style="cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div class="port-idea-icon">${t.icon}</div>
+          <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;background:${t.color}20;color:${t.color};border:1px solid ${t.color}40">${t.badge}</span>
+        </div>
+        <div class="port-idea-name">${t.name}</div>
+        <div class="port-idea-desc">${t.desc}</div>
+        <div class="port-idea-alloc">
+          ${t.components.map(c=>`<div class="port-idea-row"><span>${c.label}</span><strong>${c.pct}%</strong></div>`).join('')}
+        </div>
+        <div class="port-idea-stats">
+          <span class="port-idea-yield">Yield ${t.yieldRange}</span>
+          <span class="port-idea-dur">Duration ${t.durRange}</span>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:${t.color};font-weight:600;text-align:right">
+          ${riskLabels[t.riskLevel]} · ${t.components.length} ETF → Clicca per implementare
+        </div>
+      </div>`).join('');
+  }
+
+  function openTemplate(key) {
+    currentTemplate = PORTFOLIO_TEMPLATES.find(t => t.key === key);
+    if (!currentTemplate) return;
+    tmplAmount = 10000;
+    const inp = document.getElementById('tmplAmountInput');
+    if (inp) inp.value = tmplAmount;
+    renderTmplModal();
+    document.getElementById('tmplOverlay').classList.add('show');
+  }
+
+  function closeTmpl() {
+    document.getElementById('tmplOverlay').classList.remove('show');
+  }
+
+  function setTmplAmount(v) {
+    tmplAmount = v;
+    const inp = document.getElementById('tmplAmountInput');
+    if (inp) inp.value = v;
+    renderTmplComponents();
+  }
+
+  function updateTmplAmount(v) {
+    tmplAmount = parseFloat(v) || 0;
+    renderTmplComponents();
+  }
+
+  function renderTmplModal() {
+    const t = currentTemplate;
+    document.getElementById('tmplIcon').textContent     = t.icon;
+    document.getElementById('tmplTitle').textContent    = t.name;
+    document.getElementById('tmplSub').textContent      = t.desc;
+    document.getElementById('tmplKpiYield').textContent = t.yieldRange;
+    document.getElementById('tmplKpiDur').textContent   = t.durRange;
+    document.getElementById('tmplKpiCur').textContent   = t.currency;
+    document.getElementById('tmplKpiN').textContent     = t.components.reduce((s,c)=>s+c.etfs.length,0) + ' ETF';
+    const badge = document.getElementById('tmplCurBadge');
+    badge.textContent = t.badge;
+    badge.style.cssText = `background:${t.color}20;color:${t.color};border-color:${t.color}50;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap;align-self:flex-start;margin-top:4px;`;
+    const dots = [1,2,3,4,5].map(i=>'<span style="color:'+(i<=t.riskLevel?t.color:'rgba(255,255,255,.15)')+';font-size:15px">●</span>').join('');
+    document.getElementById('tmplKpiRisk').innerHTML = dots;
+    renderTmplComponents();
+  }
+
+  function renderTmplComponents() {
+    const t = currentTemplate;
+    if (!t) return;
+    const fmt = v => (v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+    const html = `
+      <div class="tmpl-comp-sec-title">Composizione consigliata</div>
+      ${t.components.map((c,ci) => {
+        const amt = tmplAmount * c.pct / 100;
+        const etfBtns = c.etfs.map(e => {
+          const inPort = portfolio[e.isin] ? ' added' : '';
+          return `<button class="tmpl-etf-btn${inPort}" style="color:${t.color};border-color:${t.color}50"
+            onclick="event.stopPropagation();addTmplETF('${e.isin}','${escHtml(e.ticker)}','${escHtml(e.name)}',${amt},this)"
+            title="${escHtml(e.name)}">
+            ${e.ticker}
+            <span class="tmpl-etf-sub">${escHtml(e.name)}</span>
+          </button>`;
+        }).join('');
+        return `<div class="tmpl-comp" style="--tc:${t.color}">
+          <div class="tmpl-comp-top">
+            <span class="tmpl-comp-lbl">${c.label}</span>
+            <div class="tmpl-comp-metrics">
+              <span class="tmpl-comp-pct" style="color:${t.color}">${c.pct}%</span>
+              <span class="tmpl-comp-eur">${fmt(amt)}</span>
+            </div>
+          </div>
+          <div class="tmpl-bar-wrap"><div class="tmpl-bar" style="width:${c.pct}%;background:${t.color}"></div></div>
+          <div class="tmpl-comp-desc-txt">${c.desc}</div>
+          <div class="tmpl-etf-row">${etfBtns}</div>
+        </div>`;
+      }).join('')}`;
+    document.getElementById('tmplComponents').innerHTML = html;
+  }
+
+  async function addTmplETF(isin, ticker, name, nominal, btn) {
+    if (!etfLoaded) await fetchAndRenderETF();
+    const etf = allETFs.find(e => e.isin === isin);
+    const roundedNom = Math.max(1000, Math.round(nominal / 1000) * 1000);
+    portfolio[isin] = {
+      bond: {
+        isin, descrizione: etf ? etf.name : name, emittente: ticker,
+        scadenza: null, prezzo: etf ? (etf.price || 100) : 100,
+        yield: etf ? etf.yld || null : null, duration: etf ? etf.dur || null : null,
+        divisa: etf ? (etf.currency || 'EUR') : 'EUR', tipo: 'ETF',
+        cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
+      },
+      nominale: roundedNom,
+    };
+    savePortfolio();
+    if (btn) {
+      const origStyle = btn.style.cssText, origHtml = btn.innerHTML;
+      btn.classList.add('added');
+      btn.innerHTML = `✓ ${ticker}`;
+      btn.style.cssText += ';opacity:.8;background:rgba(34,197,94,.15)!important;border-color:#22c55e80!important;color:#22c55e!important';
+      setTimeout(() => { btn.innerHTML = origHtml; btn.style.cssText = origStyle; btn.classList.add('added'); }, 2000);
+    }
+  }
+
+  async function addAllTemplate() {
+    if (!currentTemplate) return;
+    const btn = document.getElementById('tmplAddAllBtn');
+    if (btn) { btn.textContent = '⏳ Caricamento...'; btn.disabled = true; }
+    if (!etfLoaded) await fetchAndRenderETF();
+    for (const comp of currentTemplate.components) {
+      const e = comp.etfs[0];
+      const etf = allETFs.find(x => x.isin === e.isin);
+      const nom = Math.max(1000, Math.round(tmplAmount * comp.pct / 100 / 1000) * 1000);
+      portfolio[e.isin] = {
+        bond: {
+          isin: e.isin, descrizione: etf ? etf.name : e.name, emittente: e.ticker,
+          scadenza: null, prezzo: etf ? (etf.price || 100) : 100,
+          yield: etf ? etf.yld || null : null, duration: etf ? etf.dur || null : null,
+          divisa: etf ? (etf.currency || 'EUR') : 'EUR', tipo: 'ETF',
+          cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
+        },
+        nominale: nom,
+      };
+    }
+    savePortfolio();
+    closeTmpl();
+    switchPanel('portfolio');
+    renderPortfolio();
+  }
+
 </script>
+
+<!-- PORTFOLIO TEMPLATE MODAL -->
+<div class="tmpl-overlay" id="tmplOverlay" onclick="if(event.target===this)closeTmpl()">
+  <div class="tmpl-modal" id="tmplModal">
+    <div class="tmpl-hdr">
+      <div class="tmpl-hdr-left">
+        <span class="tmpl-hdr-icon" id="tmplIcon">💼</span>
+        <div>
+          <div class="tmpl-hdr-title" id="tmplTitle">—</div>
+          <div class="tmpl-hdr-sub" id="tmplSub">—</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <span class="tmpl-cur-badge" id="tmplCurBadge">EUR</span>
+        <button class="tmpl-close-btn" onclick="closeTmpl()">✕</button>
+      </div>
+    </div>
+
+    <div class="tmpl-amount-sec">
+      <div class="tmpl-amount-lbl">💶 Importo da investire</div>
+      <div class="tmpl-amount-row">
+        <div class="tmpl-eur-wrap">
+          <span class="tmpl-eur-sign">€</span>
+          <input type="number" class="tmpl-amount-input" id="tmplAmountInput"
+            value="10000" min="1000" step="1000" oninput="updateTmplAmount(this.value)">
+        </div>
+        <div class="tmpl-quick-row">
+          <button class="tmpl-quick-btn" onclick="setTmplAmount(10000)">10k</button>
+          <button class="tmpl-quick-btn" onclick="setTmplAmount(25000)">25k</button>
+          <button class="tmpl-quick-btn" onclick="setTmplAmount(50000)">50k</button>
+          <button class="tmpl-quick-btn" onclick="setTmplAmount(100000)">100k</button>
+          <button class="tmpl-quick-btn" onclick="setTmplAmount(250000)">250k</button>
+          <button class="tmpl-quick-btn" onclick="setTmplAmount(500000)">500k</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tmpl-kpi-strip">
+      <div class="tmpl-kpi">
+        <div class="tmpl-kpi-lbl">Yield atteso</div>
+        <div class="tmpl-kpi-val" id="tmplKpiYield" style="color:#22c55e">—</div>
+      </div>
+      <div class="tmpl-kpi">
+        <div class="tmpl-kpi-lbl">Duration est.</div>
+        <div class="tmpl-kpi-val" id="tmplKpiDur">—</div>
+      </div>
+      <div class="tmpl-kpi">
+        <div class="tmpl-kpi-lbl">Valuta</div>
+        <div class="tmpl-kpi-val" id="tmplKpiCur">—</div>
+      </div>
+      <div class="tmpl-kpi">
+        <div class="tmpl-kpi-lbl">Rischio</div>
+        <div class="tmpl-kpi-val" id="tmplKpiRisk">—</div>
+      </div>
+      <div class="tmpl-kpi">
+        <div class="tmpl-kpi-lbl">Strumenti</div>
+        <div class="tmpl-kpi-val" id="tmplKpiN">—</div>
+      </div>
+    </div>
+
+    <div class="tmpl-comp-section" id="tmplComponents"></div>
+
+    <div class="tmpl-footer">
+      <div class="tmpl-disclaimer">
+        Modello indicativo a scopo educativo. Gli importi sono ripartiti proporzionalmente
+        al nominale selezionato. Verifica prezzi e condizioni prima di investire.
+      </div>
+      <button class="tmpl-add-all-btn" id="tmplAddAllBtn" onclick="addAllTemplate()">
+        💼 Aggiungi tutto al portafoglio
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
