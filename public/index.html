@@ -705,6 +705,19 @@
       thead th { background: #f0f0f0 !important; color: #333 !important; }
       .print-header { display: block !important; }
       @page { size: A4 landscape; margin: 1.5cm; }
+      /* portfolio PDF — show only portfolio panel */
+      body.printing-portfolio .sidebar,
+      body.printing-portfolio .header,
+      body.printing-portfolio .tab-bar,
+      body.printing-portfolio .extra-panel,
+      body.printing-portfolio #panelTable,
+      body.printing-portfolio #panelYield,
+      body.printing-portfolio #panelLadder,
+      body.printing-portfolio #panelETF,
+      body.printing-portfolio #panelMacro { display: none !important; }
+      body.printing-portfolio #panelPortfolio { display: block !important; }
+      body.printing-portfolio .port-header-actions { display: none !important; }
+      body.printing-portfolio .client-bar { display: none !important; }
     }
     .print-header { display: none; font-size: 12px; color: #333; margin-bottom: 12px; }
 
@@ -784,6 +797,7 @@
     </div>
   </div>
   <div class="header-right">
+    <div id="spreadWidget" style="font-size:12px;color:var(--text2);display:flex;gap:10px;align-items:center;"></div>
     <div class="countdown">Prossimo aggiornamento: <span id="countdown">--:--</span></div>
     <div class="status-badge">
       <div class="status-dot" id="statusDot"></div>
@@ -904,6 +918,11 @@
         <button class="btn btn-secondary print-hide" onclick="exportCSV()">⬇ CSV</button>
         <button class="btn btn-secondary print-hide" onclick="exportBondXLSX()" title="Esporta tabella filtrata in Excel con link Borsa Italiana">📊 Excel</button>
         <button class="btn btn-secondary print-hide" onclick="exportPDF()">🖨 PDF</button>
+        <span style="border-left:1px solid var(--border);margin:0 4px;"></span>
+        <button class="btn btn-secondary print-hide" id="ratingAll"  onclick="setRatingFilter('')"   title="Tutti i rating">Tutti</button>
+        <button class="btn btn-secondary print-hide" id="ratingIG"   onclick="setRatingFilter('IG')"  title="Investment Grade">IG</button>
+        <button class="btn btn-secondary print-hide" id="ratingHY"   onclick="setRatingFilter('HY')"  title="High Yield">HY</button>
+        <button class="btn btn-secondary print-hide" id="ratingNR"   onclick="setRatingFilter('NR')"  title="Non Rated">NR</button>
       </div>
     </div>
 
@@ -1019,6 +1038,10 @@
             <div style="font-size:28px;margin-bottom:8px;">⏳</div>Caricamento dati macro...
           </div>
         </div>
+        <div id="yieldCurvePanel" style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Curva BTP (rendimenti per scadenza)</div>
+          <svg id="yieldCurveSvg" width="100%" height="180"></svg>
+        </div>
       </div>
     </div>
 
@@ -1036,8 +1059,21 @@
         </div>
         <div class="port-header-actions">
           <button class="port-btn-secondary" onclick="savePortfolioAsTemplate()" id="btnSavePortTmpl" style="display:none" title="Salva il portafoglio corrente come template riutilizzabile">💾 Salva come template</button>
+          <button class="port-btn-secondary" onclick="showSensitivity()" title="Rate Sensitivity Analysis">📐 Sensitivity</button>
+          <button class="port-btn-secondary" onclick="printPortfolioPDF()" title="Esporta PDF">📄 PDF</button>
+          <button class="port-btn-secondary" onclick="saveSnapshot()" title="Salva snapshot per confronto">📸 Snapshot</button>
+          <button class="port-btn-secondary" onclick="showComparison()" title="Confronta snapshot">📊 Confronto</button>
+          <button class="port-btn-secondary" onclick="showAlertsPanel()" title="Gestisci alert prezzi/yield">🔔 Alert</button>
           <button class="port-btn-secondary" onclick="clearPortfolio()">🗑 Svuota</button>
         </div>
+      </div>
+
+      <!-- CLIENT BAR -->
+      <div class="client-bar" id="clientBar" style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg3);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--text2);font-weight:600;">Cliente:</span>
+        <select id="clientSelect" onchange="switchClient(this.value)" style="font-size:12px;padding:4px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);"></select>
+        <button onclick="addClientPrompt()" style="font-size:11px;padding:3px 8px;background:var(--blue);border:none;border-radius:6px;color:white;cursor:pointer;">+ Nuovo</button>
+        <button onclick="deleteCurrentClient()" style="font-size:11px;padding:3px 8px;background:var(--red);border:none;border-radius:6px;color:white;cursor:pointer;">✕ Elimina</button>
       </div>
 
       <!-- KPI BAR -->
@@ -1068,7 +1104,7 @@
 
       <!-- TABLE -->
       <div class="port-table-wrap" id="portTableWrap" style="display:none">
-        <div style="display:flex;justify-content:flex-end;padding:0 4px 8px">
+        <div style="display:flex;justify-content:flex-end;padding:0 4px 8px;gap:8px;">
           <button onclick="exportPortfolioXLSX()" style="font-size:12px;padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;" title="Esporta portafoglio in Excel con link JustETF / Borsa Italiana">📊 Esporta Excel</button>
         </div>
         <table class="port-table">
@@ -1081,10 +1117,12 @@
             <th>Nominale (€)</th>
             <th>Val. Mercato</th>
             <th>Cedola/anno</th>
+            <th>Note</th>
             <th></th>
           </tr></thead>
           <tbody id="portfolioBody"></tbody>
         </table>
+        <div id="cashFlowLadder" style="margin-top:16px;"></div>
       </div>
 
       <!-- EMPTY STATE -->
@@ -1391,6 +1429,14 @@
   let fetchFailCount = 0;        // consecutive fetch failures
   const FETCH_ERR_THRESHOLD = 3; // show error only after this many consecutive failures
 
+  // ── New feature state ────────────────────────────────────────────────────
+  let _clients = [];
+  let _currentClientId = 'default';
+  let _notes = {};
+  let _alerts = [];
+  let _portfolioSnapshots = JSON.parse(localStorage.getItem('_portSnapshots') || '[]');
+  let bondRatingFilter = '';
+
   // ─────────────────────────────────────────────
   // FETCH DATI
   // ─────────────────────────────────────────────
@@ -1423,6 +1469,8 @@
       }
 
       updateStats();
+      updateSpreadWidget();
+      checkAlerts();
 
     } catch (err) {
       fetchFailCount++;
@@ -1602,6 +1650,10 @@
       if (!isNaN(durMax) && (b.duration === null || b.duration > durMax)) return false;
       if (!isNaN(zMin) && (b.zSpread === null || b.zSpread < zMin)) return false;
       if (!isNaN(zMax) && (b.zSpread === null || b.zSpread > zMax)) return false;
+      if (bondRatingFilter) {
+        const rg = _ratingGroup(b);
+        if (rg !== bondRatingFilter) return false;
+      }
       return true;
     });
 
@@ -2859,6 +2911,9 @@
     loadPortfolioFromStorage();
     applyWlNames();
     initTemplateCards();
+    _loadClients();
+    _loadNotes();
+    renderBtpYieldCurve();
   });
 
   // Polling ogni 5 minuti per verificare aggiornamenti
@@ -3987,6 +4042,7 @@
     const slim = {};
     Object.entries(portfolio).forEach(([isin, pos]) => slim[isin] = pos.nominale);
     localStorage.setItem('bond_portfolio', JSON.stringify(slim));
+    _savePortfolioToServer();
   }
 
   function loadPortfolioFromStorage() {
@@ -4082,9 +4138,14 @@
           onchange="updateNominale('${b.isin}', this.value)"></td>
         <td>${mv.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
         <td>${ced.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
+        <td><button onclick="toggleNote('${b.isin}')" style="font-size:11px;padding:2px 6px;background:${_notes[b.isin]?'var(--amber)':'var(--bg3)'};border:1px solid var(--border);border-radius:5px;color:var(--text);cursor:pointer;" title="Aggiungi/modifica nota">📝</button></td>
         <td><button class="btn-remove" onclick="removeFromPortfolio('${b.isin}')" title="Rimuovi">✕</button></td>
-      </tr>`;
+      </tr>
+      <tr id="noteRow_${b.isin}" style="display:none"><td colspan="10" style="padding:4px 12px;">
+        <textarea id="noteTa_${b.isin}" rows="2" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:6px;resize:vertical;" oninput="scheduleNoteSave('${b.isin}')" placeholder="Note per ${escHtml(b.isin)}...">${escHtml(_notes[b.isin]||'')}</textarea>
+      </td></tr>`;
     }).join('');
+    renderCashFlowLadder(positions);
     updatePortfolioSummary();
   }
 
@@ -5936,6 +5997,515 @@
       console.error('[addAllTemplate]', err);
       if (btn) { btn.textContent = origLabel; btn.disabled = false; }
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 1 — MULTI-CLIENT PORTFOLIO MANAGEMENT
+  // ══════════════════════════════════════════════════════════════════════════
+  async function _loadClients() {
+    try {
+      const res = await fetch('/api/clients');
+      _clients = await res.json();
+    } catch { _clients = []; }
+    if (!_clients.find(c => c.id === 'default')) {
+      _clients.unshift({ id: 'default', name: 'Default' });
+    }
+    _renderClientSelect();
+    _loadPortfolioFromServer(_currentClientId);
+  }
+
+  function _renderClientSelect() {
+    const sel = document.getElementById('clientSelect');
+    if (!sel) return;
+    sel.innerHTML = _clients.map(c =>
+      `<option value="${escHtml(c.id)}" ${c.id === _currentClientId ? 'selected' : ''}>${escHtml(c.name)}</option>`
+    ).join('');
+  }
+
+  async function switchClient(id) {
+    _currentClientId = id;
+    await _loadPortfolioFromServer(id);
+    renderPortfolio();
+  }
+
+  async function addClientPrompt() {
+    const name = prompt('Nome del nuovo cliente:');
+    if (!name) return;
+    const id = 'client_' + Date.now();
+    await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name })
+    });
+    _clients.push({ id, name });
+    _currentClientId = id;
+    portfolio = {};
+    _renderClientSelect();
+    renderPortfolio();
+  }
+
+  async function deleteCurrentClient() {
+    if (_currentClientId === 'default') { showToast('Non puoi eliminare il client Default'); return; }
+    if (!confirm('Eliminare questo cliente?')) return;
+    await fetch(`/api/clients/${_currentClientId}`, { method: 'DELETE' });
+    _clients = _clients.filter(c => c.id !== _currentClientId);
+    _currentClientId = 'default';
+    _renderClientSelect();
+    await _loadPortfolioFromServer('default');
+    renderPortfolio();
+  }
+
+  async function _savePortfolioToServer() {
+    const slim = {};
+    Object.entries(portfolio).forEach(([isin, pos]) => slim[isin] = pos.nominale);
+    try {
+      await fetch(`/api/portfolios/${_currentClientId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(slim)
+      });
+    } catch (e) { console.warn('_savePortfolioToServer failed', e); }
+  }
+
+  async function _loadPortfolioFromServer(clientId) {
+    try {
+      const res = await fetch(`/api/portfolios/${clientId}`);
+      const slim = await res.json();
+      portfolio = {};
+      Object.entries(slim).forEach(([isin, nominale]) => {
+        const bond = allBonds.find(b => b.isin === isin);
+        if (bond) portfolio[isin] = { bond, nominale };
+      });
+    } catch { /* keep existing */ }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 2 — PDF REPORT
+  // ══════════════════════════════════════════════════════════════════════════
+  function printPortfolioPDF() {
+    const ph = document.getElementById('printHeader');
+    if (ph) {
+      const pos = Object.values(portfolio);
+      const totalNom = pos.reduce((s, p) => s + p.nominale, 0);
+      ph.innerHTML = `<strong>Portafoglio Obbligazionario</strong> — ${new Date().toLocaleDateString('it-IT')} &nbsp;|&nbsp; ${pos.length} posizioni &nbsp;|&nbsp; Nominale: €${totalNom.toLocaleString('it-IT')}`;
+    }
+    document.body.classList.add('printing-portfolio');
+    window.print();
+    document.body.classList.remove('printing-portfolio');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 3 — RATE SENSITIVITY ANALYSIS
+  // ══════════════════════════════════════════════════════════════════════════
+  function showSensitivity() {
+    const positions = Object.values(portfolio);
+    if (!positions.length) { showToast('Il portafoglio è vuoto'); return; }
+    const shifts = [-200, -100, -50, 0, +50, +100, +200];
+    const totalMV = positions.reduce((s, p) => s + p.nominale * (p.bond.prezzo || 100) / 100, 0);
+    const rows = positions.map(p => {
+      const b = p.bond;
+      const dur = b.duration || 5;
+      const mv = p.nominale * (b.prezzo || 100) / 100;
+      return { desc: b.descrizione, isin: b.isin, dur, mv };
+    });
+
+    const tableRows = rows.map(r =>
+      `<tr><td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.desc)}</td>` +
+      shifts.map(s => {
+        const pct = -r.dur * s / 100 / 100;
+        const delta = r.mv * pct;
+        const col = delta >= 0 ? 'var(--green)' : 'var(--red)';
+        return `<td style="text-align:right;color:${col};font-size:11px;">${delta >= 0 ? '+' : ''}${(pct * 100).toFixed(1)}%</td>`;
+      }).join('') + '</tr>'
+    ).join('');
+
+    const portDeltaRow = `<tr style="font-weight:700;border-top:1px solid var(--border)"><td>Portafoglio totale</td>` +
+      shifts.map(s => {
+        const totalDelta = rows.reduce((sum, r) => sum + r.mv * (-r.dur * s / 100 / 100), 0);
+        const col = totalDelta >= 0 ? 'var(--green)' : 'var(--red)';
+        return `<td style="text-align:right;color:${col}">${totalDelta >= 0 ? '+' : ''}€${Math.round(totalDelta).toLocaleString('it-IT')}</td>`;
+      }).join('') + '</tr>';
+
+    const html = `
+      <div onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;max-width:92vw;max-height:85vh;overflow:auto;padding:20px;min-width:600px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <strong style="font-size:15px;">📐 Rate Sensitivity — impatto variazione tassi</strong>
+            <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;">✕</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="color:var(--text2);">
+              <th style="text-align:left;padding:4px 8px;">Titolo</th>
+              ${shifts.map(s => `<th style="text-align:right;padding:4px 8px;">${s > 0 ? '+' : ''}${s}bp</th>`).join('')}
+            </tr></thead>
+            <tbody>${tableRows}${portDeltaRow}</tbody>
+          </table>
+          <p style="font-size:10px;color:var(--text2);margin-top:12px;">Stima basata su duration modificata. Risultato approssimato per piccole variazioni.</p>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 4 — YIELD CURVE BTP (SVG) — macro panel widget
+  // ══════════════════════════════════════════════════════════════════════════
+  function renderBtpYieldCurve() {
+    const svg = document.getElementById('yieldCurveSvg');
+    if (!svg) return;
+    const btps = allBonds.filter(b =>
+      b.paese && b.paese.toLowerCase().includes('ital') &&
+      b.yield !== null && b.scadenza
+    );
+    if (btps.length < 2) {
+      svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati non disponibili</text>';
+      return;
+    }
+    const today = new Date();
+    const pts = btps.map(b => ({
+      y: b.yield,
+      x: (new Date(b.scadenza) - today) / (365.25 * 24 * 3600 * 1000)
+    })).filter(p => p.x > 0 && p.x < 35).sort((a, b) => a.x - b.x);
+
+    if (pts.length < 2) {
+      svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati insufficienti</text>';
+      return;
+    }
+
+    const W = 560, H = 160, PAD = 36;
+    const xMax = Math.max(...pts.map(p => p.x));
+    const yMin = Math.min(...pts.map(p => p.y));
+    const yMax = Math.max(...pts.map(p => p.y));
+    const xScale = x => PAD + (x / xMax) * (W - PAD * 2);
+    const yScale = y => H - PAD - ((y - yMin) / (Math.max(yMax - yMin, 0.1))) * (H - PAD * 2);
+
+    const polyline = pts.map(p => `${xScale(p.x).toFixed(1)},${yScale(p.y).toFixed(1)}`).join(' ');
+    const area = `${xScale(pts[0].x)},${H - PAD} ` + polyline + ` ${xScale(pts[pts.length-1].x)},${H - PAD}`;
+
+    const circles = pts.map(p =>
+      `<circle cx="${xScale(p.x).toFixed(1)}" cy="${yScale(p.y).toFixed(1)}" r="3" fill="var(--blue)" opacity=".8">
+         <title>${p.x.toFixed(1)}y: ${p.y.toFixed(2)}%</title></circle>`
+    ).join('');
+
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = `
+      <defs><linearGradient id="ycGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--blue)" stop-opacity=".25"/>
+        <stop offset="100%" stop-color="var(--blue)" stop-opacity=".02"/>
+      </linearGradient></defs>
+      <polygon points="${area}" fill="url(#ycGrad)"/>
+      <polyline points="${polyline}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linejoin="round"/>
+      ${circles}
+      <text x="${PAD}" y="${H - 4}" font-size="9" fill="var(--text2)">0y</text>
+      <text x="${xScale(xMax / 2)}" y="${H - 4}" font-size="9" fill="var(--text2)" text-anchor="middle">${(xMax / 2).toFixed(0)}y</text>
+      <text x="${xScale(xMax)}" y="${H - 4}" font-size="9" fill="var(--text2)" text-anchor="end">${xMax.toFixed(0)}y</text>
+      <text x="${PAD - 2}" y="${yScale(yMin).toFixed(1)}" font-size="9" fill="var(--text2)" text-anchor="end">${yMin.toFixed(1)}%</text>
+      <text x="${PAD - 2}" y="${yScale(yMax).toFixed(1)}" font-size="9" fill="var(--text2)" text-anchor="end">${yMax.toFixed(1)}%</text>`;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 5 — BTP/BUND SPREAD WIDGET
+  // ══════════════════════════════════════════════════════════════════════════
+  function updateSpreadWidget() {
+    const el = document.getElementById('spreadWidget');
+    if (!el) return;
+    const btp10 = allBonds.find(b =>
+      b.paese && b.paese.toLowerCase().includes('ital') &&
+      b.scadenza && Math.abs((new Date(b.scadenza) - new Date()) / (365.25 * 24 * 3600 * 1000) - 10) < 1.5 &&
+      b.yield !== null
+    );
+    const bund10 = allBonds.find(b =>
+      b.paese && b.paese.toLowerCase().includes('germ') &&
+      b.scadenza && Math.abs((new Date(b.scadenza) - new Date()) / (365.25 * 24 * 3600 * 1000) - 10) < 1.5 &&
+      b.yield !== null
+    );
+    if (btp10 && bund10) {
+      const spread = ((btp10.yield - bund10.yield) * 100).toFixed(0);
+      const col = spread > 200 ? 'var(--red)' : spread > 120 ? 'var(--amber)' : 'var(--green)';
+      el.innerHTML = `<span title="Spread BTP-Bund 10Y" style="font-weight:700;color:${col}">BTP-Bund: ${spread}bp</span>
+        <span style="color:var(--text2)">|</span>
+        <span title="BTP 10Y yield">BTP ${btp10.yield.toFixed(2)}%</span>`;
+    } else {
+      el.innerHTML = '';
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 6 — PRICE/YIELD ALERTS
+  // ══════════════════════════════════════════════════════════════════════════
+  function showToast(msg, type) {
+    let t = document.getElementById('_toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = '_toast';
+      t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;pointer-events:none;transition:opacity .4s;';
+      document.body.appendChild(t);
+    }
+    t.style.background = type === 'error' ? 'var(--red)' : 'var(--green)';
+    t.style.color = 'white';
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._to);
+    t._to = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+  }
+
+  async function _loadAlerts() {
+    try {
+      const res = await fetch('/api/alerts');
+      _alerts = await res.json();
+    } catch { _alerts = []; }
+  }
+
+  function checkAlerts() {
+    if (!_alerts || !_alerts.length) return;
+    _alerts.forEach(a => {
+      const bond = allBonds.find(b => b.isin === a.isin);
+      if (!bond) return;
+      const val = a.type === 'price' ? bond.prezzo : bond.yield;
+      if (val === null || val === undefined) return;
+      const triggered =
+        (a.dir === 'above' && val >= a.threshold) ||
+        (a.dir === 'below' && val <= a.threshold);
+      if (triggered && !a.fired) {
+        showToast(`🔔 Alert ${bond.descrizione || a.isin}: ${a.type} ${a.dir} ${a.threshold} (attuale: ${val})`, 'alert');
+        a.fired = true;
+      }
+    });
+  }
+
+  async function showAlertsPanel() {
+    await _loadAlerts();
+    const portIsins = Object.keys(portfolio);
+    const bondOptions = [...allBonds.filter(b => portIsins.includes(b.isin)), ...allBonds.filter(b => !portIsins.includes(b.isin))]
+      .slice(0, 100)
+      .map(b => `<option value="${escHtml(b.isin)}">${escHtml(b.isin)} — ${escHtml(b.descrizione || '')}</option>`)
+      .join('');
+
+    const alertRows = _alerts.map(a =>
+      `<tr><td style="font-size:11px;">${escHtml(a.isin)}</td>
+       <td>${a.type}</td><td>${a.dir}</td><td>${a.threshold}</td>
+       <td><button onclick="deleteAlert('${a.id}')" style="font-size:10px;padding:2px 6px;background:var(--red);border:none;border-radius:4px;color:white;cursor:pointer;">✕</button></td>
+       </tr>`
+    ).join('') || '<tr><td colspan="5" style="color:var(--text2);text-align:center;padding:12px;">Nessun alert configurato</td></tr>';
+
+    const html = `
+      <div id="_alertsPanel" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;width:min(92vw,560px);max-height:85vh;overflow:auto;padding:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <strong style="font-size:15px;">🔔 Gestisci Alert</strong>
+            <button onclick="document.getElementById('_alertsPanel').remove()" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;">✕</button>
+          </div>
+          <div style="background:var(--bg3);padding:12px;border-radius:8px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+              <select id="_alIsin" style="font-size:12px;padding:5px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);grid-column:1/-1;">${bondOptions}</select>
+              <select id="_alType" style="font-size:12px;padding:5px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);">
+                <option value="yield">Yield</option><option value="price">Prezzo</option>
+              </select>
+              <select id="_alDir" style="font-size:12px;padding:5px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);">
+                <option value="above">Sopra</option><option value="below">Sotto</option>
+              </select>
+              <input type="number" id="_alThreshold" placeholder="Soglia" step="0.01" style="font-size:12px;padding:5px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);">
+              <button onclick="addAlert()" style="font-size:12px;padding:5px;background:var(--blue);border:none;border-radius:6px;color:white;cursor:pointer;font-weight:600;">+ Aggiungi</button>
+            </div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="color:var(--text2)"><th style="text-align:left">ISIN</th><th>Tipo</th><th>Dir.</th><th>Soglia</th><th></th></tr></thead>
+            <tbody id="_alertsTbody">${alertRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+    document.getElementById('_alertsPanel')?.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  async function addAlert() {
+    const isin = document.getElementById('_alIsin')?.value;
+    const type = document.getElementById('_alType')?.value;
+    const dir = document.getElementById('_alDir')?.value;
+    const threshold = parseFloat(document.getElementById('_alThreshold')?.value);
+    if (!isin || !type || !dir || isNaN(threshold)) { showToast('Compila tutti i campi', 'error'); return; }
+    const alert = { id: Date.now().toString(), isin, type, dir, threshold, fired: false };
+    await fetch('/api/alerts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(alert)
+    });
+    _alerts.push(alert);
+    showToast('Alert aggiunto');
+    document.getElementById('_alertsPanel')?.remove();
+    showAlertsPanel();
+  }
+
+  async function deleteAlert(id) {
+    await fetch(`/api/alerts/${id}`, { method: 'DELETE' });
+    _alerts = _alerts.filter(a => a.id !== id);
+    document.getElementById('_alertsPanel')?.remove();
+    showAlertsPanel();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 7 — CASH FLOW LADDER (SVG bar chart)
+  // ══════════════════════════════════════════════════════════════════════════
+  function renderCashFlowLadder(positions) {
+    const el = document.getElementById('cashFlowLadder');
+    if (!el) return;
+    if (!positions || !positions.length) { el.innerHTML = ''; return; }
+
+    const byYear = {};
+    positions.forEach(p => {
+      if (!p.bond.scadenza) return;
+      const yr = new Date(p.bond.scadenza).getFullYear();
+      const mv = p.nominale * (p.bond.prezzo || 100) / 100;
+      byYear[yr] = (byYear[yr] || 0) + mv;
+    });
+    const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+    if (!years.length) { el.innerHTML = ''; return; }
+
+    const W = 560, H = 120, PAD = 40, BAR_GAP = 4;
+    const maxVal = Math.max(...Object.values(byYear));
+    const barW = Math.max(8, Math.floor((W - PAD * 2 - BAR_GAP * (years.length - 1)) / years.length));
+    const xStep = barW + BAR_GAP;
+
+    const bars = years.map((yr, i) => {
+      const v = byYear[yr];
+      const bh = Math.max(2, (v / maxVal) * (H - PAD - 12));
+      const x = PAD + i * xStep;
+      const y = H - PAD - bh;
+      return `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="2" fill="var(--blue)" opacity=".75">
+        <title>${yr}: €${Math.round(v).toLocaleString('it-IT')}</title></rect>
+        <text x="${x + barW/2}" y="${H - PAD + 10}" font-size="8" text-anchor="middle" fill="var(--text2)">${yr}</text>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">Cash Flow Ladder (scadenze per anno)</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;">
+        ${bars}
+        <text x="${PAD - 4}" y="${H - PAD}" font-size="8" text-anchor="end" fill="var(--text2)">0</text>
+        <text x="${PAD - 4}" y="${12 + 4}" font-size="8" text-anchor="end" fill="var(--text2)">€${Math.round(maxVal/1000)}k</text>
+      </svg>`;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 8 — NOTES PER POSITION
+  // ══════════════════════════════════════════════════════════════════════════
+  async function _loadNotes() {
+    try {
+      const res = await fetch('/api/notes');
+      _notes = await res.json();
+    } catch { _notes = {}; }
+  }
+
+  function toggleNote(isin) {
+    const row = document.getElementById(`noteRow_${isin}`);
+    if (!row) return;
+    const showing = row.style.display !== 'none';
+    row.style.display = showing ? 'none' : '';
+    if (!showing) {
+      const ta = document.getElementById(`noteTa_${isin}`);
+      if (ta) ta.focus();
+    }
+  }
+
+  let _noteSaveTimers = {};
+  function scheduleNoteSave(isin) {
+    clearTimeout(_noteSaveTimers[isin]);
+    _noteSaveTimers[isin] = setTimeout(() => saveNote(isin), 800);
+  }
+
+  async function saveNote(isin) {
+    const ta = document.getElementById(`noteTa_${isin}`);
+    if (!ta) return;
+    const text = ta.value;
+    _notes[isin] = text;
+    try {
+      await fetch(`/api/notes/${isin}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+    } catch (e) { console.warn('saveNote failed', e); }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 9 — RATING FILTER
+  // ══════════════════════════════════════════════════════════════════════════
+  function _ratingGroup(b) {
+    const igCountries = ['DE','FR','NL','AT','FI','BE','IE','LU','DK','SE','NO','GB','CH','US','CA','JP','AU','NZ','SG'];
+    const hyCountries = ['GR','TR','AR','BR','ZA','RU','BY','VE','UA'];
+    const paese = (b.paese || '').toUpperCase().slice(0,2);
+    const monitor = (b.monitor || '').toUpperCase();
+    if (igCountries.includes(paese) || monitor.includes('AAA') || monitor.includes('AA') || monitor.includes('BBB') || monitor.includes('IG')) return 'IG';
+    if (hyCountries.includes(paese) || monitor.includes('HY') || monitor.includes('BB') || monitor.includes('B ')) return 'HY';
+    return 'NR';
+  }
+
+  function setRatingFilter(val) {
+    bondRatingFilter = val;
+    ['All','IG','HY','NR'].forEach(r => {
+      const btn = document.getElementById(`rating${r === 'All' ? 'All' : r}`);
+      if (btn) btn.classList.toggle('active', val === (r === 'All' ? '' : r));
+    });
+    applyFilters();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 10 — PORTFOLIO COMPARISON
+  // ══════════════════════════════════════════════════════════════════════════
+  function saveSnapshot() {
+    const positions = Object.values(portfolio);
+    if (!positions.length) { showToast('Il portafoglio è vuoto', 'error'); return; }
+    const totalNom = positions.reduce((s, p) => s + p.nominale, 0);
+    const totalMV = positions.reduce((s, p) => s + p.nominale * (p.bond.prezzo || 100) / 100, 0);
+    const wtdYield = totalNom > 0 ? positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0), 0) / totalNom : 0;
+    const snap = {
+      date: new Date().toLocaleDateString('it-IT'),
+      count: positions.length,
+      totalNom,
+      totalMV,
+      wtdYield: wtdYield.toFixed(2),
+      items: positions.map(p => ({ isin: p.bond.isin, nominale: p.nominale, prezzo: p.bond.prezzo, yield: resolveYield(p.bond) }))
+    };
+    _portfolioSnapshots.push(snap);
+    if (_portfolioSnapshots.length > 10) _portfolioSnapshots.shift();
+    localStorage.setItem('_portSnapshots', JSON.stringify(_portfolioSnapshots));
+    showToast('Snapshot salvato (' + _portfolioSnapshots.length + ' totali)');
+  }
+
+  function showComparison() {
+    if (!_portfolioSnapshots.length) { showToast('Nessuno snapshot salvato', 'error'); return; }
+    const rows = _portfolioSnapshots.map((s, i) =>
+      `<tr>
+        <td>${i + 1}</td>
+        <td style="font-size:11px">${s.date}</td>
+        <td>${s.count}</td>
+        <td style="text-align:right">€${Math.round(s.totalMV).toLocaleString('it-IT')}</td>
+        <td style="text-align:right">€${Math.round(s.totalNom).toLocaleString('it-IT')}</td>
+        <td style="text-align:right;color:var(--green)">${s.wtdYield}%</td>
+      </tr>`
+    ).join('');
+
+    const html = `
+      <div onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;width:min(92vw,600px);max-height:85vh;overflow:auto;padding:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <strong style="font-size:15px;">📊 Confronto Snapshot</strong>
+            <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;">✕</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="color:var(--text2)">
+              <th>#</th><th style="text-align:left">Data</th><th>Posizioni</th>
+              <th style="text-align:right">Val. Mercato</th>
+              <th style="text-align:right">Nominale</th>
+              <th style="text-align:right">Yield Medio</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div style="text-align:right;margin-top:12px;">
+            <button onclick="_portfolioSnapshots=[];localStorage.removeItem('_portSnapshots');this.closest('[style*=fixed]').remove();showToast('Snapshot eliminati');"
+              style="font-size:11px;padding:5px 12px;background:var(--red);border:none;border-radius:6px;color:white;cursor:pointer;">🗑 Cancella tutti</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
   }
 
 </script>
