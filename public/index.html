@@ -4863,42 +4863,69 @@
     let html = '', hasAny = false;
 
     BOND_BROWSER_CATS.forEach((cat, ci) => {
-      const bonds = allBonds.filter(b =>
-        b.tipo !== 'ETF' && b.isin && cat.monitors.includes(b.monitor) && (
-          !q ||
-          (b.isin||'').toLowerCase().includes(q) ||
-          (b.descrizione||'').toLowerCase().includes(q) ||
-          (b.emittente||'').toLowerCase().includes(q) ||
-          (b.paese||'').toLowerCase().includes(q)
-        )
-      ).sort((a,b) => (b.yield||0)-(a.yield||0)).slice(0, 30);
+      // Gather total count across all monitors for the group header
+      const totalInCat = cat.monitors.reduce((sum, mon) =>
+        sum + allBonds.filter(b =>
+          b.tipo !== 'ETF' && b.isin && b.monitor === mon && (
+            !q ||
+            (b.isin||'').toLowerCase().includes(q) ||
+            (b.descrizione||'').toLowerCase().includes(q) ||
+            (b.emittente||'').toLowerCase().includes(q) ||
+            (b.paese||'').toLowerCase().includes(q)
+          )
+        ).length, 0);
 
-      if (!bonds.length) return;
+      if (!totalInCat) return;
       hasAny = true;
       const grpId = 'bg'+ci;
       html += '<div class="ab-grp-hdr" style="--gc:'+cat.color+'" onclick="toggleAbGrp(\''+grpId+'\')">'
         +cat.icon+' <span>'+cat.label+'</span>'
-        +'<span style="margin-left:5px;opacity:.55;font-size:9px;font-weight:400">('+bonds.length+')</span>'
+        +'<span style="margin-left:5px;opacity:.55;font-size:9px;font-weight:400">('+totalInCat+')</span>'
         +'<span class="ab-grp-arrow" id="bgarrow'+ci+'">▼</span>'
         +'</div>'
-        +'<div id="'+grpId+'" class="ab-grp-body">'
-        +'<table class="ab-table"><tbody>';
+        +'<div id="'+grpId+'" class="ab-grp-body">';
 
-      bonds.forEach(b => {
-        const badge = (b.isin||'').substr(0,2)||'—';
-        const scad  = b.scadenza ? new Date(b.scadenza).getFullYear() : '∞';
-        const yldTxt = b.yield != null ? b.yield.toFixed(2)+'%' : '—';
-        const yldColor = !b.yield ? 'var(--text2)' : b.yield >= 5 ? '#f59e0b' : '#22c55e';
-        html += '<tr>'
-          +'<td><span class="monitor-badge" style="background:'+cat.color+'22;color:'+cat.color+';font-size:9px">'+badge+'</span></td>'
-          +'<td style="max-width:0;width:99%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px" title="'+escHtml(b.descrizione)+'">'+escHtml(b.descrizione)+'</td>'
-          +'<td style="text-align:right;font-weight:700;color:'+yldColor+';font-size:10px;white-space:nowrap">'+yldTxt+'</td>'
-          +'<td style="text-align:right;color:var(--text2);font-size:10px">'+(b.duration!=null?b.duration.toFixed(1):'—')+'</td>'
-          +'<td style="text-align:right;color:var(--text2);font-size:10px">'+scad+'</td>'
-          +'<td><button class="ab-add-btn" onclick="addFromAllocSearch(\''+b.isin+'\',\'bond\',\''+escHtml(b.descrizione)+'\','+defaultNom+',this)">+</button></td>'
-          +'</tr>';
+      let firstSub = true;
+      cat.monitors.forEach(mon => {
+        const bonds = allBonds.filter(b =>
+          b.tipo !== 'ETF' && b.isin && b.monitor === mon && (
+            !q ||
+            (b.isin||'').toLowerCase().includes(q) ||
+            (b.descrizione||'').toLowerCase().includes(q) ||
+            (b.emittente||'').toLowerCase().includes(q) ||
+            (b.paese||'').toLowerCase().includes(q)
+          )
+        ).sort((a,b) => (b.yield||0)-(a.yield||0)).slice(0, 30);
+        if (!bonds.length) return;
+
+        html += '<div style="padding:5px 8px 3px;font-size:9px;font-weight:700;color:'+cat.color
+          +';text-transform:uppercase;letter-spacing:.5px;border-top:'+(firstSub?'none':'1px solid rgba(255,255,255,.06)')+'">'+escHtml(mon)+'</div>'
+          +'<table class="ab-table"><thead><tr>'
+          +'<th style="width:32px">Paese</th><th>Descrizione</th>'
+          +'<th style="text-align:right;width:52px">Yield</th>'
+          +'<th style="text-align:right;width:36px">Dur.</th>'
+          +'<th style="text-align:right;width:36px">Scad.</th>'
+          +'<th style="width:50px"></th>'
+          +'</tr></thead><tbody>';
+        firstSub = false;
+
+        bonds.forEach(b => {
+          const badge = (b.isin||'').substr(0,2)||'—';
+          const scad  = b.scadenza ? new Date(b.scadenza).getFullYear() : '∞';
+          const yldTxt = b.yield != null ? b.yield.toFixed(2)+'%' : '—';
+          const yldColor = !b.yield ? 'var(--text2)' : b.yield >= 5 ? '#f59e0b' : '#22c55e';
+          html += '<tr>'
+            +'<td><span class="monitor-badge" style="background:'+cat.color+'22;color:'+cat.color+';font-size:9px">'+badge+'</span></td>'
+            +'<td style="max-width:0;width:99%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px" title="'+escHtml(b.descrizione)+'">'+escHtml(b.descrizione)+'</td>'
+            +'<td style="text-align:right;font-weight:700;color:'+yldColor+';font-size:10px;white-space:nowrap">'+yldTxt+'</td>'
+            +'<td style="text-align:right;color:var(--text2);font-size:10px">'+(b.duration!=null?b.duration.toFixed(1):'—')+'</td>'
+            +'<td style="text-align:right;color:var(--text2);font-size:10px">'+scad+'</td>'
+            +'<td><button class="ab-add-btn" onclick="addFromAllocSearch(\''+b.isin+'\',\'bond\',\''+escHtml(b.descrizione)+'\','+defaultNom+',this)">+</button></td>'
+            +'</tr>';
+        });
+        html += '</tbody></table>';
       });
-      html += '</tbody></table></div>';
+      html += '</div>'; // close ab-grp-body
     });
 
     // Ungrouped bonds (no monitor match) with filter active
@@ -4960,7 +4987,13 @@
         +'<span class="ab-grp-arrow" id="egarrow'+gi+'">▼</span>'
         +'</div>'
         +'<div id="'+grpId+'" class="ab-grp-body">'
-        +'<table class="ab-table"><tbody>';
+        +'<table class="ab-table"><thead><tr>'
+        +'<th style="width:44px">Ticker</th><th>Nome</th>'
+        +'<th style="width:40px;text-align:center">Tipo</th>'
+        +'<th style="text-align:right;width:52px">Rend.</th>'
+        +'<th style="text-align:right;width:36px">Dur.</th>'
+        +'<th style="width:50px"></th>'
+        +'</tr></thead><tbody>';
 
       etfs.forEach(e => {
         const ticker = e.ticker||'ETF';
