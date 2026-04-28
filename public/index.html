@@ -579,6 +579,32 @@
     .tmpl-bar{height:100%;border-radius:2px;transition:width .3s;}
     .tmpl-comp-desc-txt{font-size:11px;color:var(--text2);margin-bottom:9px;}
     .tmpl-sug-list{margin-top:4px;}
+    /* ── Allocation tabs ── */
+    .alloc-tabs{display:flex;gap:8px;padding:4px 24px 14px;}
+    .alloc-tab{flex:1;padding:10px 14px;border-radius:9px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;}
+    .alloc-tab.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+    .alloc-tab:hover:not(.active){border-color:var(--blue);color:var(--blue);}
+    /* ── Allocation item list ── */
+    .alloc-list{display:flex;flex-direction:column;gap:5px;padding:0 24px;}
+    .alloc-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .15s;}
+    .alloc-item:hover{border-color:rgba(255,255,255,.15);}
+    .alloc-item-main{display:grid;grid-template-columns:36px 1fr auto;gap:8px;align-items:center;padding:9px 10px;}
+    .alloc-item-info{min-width:0;}
+    .alloc-item-name{display:block;font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .alloc-item-sub{font-size:10px;color:var(--text2);margin-top:1px;}
+    .alloc-item-actions{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+    .alloc-swap-btn{padding:3px 8px;font-size:10px;font-weight:600;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;white-space:nowrap;transition:all .12s;}
+    .alloc-swap-btn:hover,.alloc-swap-btn.open{border-color:var(--blue);color:var(--blue);}
+    .alloc-swap-btn.open{background:rgba(59,130,246,.08);}
+    .alloc-item-nom{width:74px;padding:3px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;text-align:right;}
+    .alloc-item-nom:focus{outline:none;border-color:var(--blue);}
+    .alloc-item-add{padding:3px 9px;font-size:10px;font-weight:600;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .alloc-item-add:hover{border-color:var(--green);color:var(--green);}
+    .alloc-item-add.done{border-color:var(--green);color:var(--green);}
+    .alloc-item-rm{padding:3px 6px;font-size:11px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text2);cursor:pointer;opacity:.45;transition:all .12s;}
+    .alloc-item-rm:hover{opacity:1;color:var(--red);border-color:var(--red);}
+    .alloc-swap-panel{border-top:1px solid var(--border);padding:8px 12px 10px;background:rgba(59,130,246,.03);}
+    .alloc-add-section{padding:10px 24px 6px;}
     .tmpl-footer{padding:16px 24px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;}
     .tmpl-disclaimer{font-size:10px;color:var(--text2);max-width:290px;line-height:1.6;}
     .tmpl-add-all-btn{padding:11px 26px;background:var(--blue);border:none;border-radius:9px;color:#fff;cursor:pointer;font-size:13px;font-weight:700;transition:background .15s;white-space:nowrap;}
@@ -3597,6 +3623,8 @@
   ];
 
   let currentTemplate = null, tmplAmount = 10000;
+  let allocMode = 'etf';   // 'etf' | 'mixed'
+  let liveAlloc = [];       // current working allocation (editable by user)
 
   function initTemplateCards() {
     const container = document.getElementById('portTemplateCards');
@@ -3627,8 +3655,10 @@
     currentTemplate = PORTFOLIO_TEMPLATES.find(t => t.key === key);
     if (!currentTemplate) return;
     tmplAmount = 10000;
+    allocMode  = 'etf';
     const inp = document.getElementById('tmplAmountInput');
     if (inp) inp.value = tmplAmount;
+    liveAlloc = buildEtfAlloc(currentTemplate, tmplAmount);
     renderTmplModal();
     document.getElementById('tmplOverlay').classList.add('show');
   }
@@ -3641,12 +3671,18 @@
     tmplAmount = v;
     const inp = document.getElementById('tmplAmountInput');
     if (inp) inp.value = v;
-    renderTmplComponents();
+    liveAlloc = allocMode === 'etf'
+      ? buildEtfAlloc(currentTemplate, tmplAmount)
+      : buildMixedAlloc(currentTemplate, tmplAmount);
+    renderAllocView();
   }
 
   function updateTmplAmount(v) {
     tmplAmount = parseFloat(v) || 0;
-    renderTmplComponents();
+    liveAlloc = allocMode === 'etf'
+      ? buildEtfAlloc(currentTemplate, tmplAmount)
+      : buildMixedAlloc(currentTemplate, tmplAmount);
+    renderAllocView();
   }
 
   function renderTmplModal() {
@@ -3665,72 +3701,316 @@
     badge.style.cssText = `background:${t.color}20;color:${t.color};border-color:${t.color}50;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap;align-self:flex-start;margin-top:4px;`;
     const dots = [1,2,3,4,5].map(i=>'<span style="color:'+(i<=t.riskLevel?t.color:'rgba(255,255,255,.15)')+';font-size:15px">●</span>').join('');
     document.getElementById('tmplKpiRisk').innerHTML = dots;
-    renderTmplComponents();
+    renderAllocView();
   }
 
-  function renderTmplComponents() {
-    const t = currentTemplate;
-    if (!t) return;
-    const fmt    = v => (v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
-    const BLIMIT = 4;
+  // ── Build pre-compiled "Solo ETF" allocation ─────────────────────────────
+  function buildEtfAlloc(t, amount) {
+    return (t.components||[]).map(c => {
+      const e = (c.etfs||[])[0];
+      if (!e) return null;
+      const nom = Math.max(1000, Math.round(amount * c.pct / 100 / 1000) * 1000);
+      return {
+        isin:     e.isin,
+        type:     'etf',
+        ticker:   e.ticker,
+        name:     e.name,
+        pct:      c.pct,
+        label:    c.label,
+        nominale: nom,
+        alts:     (c.etfs||[]).slice(1).map(a => ({type:'etf', isin:a.isin, ticker:a.ticker, name:a.name})),
+      };
+    }).filter(Boolean);
+  }
 
-    let html = '<div class="tmpl-comp-sec-title">Composizione consigliata</div>';
-
-    t.components.forEach((c, ci) => {
-      const amt        = tmplAmount * c.pct / 100;
-      const defaultNom = Math.max(1000, Math.round(amt / 1000) * 1000);
-      let rows = '';
-
-      // ── ETF rows ─────────────────────────────────────────────
-      (c.etfs||[]).forEach((e, ei) => {
-        const inPort  = portfolio[e.isin] ? ' done' : '';
-        const inputId = 'tmplei'+ci+'_'+ei;
-        const onclick = "event.stopPropagation();addTmplETF('"+e.isin+"','"+escHtml(e.ticker)+"','"+escHtml(e.name)+"',document.getElementById('"+inputId+"').value*1,this)";
-        rows += buildSugRow('etf', e.ticker, e.name, '—', e.isin, inputId, defaultNom, false, onclick, inPort);
-      });
-
-      // ── Bond suggestion rows ──────────────────────────────────
-      let moreBtn = '';
+  // ── Build pre-compiled "Mix ETF + Titoli" allocation ─────────────────────
+  function buildMixedAlloc(t, amount) {
+    const items = [];
+    (t.components||[]).forEach(c => {
+      const pct = c.pct;
+      const e   = (c.etfs||[])[0];
       if (c.bonds) {
         const bonds = getBondSuggestions(c.bonds);
-        bonds.forEach((b, bi) => {
-          const inPort  = portfolio[b.isin] ? ' done' : '';
-          const inputId = 'tmplbn'+ci+'_'+bi;
-          const badge   = b.paese || b.tipo || '–';
-          const metric  = b.yield ? b.yield.toFixed(2)+'%' : '—';
-          const onclick = "addTmplBond('"+b.isin+"',document.getElementById('"+inputId+"').value,this)";
-          rows += buildSugRow('bond', badge, b.descrizione, metric, b.isin, inputId, defaultNom, bi >= BLIMIT, onclick, inPort);
-        });
-        const moreN = bonds.length - BLIMIT;
-        if (moreN > 0) {
-          moreBtn = '<div class="tmpl-sug-more" onclick="showMoreSug(this)">→ '+moreN+' altri titoli disponibili</div>';
+        if (bonds.length > 0) {
+          // Split ~55% ETF / 45% bond within this component
+          const etfPct  = Math.max(5, Math.round(pct * 0.55));
+          const bondPct = pct - etfPct;
+          const etfNom  = Math.max(1000, Math.round(amount * etfPct  / 100 / 1000) * 1000);
+          const bondNom = Math.max(1000, Math.round(amount * bondPct / 100 / 1000) * 1000);
+          if (e) {
+            items.push({
+              isin: e.isin, type:'etf', ticker:e.ticker, name:e.name,
+              pct:etfPct, label:c.label, nominale:etfNom,
+              alts:(c.etfs||[]).slice(1).map(a=>({type:'etf',isin:a.isin,ticker:a.ticker,name:a.name})),
+            });
+          }
+          const b = bonds[0];
+          items.push({
+            isin:b.isin, type:'bond', name:b.descrizione, paese:b.paese,
+            yield:b.yield, prezzo:b.prezzo, duration:b.duration,
+            pct:bondPct, label:c.label, nominale:bondNom,
+            alts:bonds.slice(1,4).map(bb=>({type:'bond',isin:bb.isin,name:bb.descrizione,paese:bb.paese,yield:bb.yield})),
+            bondCriteria:c.bonds,
+          });
+          return;
         }
       }
-
-      // ── Inline search panel ───────────────────────────────────
-      const searchPanel = '<div class="tmpl-search-wrap">'
-        +'<button class="tmpl-search-toggle" onclick="toggleTmplSearch('+ci+')">🔍 Aggiungi altro titolo o ETF...</button>'
-        +'<div class="tmpl-search-panel" id="tmplsp-'+ci+'">'
-        +'<input class="tmpl-search-input" placeholder="Cerca ISIN, nome emittente, ticker..." oninput="searchTmplItems(this.value,'+ci+','+defaultNom+')">'
-        +'<div class="tmpl-search-results" id="tmplsr-'+ci+'"></div>'
-        +'</div></div>';
-
-      html += '<div class="tmpl-comp" style="--tc:'+t.color+'">'
-        +'<div class="tmpl-comp-top">'
-        +'<span class="tmpl-comp-lbl">'+c.label+'</span>'
-        +'<div class="tmpl-comp-metrics">'
-        +'<span class="tmpl-comp-pct" style="color:'+t.color+'">'+c.pct+'%</span>'
-        +'<span class="tmpl-comp-eur">'+fmt(amt)+'</span>'
-        +'</div></div>'
-        +'<div class="tmpl-bar-wrap"><div class="tmpl-bar" style="width:'+c.pct+'%;background:'+t.color+'"></div></div>'
-        +'<div class="tmpl-comp-desc-txt">'+c.desc+'</div>'
-        +(rows ? '<div class="tmpl-sug-list">'+rows+moreBtn+'</div>' : '')
-        +searchPanel
-        +'</div>';
+      // No bonds or none available → full ETF for this component
+      if (!e) return;
+      const nom = Math.max(1000, Math.round(amount * pct / 100 / 1000) * 1000);
+      items.push({
+        isin:e.isin, type:'etf', ticker:e.ticker, name:e.name,
+        pct, label:c.label, nominale:nom,
+        alts:(c.etfs||[]).slice(1).map(a=>({type:'etf',isin:a.isin,ticker:a.ticker,name:a.name})),
+      });
     });
-
-    document.getElementById('tmplComponents').innerHTML = html;
+    return items;
   }
+
+  // ── Render a single allocation item row ───────────────────────────────────
+  function renderAllocItem(item, idx) {
+    const fmt    = v => (v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+    const badge  = item.type === 'etf' ? (item.ticker||'ETF') : (item.paese || (item.isin||'').substr(0,2));
+    const metric = item.yield ? item.yield.toFixed(2)+'%' : '—';
+    const inPort = portfolio[item.isin] ? ' done' : '';
+    const inputId = 'alnom'+idx;
+    const sub    = item.pct+'% · '+fmt(item.nominale)+(item.yield ? ' · yield '+metric : '');
+
+    // Alternatives (swap panel)
+    let swapHtml = '';
+    if (item.alts && item.alts.length) {
+      let altRows = '';
+      item.alts.slice(0,4).forEach((alt, ai) => {
+        const altBadge  = alt.type === 'etf' ? (alt.ticker||'ETF') : (alt.paese||(alt.isin||'').substr(0,2));
+        const altMetric = alt.yield ? alt.yield.toFixed(2)+'%' : '—';
+        const altName   = alt.name || alt.descrizione || '';
+        const altId     = 'swalt'+idx+'_'+ai;
+        const altClick  = "swapAllocItem("+idx+",'"+alt.isin+"','"+alt.type+"',document.getElementById('"+altId+"').value,this)";
+        altRows += buildSugRow(alt.type||'bond', altBadge, altName, altMetric, alt.isin, altId, item.nominale, false, altClick, '');
+      });
+      swapHtml = '<div class="alloc-swap-panel" id="swappanel'+idx+'" style="display:none">'
+        +'<div class="tmpl-search-sep">Sostituisci con:</div>'
+        +altRows+'</div>';
+    }
+
+    return '<div class="alloc-item" id="allocitem'+idx+'">'
+      +'<div class="alloc-item-main">'
+      +'<span class="tmpl-sug-badge '+item.type+'">'+escHtml(badge)+'</span>'
+      +'<div class="alloc-item-info">'
+      +'<div class="alloc-item-name" title="'+escHtml(item.name||'')+'">'+escHtml(item.name||'')+'</div>'
+      +'<div class="alloc-item-sub">'+escHtml(sub)+'</div>'
+      +'</div>'
+      +'<div class="alloc-item-actions">'
+      +(item.alts&&item.alts.length ? '<button class="alloc-swap-btn" id="swapbtn'+idx+'" onclick="toggleAllocSwap('+idx+')">↔ Alt.</button>' : '')
+      +'<input type="number" class="alloc-item-nom" id="'+inputId+'" value="'+item.nominale+'" step="1000" min="1000" onchange="updateAllocNom('+idx+',this.value)">'
+      +'<button class="alloc-item-add'+inPort+'" onclick="addAllocItemToPortfolio('+idx+',this)">+ Port.</button>'
+      +'<button class="alloc-item-rm" onclick="removeAllocItem('+idx+')" title="Rimuovi">✕</button>'
+      +'</div></div>'
+      +swapHtml
+      +'</div>';
+  }
+
+  // ── Render the full allocation view (tabs + items + search) ───────────────
+  function renderAllocView() {
+    const t = currentTemplate;
+    if (!t) return;
+
+    const tabs = '<div class="alloc-tabs">'
+      +'<button class="alloc-tab'+(allocMode==='etf'?' active':'')+'" onclick="switchAllocMode(\'etf\')">'
+      +'📊 Solo ETF</button>'
+      +'<button class="alloc-tab'+(allocMode==='mixed'?' active':'')+'" onclick="switchAllocMode(\'mixed\')">'
+      +'🏛 Mix ETF + Titoli</button>'
+      +'</div>';
+
+    const itemsHtml = liveAlloc.map((item, idx) => renderAllocItem(item, idx)).join('');
+
+    const searchHtml = '<div class="alloc-add-section">'
+      +'<button class="tmpl-search-toggle" onclick="toggleAllocSearch()">🔍 Aggiungi titolo o ETF...</button>'
+      +'<div class="tmpl-search-panel" id="allocSearchPanel">'
+      +'<input class="tmpl-search-input" placeholder="Cerca ISIN, nome emittente, ticker..." oninput="searchAllocItems(this.value)">'
+      +'<div class="tmpl-search-results" id="allocSearchResults"></div>'
+      +'</div></div>';
+
+    document.getElementById('tmplComponents').innerHTML =
+      '<div class="tmpl-comp-sec-title" style="padding:0 24px 8px">Composizione preimpostata</div>'
+      + tabs
+      + '<div class="alloc-list" id="allocList">'+itemsHtml+'</div>'
+      + searchHtml;
+  }
+
+  // ── Switch between ETF-only and Mixed allocation ──────────────────────────
+  function switchAllocMode(mode) {
+    allocMode = mode;
+    liveAlloc = mode === 'etf'
+      ? buildEtfAlloc(currentTemplate, tmplAmount)
+      : buildMixedAlloc(currentTemplate, tmplAmount);
+    renderAllocView();
+  }
+
+  // ── Toggle swap panel for one item ────────────────────────────────────────
+  function toggleAllocSwap(idx) {
+    const panel = document.getElementById('swappanel'+idx);
+    const btn   = document.getElementById('swapbtn'+idx);
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    // Close all first
+    document.querySelectorAll('[id^="swappanel"]').forEach(p => { p.style.display = 'none'; });
+    document.querySelectorAll('[id^="swapbtn"]').forEach(b => b.classList.remove('open'));
+    if (!isOpen) {
+      panel.style.display = 'block';
+      if (btn) btn.classList.add('open');
+    }
+  }
+
+  // ── Swap an item in liveAlloc with an alternative ─────────────────────────
+  function swapAllocItem(idx, newIsin, newType, nomStr, btn) {
+    const nom = Math.max(1000, Math.round(parseFloat(nomStr||liveAlloc[idx].nominale)/1000)*1000);
+    const old = liveAlloc[idx];
+    let newItem = null;
+    if (newType === 'bond') {
+      const b = allBonds.find(x => x.isin === newIsin);
+      if (!b) return;
+      newItem = {
+        isin:b.isin, type:'bond', name:b.descrizione, paese:b.paese,
+        yield:b.yield, prezzo:b.prezzo, duration:b.duration,
+        pct:old.pct, label:old.label, nominale:nom,
+        alts:old.alts, bondCriteria:old.bondCriteria||null,
+      };
+    } else {
+      const e = etfLoaded ? allETFs.find(x => x.isin === newIsin) : null;
+      const altObj = (old.alts||[]).find(a => a.isin === newIsin) || {};
+      newItem = {
+        isin:newIsin, type:'etf', ticker:e ? e.ticker : (altObj.ticker||newIsin.substr(0,4)),
+        name:e ? e.name : (altObj.name||newIsin),
+        pct:old.pct, label:old.label, nominale:nom,
+        alts:[{...old, alts:undefined}].filter(a=>a.isin!==newIsin), // put old item as alt
+      };
+    }
+    liveAlloc[idx] = newItem;
+    const itemEl = document.getElementById('allocitem'+idx);
+    if (itemEl) itemEl.outerHTML = renderAllocItem(newItem, idx);
+  }
+
+  // ── Remove an item from liveAlloc ─────────────────────────────────────────
+  function removeAllocItem(idx) {
+    liveAlloc.splice(idx, 1);
+    renderAllocView();
+  }
+
+  // ── Update nominal of an item (on input change) ───────────────────────────
+  function updateAllocNom(idx, val) {
+    if (liveAlloc[idx]) {
+      liveAlloc[idx].nominale = Math.max(1000, Math.round(parseFloat(val)/1000)*1000);
+    }
+  }
+
+  // ── Add a single alloc item to the portfolio ──────────────────────────────
+  async function addAllocItemToPortfolio(idx, btn) {
+    const item = liveAlloc[idx];
+    if (!item) return;
+    const nomEl = document.getElementById('alnom'+idx);
+    const nom   = nomEl ? Math.max(1000, Math.round(parseFloat(nomEl.value)/1000)*1000) : item.nominale;
+    if (item.type === 'etf') {
+      await addTmplETF(item.isin, item.ticker||'', item.name||'', nom, btn);
+    } else {
+      addTmplBond(item.isin, nom, btn);
+    }
+    // Mark button
+    if (btn) {
+      btn.classList.add('done');
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = orig; }, 1800);
+    }
+  }
+
+  // ── Toggle the bottom search panel ───────────────────────────────────────
+  function toggleAllocSearch() {
+    const panel = document.getElementById('allocSearchPanel');
+    if (!panel) return;
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+      if (!etfLoaded) fetchAndRenderETF();
+      const inp = panel.querySelector('.tmpl-search-input');
+      if (inp) { inp.value=''; inp.focus(); }
+      const res = document.getElementById('allocSearchResults');
+      if (res) res.innerHTML = '<div class="tmpl-search-empty">Digita per cercare…</div>';
+    }
+  }
+
+  // ── Search bonds + ETFs for the alloc search panel ────────────────────────
+  function searchAllocItems(query) {
+    const defaultNom = liveAlloc.length
+      ? Math.max(1000, Math.round(liveAlloc.reduce((s,i)=>s+i.nominale,0)/liveAlloc.length/1000)*1000)
+      : 5000;
+    const q = (query||'').toLowerCase().trim();
+    const container = document.getElementById('allocSearchResults');
+    if (!container) return;
+    if (q.length < 2) { container.innerHTML = '<div class="tmpl-search-empty">Digita almeno 2 caratteri…</div>'; return; }
+    const bonds = allBonds.filter(b =>
+      b.tipo !== 'ETF' && b.yield > 0 &&
+      (b.isin.toLowerCase().includes(q)||(b.descrizione||'').toLowerCase().includes(q)||(b.emittente||'').toLowerCase().includes(q))
+    ).slice(0,6);
+    const etfs = allETFs.filter(e =>
+      (e.ticker||'').toLowerCase().includes(q)||(e.name||'').toLowerCase().includes(q)||(e.isin||'').toLowerCase().includes(q)
+    ).slice(0,5);
+    if (!bonds.length && !etfs.length) {
+      container.innerHTML = '<div class="tmpl-search-empty">Nessun risultato per "'+escHtml(query)+'"</div>';
+      return;
+    }
+    let html = '';
+    if (bonds.length) {
+      html += '<div class="tmpl-search-sep">Titoli di stato / Bond</div>';
+      bonds.forEach((b, bi) => {
+        const id = 'asr_b'+bi;
+        const badge = (b.isin||'').substr(0,2)||'GOV';
+        const metric = b.yield ? b.yield.toFixed(2)+'%' : '';
+        html += buildSugRow('bond', badge, b.descrizione, metric, b.isin, id, defaultNom, false,
+          "addFromAllocSearch('"+b.isin+"','bond','"+escHtml(b.descrizione)+"',document.getElementById('"+id+"').value)", '');
+      });
+    }
+    if (etfs.length) {
+      if (!etfLoaded) html += '<div class="tmpl-search-empty" style="margin:6px 0">⏳ ETF in caricamento…</div>';
+      else {
+        html += '<div class="tmpl-search-sep">ETF</div>';
+        etfs.forEach((e, ei) => {
+          const id = 'asr_e'+ei;
+          const ticker = e.ticker||'ETF';
+          const metric = e.yld ? e.yld.toFixed(2)+'%' : '';
+          html += buildSugRow('etf', ticker, e.name, metric, e.isin, id, defaultNom, false,
+            "addFromAllocSearch('"+e.isin+"','etf','"+escHtml(e.name)+"',document.getElementById('"+id+"').value)", '');
+        });
+      }
+    }
+    container.innerHTML = html;
+  }
+
+  // ── Add a searched item to liveAlloc ──────────────────────────────────────
+  function addFromAllocSearch(isin, type, name, nomStr) {
+    const nom = Math.max(1000, Math.round(parseFloat(nomStr||5000)/1000)*1000);
+    if (type === 'bond') {
+      const b = allBonds.find(x => x.isin === isin);
+      if (b) liveAlloc.push({
+        isin:b.isin, type:'bond', name:b.descrizione, paese:b.paese,
+        yield:b.yield, prezzo:b.prezzo, duration:b.duration,
+        pct:0, label:'Aggiunto', nominale:nom, alts:[],
+      });
+    } else {
+      const e = etfLoaded ? allETFs.find(x => x.isin === isin) : null;
+      liveAlloc.push({
+        isin, type:'etf', ticker:e?e.ticker:'ETF', name:e?e.name:name,
+        pct:0, label:'Aggiunto', nominale:nom, alts:[],
+      });
+    }
+    renderAllocView();
+    setTimeout(() => {
+      const panel = document.getElementById('allocSearchPanel');
+      if (panel) panel.classList.add('open');
+    }, 30);
+  }
+
+  // ── (kept for backwards compatibility, no longer the primary path) ────────
+  function renderTmplComponents() { renderAllocView(); }
 
   async function addTmplETF(isin, ticker, name, nominal, btn) {
     if (!etfLoaded) await fetchAndRenderETF();
@@ -3757,32 +4037,31 @@
   }
 
   async function addAllTemplate() {
-    if (!currentTemplate) return;
+    if (!currentTemplate || !liveAlloc.length) return;
     const btn = document.getElementById('tmplAddAllBtn');
     if (btn) { btn.textContent = '⏳ Caricamento...'; btn.disabled = true; }
-    if (!etfLoaded) await fetchAndRenderETF();
-    for (const comp of currentTemplate.components) {
-      const nom = Math.max(1000, Math.round(tmplAmount * comp.pct / 100 / 1000) * 1000);
-      if (comp.etfs && comp.etfs.length) {
-        // Add primary ETF
-        const e   = comp.etfs[0];
-        const etf = allETFs.find(x => x.isin === e.isin);
-        portfolio[e.isin] = {
+    // Need ETF data for ETF items
+    const hasEtf = liveAlloc.some(item => item.type === 'etf');
+    if (hasEtf && !etfLoaded) await fetchAndRenderETF();
+    for (const item of liveAlloc) {
+      // Read current input value (user may have edited it)
+      const nomEl = document.getElementById('alnom'+liveAlloc.indexOf(item));
+      const nom   = nomEl ? Math.max(1000,Math.round(parseFloat(nomEl.value)/1000)*1000) : item.nominale;
+      if (item.type === 'etf') {
+        const etf = allETFs.find(x => x.isin === item.isin);
+        portfolio[item.isin] = {
           bond: {
-            isin: e.isin, descrizione: etf ? etf.name : e.name, emittente: e.ticker,
-            scadenza: null, prezzo: etf ? (etf.price || 100) : 100,
-            yield: etf ? etf.yld || null : null, duration: etf ? etf.dur || null : null,
-            divisa: etf ? (etf.currency || 'EUR') : 'EUR', tipo: 'ETF',
+            isin: item.isin, descrizione: etf ? etf.name : item.name, emittente: item.ticker||'',
+            scadenza: null, prezzo: etf ? (etf.price||100) : 100,
+            yield: etf ? etf.yld||null : null, duration: etf ? etf.dur||null : null,
+            divisa: etf ? (etf.currency||'EUR') : 'EUR', tipo: 'ETF',
             cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
           },
           nominale: nom,
         };
-      } else if (comp.bonds) {
-        // No ETF → add first matching bond instead
-        const bonds = getBondSuggestions(comp.bonds);
-        if (bonds.length) {
-          portfolio[bonds[0].isin] = { bond: bonds[0], nominale: nom };
-        }
+      } else {
+        const b = allBonds.find(x => x.isin === item.isin);
+        if (b) portfolio[item.isin] = { bond: b, nominale: nom };
       }
     }
     savePortfolio();
