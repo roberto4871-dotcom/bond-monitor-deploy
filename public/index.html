@@ -949,6 +949,7 @@
             <input type="checkbox" id="etfOnlyPrice" onchange="renderETF()"> Solo con prezzo
           </label>
           <span id="etfCount" style="font-size:12px;color:var(--text2);"></span>
+          <button onclick="exportETFXLSX()" style="margin-left:auto;font-size:12px;padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;" title="Esporta ETF visibili in Excel con link JustETF e Borsa Italiana">📊 Esporta Excel</button>
         </div>
         <!-- GROUP CHIPS -->
         <div class="etf-chips" id="etfChips">
@@ -1056,6 +1057,9 @@
 
       <!-- TABLE -->
       <div class="port-table-wrap" id="portTableWrap" style="display:none">
+        <div style="display:flex;justify-content:flex-end;padding:0 4px 8px">
+          <button onclick="exportPortfolioXLSX()" style="font-size:12px;padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;" title="Esporta portafoglio in Excel con link JustETF / Borsa Italiana">📊 Esporta Excel</button>
+        </div>
         <table class="port-table">
           <thead><tr>
             <th>Tipo</th>
@@ -1859,6 +1863,45 @@
     a.download = `obbligazioni_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // ── Portfolio Excel export ────────────────────────────────────────────────
+  function exportPortfolioXLSX() {
+    if (!window.XLSX) { alert('Libreria Excel non ancora caricata — riprova'); return; }
+    const positions = Object.values(portfolio);
+    if (!positions.length) { alert('Portafoglio vuoto'); return; }
+    const wb   = XLSX.utils.book_new();
+    const jurl = isin => `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
+    const burl = isin => `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
+    const hdr  = ['Tipo','ISIN','Descrizione','Emittente','Scadenza','Prezzo',
+                  'Yield %','Duration','Divisa','Nominale €','Val. Mercato €','Cedola/anno €','Link'];
+    const data = [hdr];
+    positions.forEach(pos => {
+      const b   = pos.bond;
+      const yv  = resolveYield(b);
+      const mv  = pos.nominale * (b.prezzo || 100) / 100;
+      const ced = pos.nominale * (yv || 0) / 100;
+      const scad = b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : '';
+      const link = b.tipo === 'ETF' ? jurl(b.isin) : burl(b.isin);
+      data.push([b.tipo||'Bond', b.isin, b.descrizione||'', b.emittente||'', scad,
+        b.prezzo != null ? b.prezzo : '',
+        yv       != null ? yv       : '',
+        b.duration != null ? b.duration : '',
+        b.divisa||'EUR',
+        pos.nominale, +mv.toFixed(2), +ced.toFixed(2), link]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    positions.forEach((pos, ri) => {
+      const cell = XLSX.utils.encode_cell({ r: ri+1, c: 12 });
+      const b = pos.bond;
+      const url = b.tipo === 'ETF' ? jurl(b.isin) : burl(b.isin);
+      const label = b.tipo === 'ETF' ? 'JustETF ↗' : 'Borsa Italiana ↗';
+      if (ws[cell]) { ws[cell].v = label; ws[cell].l = { Target: url }; }
+    });
+    ws['!cols'] = [{wch:8},{wch:16},{wch:42},{wch:20},{wch:12},{wch:9},
+                   {wch:8},{wch:10},{wch:7},{wch:12},{wch:14},{wch:14},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Portafoglio');
+    XLSX.writeFile(wb, `portafoglio_${new Date().toISOString().slice(0,10)}.xlsx`);
   }
 
   // ── Bond Excel export (SheetJS) ──────────────────────────────────────────
@@ -3103,6 +3146,16 @@
     }
   }
 
+  // Resolve effective yield for a portfolio bond/ETF — looks up live allETFs data
+  function resolveYield(b) {
+    if (b.yield != null) return b.yield;
+    if (b.tipo === 'ETF') {
+      const live = allETFs.find(e => e.isin === b.isin);
+      if (live && live.yld != null) return live.yld;
+    }
+    return null;
+  }
+
   function renderPortfolio() {
     const tbody = document.getElementById('portfolioBody');
     const positions = Object.values(portfolio);
@@ -3116,21 +3169,23 @@
     }
     tbody.innerHTML = positions.map(pos => {
       const b   = pos.bond;
+      const isETF = b.tipo === 'ETF';
+      const yv  = resolveYield(b) ?? 0;
       const mv  = pos.nominale * (b.prezzo || 100) / 100;
-      const ced = pos.nominale * (b.yield  || 0)   / 100;
-      const yv  = b.yield || 0;
+      const ced = pos.nominale * yv / 100;
       const rowCls   = yv >= 5 ? 'port-row-high' : yv >= 3 ? 'port-row-mid' : yv > 0 ? 'port-row-low' : 'port-row-none';
       const yieldCls = yv >= 5 ? 'port-yield-hi'  : yv >= 3 ? 'port-yield-md'  : 'port-yield-lo';
-      const isETF = b.tipo === 'ETF';
+      const yieldTxt = yv > 0 ? yv.toFixed(2)+'%' : (resolveYield(b) != null ? '0.00%' : '—');
+      const yieldNote = isETF && b.yield == null && yv > 0 ? ' <span style="font-size:9px;opacity:.6" title="Dato live da ETF">~</span>' : '';
       return `<tr class="${rowCls}">
         <td><span class="monitor-badge" style="${isETF?'background:rgba(59,130,246,0.15);color:#3b82f6':'background:rgba(34,197,94,0.1);color:#22c55e'}">${b.tipo||'Bond'}</span></td>
         <td>
           <span class="port-desc-main" title="${escHtml(b.descrizione)}">${escHtml(b.descrizione)}</span>
           <span class="port-desc-isin">${b.isin}</span>
         </td>
-        <td style="white-space:nowrap">${b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : '—'}</td>
+        <td style="white-space:nowrap">${b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : (isETF?'—':'—')}</td>
         <td>${b.prezzo !== null ? b.prezzo.toFixed(2) : '—'}</td>
-        <td class="${yieldCls}">${b.yield !== null ? b.yield.toFixed(2)+'%' : '—'}</td>
+        <td class="${yieldCls}">${yieldTxt}${yieldNote}</td>
         <td><input type="number" value="${pos.nominale}" min="0" step="1000"
           onchange="updateNominale('${b.isin}', this.value)"></td>
         <td>${mv.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
@@ -3146,8 +3201,8 @@
     if (positions.length === 0) return;
     const totalNom  = positions.reduce((s, p) => s + p.nominale, 0);
     const totalMV   = positions.reduce((s, p) => s + p.nominale * (p.bond.prezzo || 100) / 100, 0);
-    const wtdYield  = totalNom > 0 ? positions.reduce((s, p) => s + p.nominale * (p.bond.yield || 0), 0) / totalNom : 0;
-    const totCedola = positions.reduce((s, p) => s + p.nominale * (p.bond.yield || 0) / 100, 0);
+    const wtdYield  = totalNom > 0 ? positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0), 0) / totalNom : 0;
+    const totCedola = positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0) / 100, 0);
     const totRateo  = positions.reduce((s, p) => {
       const couponRate = extractCouponFromDesc(p.bond.descrizione) || p.bond.yield || 0;
       const freq = guessFreq(p.bond);
@@ -3847,30 +3902,37 @@
   function buildMixedAlloc(t, amount) {
     const items = [];
 
-    // Robust bond lookup: try with paese, then without, then with relaxed duration
+    // Robust bond lookup — 4 fallback levels so something always comes back
     function tryBonds(criteria) {
       if (!criteria) return [];
+      // Level 1: full criteria (paese + duration + yield > 0)
       let bonds = getBondSuggestions(criteria);
-      // Fallback 1: drop paese filter (API may use different country codes)
+      // Level 2: drop paese (API may use different 2/3-char country codes)
       if (!bonds.length && criteria.paese && criteria.paese.length) {
         bonds = getBondSuggestions({ durMin: criteria.durMin, durMax: criteria.durMax });
       }
-      // Fallback 2: completely relax duration too → pick any available bond
+      // Level 3: drop duration too
       if (!bonds.length) {
         bonds = getBondSuggestions({});
+      }
+      // Level 4: ignore yield filter entirely — take ANY government bond available
+      if (!bonds.length) {
+        bonds = allBonds
+          .filter(b => b.tipo !== 'ETF' && b.isin)
+          .sort((a, b) => (b.yield || 0) - (a.yield || 0))
+          .slice(0, 8);
       }
       return bonds;
     }
 
-    // For templates with NO bond criteria on any component, derive generic criteria
-    // from the template's duration range (only for EUR low/medium risk)
+    // For templates with NO explicit bond criteria, derive generic criteria
+    // from the template's duration range (only EUR / low-medium risk)
     const hasBondComps = (t.components||[]).some(c => c.bonds);
     let genericCriteria = null;
     if (!hasBondComps && t.riskLevel <= 2) {
-      // Parse duration range "5–7" → durMin=3, durMax=10 (generous bounds)
       const durParts = (t.durRange||'').split(/[–\-]/);
       const durMin = durParts[0] ? Math.max(0, parseInt(durParts[0]) - 2) : 0;
-      const durMax = durParts[1] ? parseInt(durParts[1]) + 3 : 12;
+      const durMax = durParts[1] ? parseInt(durParts[1]) + 3 : 15;
       genericCriteria = { durMin, durMax };
     }
 
