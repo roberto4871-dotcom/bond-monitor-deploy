@@ -1290,7 +1290,7 @@
     <!-- ── KPI Grid 4×2 ── -->
     <div class="etf-d-kpi-row">
       <div class="etf-d-kpi">
-        <div class="etf-d-kpi-label">Rendimento dist.</div>
+        <div class="etf-d-kpi-label" id="edKpi_yld_label">Rendimento dist.</div>
         <div class="etf-d-kpi-value" id="edKpi_yld" style="color:var(--green);">⏳</div>
       </div>
       <div class="etf-d-kpi">
@@ -2880,17 +2880,17 @@
   // ─────────────────────────────────────────────
   const ETF_GROUPS = [
     { key:'gov-eur',  label:'Governativi EUR',            icon:'🏛',  color:'#3b82f6',
-      cats:['Gov EUR 1-3Y','Gov EUR 3-5Y','Gov EUR 5-7Y','Gov EUR 7-10Y','Gov EUR 10-15Y','Gov EUR 15+Y','Gov EUR 10+Y','Gov EUR Blend','Gov Inflation EUR'] },
+      cats:['Gov EUR 1-3Y','Gov EUR 3-5Y','Gov EUR 5-7Y','Gov EUR 7-10Y','Gov EUR 10-15Y','Gov EUR 15+Y','Gov EUR 10+Y','Gov EUR Blend','Gov Inflation EUR','Gov ITA'] },
     { key:'gov-usd',  label:'Governativi USD',            icon:'🇺🇸', color:'#6366f1',
-      cats:['Gov USD 1-3Y','Gov USD 7-10Y','Gov USD 10+Y','Gov Inflation USD'] },
+      cats:['Gov USD 1-3Y','Gov USD 7-10Y','Gov USD 10+Y','Gov Inflation USD','Gov USD EUR H','Gov USD 1-3Y EUR H'] },
     { key:'em',       label:'Mercati Emergenti',          icon:'🌍',  color:'#f59e0b',
       cats:['EM Gov USD','EM Gov EUR H','EM Gov Local','EM Corp USD','Gov Cina'] },
     { key:'ig-corp',  label:'Corporate Investment Grade', icon:'🏢',  color:'#2dd4bf',
-      cats:['IG Corp EUR','IG Corp USD','Aggregate EUR'] },
+      cats:['IG Corp EUR','IG Corp USD','IG Corp USD EUR H','Aggregate EUR','Aggregate GLB EUR H'] },
     { key:'hy',       label:'High Yield & Subordinati',   icon:'⚡',  color:'#ef4444',
       cats:['HY Corp EUR','HY Corp USD','AT1 / CoCo'] },
     { key:'speciali', label:'Speciali & Alternativi',     icon:'🔧',  color:'#a855f7',
-      cats:['Green Bond','Convertibili','Float Rate USD','Money Market','Preferred','Gov GLB EUR H','Gov Inflation GLB'] },
+      cats:['Green Bond','Convertibili','Float Rate USD','Money Market','Ultrashort EUR','Preferred','Gov GLB EUR H','Gov Inflation GLB'] },
     { key:'lev',      label:'Leva / Inversi',             icon:'📊',  color:'#6b7280',
       cats:['Lev/Inverse'] },
   ];
@@ -3114,7 +3114,13 @@
     } else { ytdEl.textContent = ''; }
 
     // ── KPI — static data we already have ──
-    document.getElementById('edKpi_yld').textContent  = etf.yld != null ? etf.yld.toFixed(2) + '%' : '⏳';
+    // Label: ACC ETFs show YTM del portafoglio, DIST ETFs show rendimento distribuzione
+    const yldLabel = document.getElementById('edKpi_yld_label');
+    if (yldLabel) yldLabel.textContent = etf.acc ? 'Rend. portafoglio (YTM)' : 'Rendimento dist.';
+    // Yield: live yld if available, else ytm for ACC, else ⏳ pending JustETF fetch
+    const initYld = etf.yld != null ? etf.yld.toFixed(2) + '%'
+                  : (etf.acc && etf.ytm != null ? etf.ytm.toFixed(2) + '% ~' : '⏳');
+    document.getElementById('edKpi_yld').textContent  = initYld;
     document.getElementById('edKpi_dur').textContent  = etf.dur != null ? etf.dur.toFixed(1) + 'a' : '—';
     document.getElementById('edKpi_mat').textContent  = '⏳';
     document.getElementById('edKpi_ter').textContent  = etf.ter != null ? etf.ter.toFixed(2) + '%' : '—';
@@ -3171,14 +3177,18 @@
         b.textContent = d.fundFamily; b.style.display = 'inline-block';
       }
 
-      // Yield
+      // Yield — live distribution yield (DIST ETFs) or keep YTM for ACC
+      const etfObj = allETFs.find(e => e.isin === isin);
       if (d.distYield != null) {
         document.getElementById('edKpi_yld').textContent = d.distYield.toFixed(2) + '%';
-        // update cache so table column also benefits on next render
-        const obj = allETFs.find(e => e.isin === isin);
-        if (obj && obj.yld == null) obj.yld = d.distYield;
+        if (etfObj && etfObj.yld == null) etfObj.yld = d.distYield;
       } else if (document.getElementById('edKpi_yld').textContent === '⏳') {
-        document.getElementById('edKpi_yld').textContent = '—';
+        // No distribution yield from JustETF — for ACC use static YTM, otherwise show —
+        if (etfObj && etfObj.acc && etfObj.ytm != null) {
+          document.getElementById('edKpi_yld').textContent = etfObj.ytm.toFixed(2) + '% ~';
+        } else {
+          document.getElementById('edKpi_yld').textContent = '—';
+        }
       }
 
       // AUM
@@ -4898,13 +4908,7 @@
         +'<span class="ab-grp-arrow" id="bgarrow'+ci+'">▼</span>'
         +'</div>'
         +'<div id="'+grpId+'" class="ab-grp-body">'
-        +'<table class="ab-table"><thead><tr>'
-        +'<th style="width:32px">Paese</th><th>Descrizione</th>'
-        +'<th style="text-align:right;width:52px">Yield</th>'
-        +'<th style="text-align:right;width:36px">Dur.</th>'
-        +'<th style="text-align:right;width:36px">Scad.</th>'
-        +'<th style="width:50px"></th>'
-        +'</tr></thead><tbody>';
+        +'<table class="ab-table"><tbody>';
 
       bonds.forEach(b => {
         const badge = (b.isin||'').substr(0,2)||'—';
@@ -4982,13 +4986,7 @@
         +'<span class="ab-grp-arrow" id="egarrow'+gi+'">▼</span>'
         +'</div>'
         +'<div id="'+grpId+'" class="ab-grp-body">'
-        +'<table class="ab-table"><thead><tr>'
-        +'<th style="width:44px">Ticker</th><th>Nome</th>'
-        +'<th style="width:40px;text-align:center">Tipo</th>'
-        +'<th style="text-align:right;width:52px">Rend.</th>'
-        +'<th style="text-align:right;width:36px">Dur.</th>'
-        +'<th style="width:50px"></th>'
-        +'</tr></thead><tbody>';
+        +'<table class="ab-table"><tbody>';
 
       etfs.forEach(e => {
         const ticker = e.ticker||'ETF';

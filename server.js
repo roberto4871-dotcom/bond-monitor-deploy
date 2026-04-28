@@ -821,6 +821,39 @@ const ETF_LIST = [
   { isin:'IE00BDT8V027', ticker:'PRFE',   name:'Invesco Pref Shares ETF EUR H',  cat:'Preferred',         ter:0.50, dur:3.0,  acc:true,  ytm:6.0  },
   { isin:'FR0010869578', ticker:'BUND2S', name:'Amundi Bund Daily -2X Short',    cat:'Lev/Inverse',       ter:0.20, dur:null, acc:true             },
   { isin:'IE00BKT09032', ticker:'3TYL',   name:'WisdomTree US Tsy 10Y 3X Lev',  cat:'Lev/Inverse',       ter:0.50, dur:null, acc:true             },
+
+  // ── Nuovi ETF aggiunti — Gov EUR ─────────────────────────────────────────
+  { isin:'IE00BH04GL39', ticker:'VGEB',   name:'Vanguard EUR Eurozone Gov Bond', cat:'Gov EUR Blend',     ter:0.07, dur:6.9,  acc:true,  ytm:3.3  },
+  { isin:'LU0290355717', ticker:'XGLE',   name:'Xtrackers II Eurozone Gov Bond', cat:'Gov EUR Blend',     ter:0.07, dur:7.0,  acc:true,  ytm:3.2  },
+  { isin:'IE00B3VTMJ91', ticker:'CSBGE3', name:'iShares Euro Gov Bond 1-3yr',   cat:'Gov EUR 1-3Y',      ter:0.15, dur:2.0,  acc:true,  ytm:2.5  },
+  { isin:'IE00B1FZS681', ticker:'IBGX',   name:'iShares Euro Gov Bond 3-5yr',   cat:'Gov EUR 3-5Y',      ter:0.15, dur:3.75, acc:false             },
+  { isin:'LU0925589839', ticker:'XYP1',   name:'Xtrackers EZ Gov Bond Yield Plus 1-3Y', cat:'Gov EUR 1-3Y', ter:0.15, dur:2.0, acc:true, ytm:3.0 },
+  { isin:'IE000HARFTG3', ticker:'VSGE',   name:'Vanguard EUR Eurozone Gov 1-3Y', cat:'Gov EUR 1-3Y',     ter:0.07, dur:2.0,  acc:false             },
+  // ── Gov ITA (BTP) ───────────────────────────────────────────────────────
+  { isin:'IE00B7LW6Y90', ticker:'IITB',   name:'iShares Italy Government Bond',  cat:'Gov ITA',           ter:0.20, dur:7.0,  acc:false             },
+  // ── Gov USD aggiuntivi ───────────────────────────────────────────────────
+  { isin:'IE00BZ163M45', ticker:'VUTY',   name:'Vanguard USD Treasury Bond',     cat:'Gov USD 7-10Y',     ter:0.05, dur:6.0,  acc:false             },
+  { isin:'IE00BMX0B631', ticker:'VDTE',   name:'Vanguard USD Treasury EUR Hdg',  cat:'Gov USD EUR H',     ter:0.08, dur:5.7,  acc:true,  ytm:4.1  },
+  { isin:'LU1407887329', ticker:'U13H',   name:'Amundi US Treasury 1-3Y EUR Hdg', cat:'Gov USD 1-3Y EUR H', ter:0.10, dur:1.9, acc:false           },
+  // ── Aggregate / ESG ─────────────────────────────────────────────────────
+  { isin:'IE00B41RYL63', ticker:'EUAG',   name:'SPDR Bloomberg Euro Aggregate Bond', cat:'Aggregate EUR', ter:0.17, dur:6.5,  acc:false             },
+  { isin:'IE00BG47KH54', ticker:'VAGF',   name:'Vanguard Global Aggregate EUR Hdg', cat:'Aggregate GLB EUR H', ter:0.08, dur:7.0, acc:true, ytm:4.0 },
+  { isin:'LU2182388236', ticker:'EGRI',   name:'Amundi Index Euro Aggregate SRI', cat:'Aggregate EUR',    ter:0.16, dur:7.0,  acc:true,  ytm:3.1  },
+  // ── Corporate EUR aggiuntivi ─────────────────────────────────────────────
+  { isin:'IE00BZ163G84', ticker:'VECP',   name:'Vanguard EUR Corporate Bond',    cat:'IG Corp EUR',       ter:0.07, dur:4.5,  acc:false             },
+  { isin:'LU0478205379', ticker:'XBLC',   name:'Xtrackers II EUR Corporate Bond', cat:'IG Corp EUR',      ter:0.09, dur:5.5,  acc:true,  ytm:3.6  },
+  { isin:'IE00BYZTVT56', ticker:'SUOE',   name:'iShares EUR Corp Bond ESG SRI',  cat:'IG Corp EUR',       ter:0.14, dur:4.42, acc:false             },
+  { isin:'LU2178481649', ticker:'XZE5',   name:'Xtrackers EUR Corp Bond Short Dur ESG', cat:'IG Corp EUR', ter:0.16, dur:2.5,  acc:true,  ytm:3.3 },
+  // ── Corporate USD EUR Hedged ─────────────────────────────────────────────
+  { isin:'IE00BGYWFL94', ticker:'VDCE',   name:'Vanguard USD Corporate Bond EUR Hdg', cat:'IG Corp USD EUR H', ter:0.10, dur:6.3, acc:true, ytm:5.2 },
+  { isin:'IE00BZ036J45', ticker:'XDGE',   name:'Xtrackers USD Corporate Bond EUR Hdg', cat:'IG Corp USD EUR H', ter:0.21, dur:7.0, acc:false        },
+  // ── Ultrashort / Money Market ────────────────────────────────────────────
+  { isin:'IE00BCRY6557', ticker:'ERNE',   name:'iShares EUR Ultrashort Bond',    cat:'Ultrashort EUR',    ter:0.09, dur:0.3,  acc:false             },
+  { isin:'LU1681041031', ticker:'HFRN',   name:'Amundi USD FRN Corp ESG EUR Hdg', cat:'Float Rate USD',   ter:0.20, dur:0.25, acc:true,  ytm:5.0  },
+  // ── HY short duration ────────────────────────────────────────────────────
+  { isin:'LU1617164998', ticker:'HYS',    name:'Amundi EUR Short Term HY Corp ESG', cat:'HY Corp EUR',    ter:0.30, dur:1.5,  acc:false             },
+  // ── Green Bond aggiuntivi ────────────────────────────────────────────────
+  { isin:'IE00BMDBMN04', ticker:'GRON',   name:'iShares EUR Green Bond',         cat:'Green Bond',        ter:0.20, dur:6.0,  acc:false             },
 ];
 
 // Prezzi ETF caricati in background — risposta sempre immediata
