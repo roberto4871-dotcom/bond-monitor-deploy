@@ -2398,22 +2398,20 @@
     });
 
     // ══════════════════════════════════════════════════════════════════════════
-    // SHEET 4: 💰 Proiezione Reddito 12 Mesi
+    // SHEET 4: 💰 Proiezione Reddito 12 Mesi con calendario mensile
     // ══════════════════════════════════════════════════════════════════════════
     const ws4 = wb.addWorksheet('💰 Proiezione Reddito');
+    // Cols: A=Descrizione B=Tipo C=Nominale D=Yield E=Netto/Anno F-Q=Gen-Dic
     ws4.columns = [
-      { width:38 }, // Descrizione
-      { width:12 }, // Tipo
-      { width:14 }, // Nominale
-      { width:12 }, // Yield %
-      { width:16 }, // Lordo/Anno
-      { width:16 }, // Aliquota
-      { width:16 }, // Netto/Anno
-      { width:14 }, // Netto/Mese
+      { width:38 }, { width:9 }, { width:13 }, { width:9 }, { width:13 },
+      { width:8 },{ width:8 },{ width:8 },{ width:8 },{ width:8 },{ width:8 },
+      { width:8 },{ width:8 },{ width:8 },{ width:8 },{ width:8 },{ width:8 },
     ];
+    const MESI = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    const NCOLS = 17; // A-Q
 
-    // Title
-    ws4.mergeCells('A1:H1');
+    // Title band
+    ws4.mergeCells(1,1,1,NCOLS);
     const t4 = ws4.getCell('A1');
     t4.value = `💰 Proiezione Reddito 12 Mesi  ·  ${new Date().toLocaleDateString('it-IT')}`;
     styleHdr(t4, C.AMBER, C.DARK_BLUE, 15);
@@ -2421,25 +2419,30 @@
     ws4.getRow(1).height = 48;
 
     // Subtitle
-    ws4.mergeCells('A2:H2');
+    ws4.mergeCells(2,1,2,NCOLS);
     const sub4 = ws4.getCell('A2');
-    sub4.value = 'Proiezione basata su yield corrente. Aliquota: 12,5% Titoli di Stato EU · 26% Corporate e altri · ETF Gov 12,5% · ETF Corp/HY 26%';
+    sub4.value = 'Mesi di incasso stimati: Titoli di Stato semestrali (dalla data di scadenza), ETF DIST trimestrali/mensili. Aliquota: 12,5% Gov EU · 26% altri.';
     sub4.font = { italic:true, name:'Calibri', size:9, color:{ argb:'FF555555' } };
+    sub4.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFEF9EC' } };
     sub4.alignment = { horizontal:'left', vertical:'middle' };
-    ws4.getRow(2).height = 20;
+    ws4.getRow(2).height = 18;
 
-    // Header row
-    const proj4Hdrs = ['Descrizione','Tipo','Nominale €','Yield %','Lordo/Anno €','Aliquota','Netto/Anno €','Netto/Mese €'];
+    // Header row 3 — main cols
     ws4.getRow(3).height = 28;
-    proj4Hdrs.forEach((h, ci) => {
+    ['Descrizione','Tipo','Nominale €','Yield %','Netto/Anno €'].forEach((h,ci) => {
       const c = ws4.getCell(3, ci+1);
-      c.value = h;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 11);
-      if (ci >= 2) c.alignment = { horizontal:'right', vertical:'middle', wrapText:false };
+      c.value = h; styleHdr(c, C.DARK_BLUE, C.WHITE, 10);
+      c.alignment = { horizontal: ci < 2 ? 'left' : 'center', vertical:'middle' };
     });
-    ws4.views = [{ state:'frozen', ySplit:3 }];
+    // Month headers F-Q
+    MESI.forEach((m, mi) => {
+      const c = ws4.getCell(3, 6+mi);
+      c.value = m; styleHdr(c, C.TEAL, C.WHITE, 10);
+      c.alignment = { horizontal:'center', vertical:'middle' };
+    });
+    ws4.views = [{ state:'frozen', xSplit:5, ySplit:3 }]; // freeze first 5 cols + 3 rows
 
-    // Helper: determine tax rate
+    // ── Helper: tax rate ──────────────────────────────────────────────────────
     const taxRate = b => {
       if (b.tipo === 'ETF') {
         const em = allETFs.find(e => e.isin === b.isin);
@@ -2449,86 +2452,127 @@
         }
         return 0.26;
       }
-      // Bonds: gov bonds 12.5%, corporate 26%
       const govMonitors = ['BTP - Italia','BTP Futura / Valore / Più','BOT','Titoli di stato europei','Germania','Francia','Romania','Unione Europea','Sovranazionali','Altri titoli di stato','Stati Uniti'];
-      if (govMonitors.includes(b.monitor)) return 0.125;
-      return 0.26;
+      return govMonitors.includes(b.monitor) ? 0.125 : 0.26;
     };
 
+    // ── Helper: payment months (1-based) ─────────────────────────────────────
+    const payMonths = b => {
+      if (b.tipo === 'ETF') {
+        const em = allETFs.find(e => e.isin === b.isin);
+        if (!em || em.acc) return [];  // ACC = no distributions
+        if (['Money Market','Ultrashort EUR','Float Rate USD'].includes(em.cat))
+          return [1,2,3,4,5,6,7,8,9,10,11,12];  // mensile
+        if (em.cat === 'AT1 / CoCo') return [3,9];  // semestrale tipico AT1
+        return [3,6,9,12];  // trimestrale (default ETF obbligazionari)
+      }
+      // Bond
+      if (!b.yield || b.yield <= 0) return [];  // zero coupon / nessun rendimento
+      if (!b.scadenza) return [3,6,9,12];       // scadenza ignota → stima trimestrale
+      const matM = new Date(b.scadenza).getMonth() + 1; // 1-12
+      const m2   = ((matM - 1 + 6) % 12) + 1;
+      return [matM, m2].sort((a,b2) => a-b2);
+    };
+
+    // ── Data rows ─────────────────────────────────────────────────────────────
     let projRow = 4;
-    let totalLordo = 0, totalNettoGov = 0, totalNettoCorp = 0, totalNettoAll = 0;
+    let totalLordo = 0, totalNettoAll = 0;
+    const monthTotals = Array(12).fill(0); // accumulate per-month totals (netto)
 
     enriched.forEach(({ pos, b, yv, mv }) => {
       if (!yv || yv <= 0) return;
-      const nom = pos.nominale || mv || 0;
+      const nom   = pos.nominale || mv || 0;
       const lordo = nom * yv / 100;
       const rate  = taxRate(b);
       const netto = lordo * (1 - rate);
       const isEtf = b.tipo === 'ETF';
-      const tipo  = isEtf ? (allETFs.find(e=>e.isin===b.isin)?.acc ? 'ETF ACC' : 'ETF DIST') : (b.tipo||'Bond');
+      const etfM  = isEtf ? allETFs.find(e => e.isin === b.isin) : null;
+      const tipo  = isEtf ? (etfM?.acc ? 'ETF ACC' : 'ETF DIST') : (b.tipo || 'Bond');
       const rowBg = rate === 0.125 ? 'FFECFDF5' : 'FFFFF8E1';
 
       totalLordo += lordo; totalNettoAll += netto;
 
-      ws4.getRow(projRow).height = 20;
-      const rowData = [b.descrizione||b.isin, tipo, nom, yv/100, lordo, rate, netto, netto/12];
-      rowData.forEach((v, ci) => {
+      const pm = payMonths(b);
+      const perPayment = pm.length > 0 ? netto / pm.length : 0;
+      // Build 12-element array of amounts
+      const monthAmts = Array(12).fill(0);
+      pm.forEach(m => { monthAmts[m-1] = perPayment; monthTotals[m-1] += perPayment; });
+
+      ws4.getRow(projRow).height = 19;
+
+      // Fixed cols A-E
+      const fixedVals = [b.descrizione||b.isin, tipo, nom, yv, netto];
+      fixedVals.forEach((v, ci) => {
         const c = ws4.getCell(projRow, ci+1);
         styleData(c, rowBg);
         c.alignment = { vertical:'middle', horizontal: ci < 2 ? 'left' : 'right' };
         if (ci === 0) { c.value = v; c.font = { name:'Calibri', size:10 }; }
-        else if (ci === 1) { c.value = v; c.font = { name:'Calibri', size:9, color:{ argb:'FF555555' } }; }
+        else if (ci === 1) { c.value = v; c.font = { name:'Calibri', size:9, color:{ argb:'FF666666' } }; }
         else if (ci === 2) { c.value = +nom.toFixed(0); c.numFmt = '#,##0 "€"'; }
-        else if (ci === 3) { c.value = +yv.toFixed(2); c.numFmt = '0.00"%"'; }
-        else if (ci === 5) { c.value = rate; c.numFmt = '0"%"'; c.value = +(rate*100).toFixed(1); c.numFmt = '0.0"%"'; }
-        else { c.value = +v.toFixed(2); c.numFmt = '#,##0.00 "€"'; c.font = { bold: ci === 6, name:'Calibri', size:ci===6?11:10, color:{ argb: ci===6 ? C.GREEN : '00000000' } }; }
+        else if (ci === 3) { c.value = +yv.toFixed(2);  c.numFmt = '0.00"%"'; }
+        else { c.value = +netto.toFixed(2); c.numFmt = '#,##0.00 "€"';
+               c.font = { bold:true, name:'Calibri', size:10, color:{ argb: C.GREEN } }; }
+      });
+
+      // Month cols F-Q
+      monthAmts.forEach((amt, mi) => {
+        const c = ws4.getCell(projRow, 6+mi);
+        styleData(c, rowBg);
+        c.alignment = { horizontal:'center', vertical:'middle' };
+        if (amt > 0) {
+          c.value = +amt.toFixed(2); c.numFmt = '#,##0.00';
+          c.font  = { bold:true, name:'Calibri', size:10, color:{ argb: rate === 0.125 ? C.GREEN : C.AMBER } };
+          c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: rate === 0.125 ? 'FFD1FAE5' : 'FFFEF3C7' } };
+        } else {
+          c.value = '·'; c.font = { name:'Calibri', size:9, color:{ argb:'FFCCCCCC' } };
+        }
       });
       projRow++;
     });
 
-    // Spacer + totals
-    ws4.getRow(projRow).height = 6; projRow++;
-    ws4.getRow(projRow).height = 32;
-    const totData4 = ['TOTALE PORTAFOGLIO','','','',''+totalLordo.toFixed(2),'',''+totalNettoAll.toFixed(2),''+( totalNettoAll/12).toFixed(2)];
-    const totLabels4 = ['TOTALE PORTAFOGLIO','','','','Lordo/Anno','','Netto/Anno','Netto/Mese'];
-    totLabels4.forEach((lbl, ci) => {
-      const c = ws4.getCell(projRow, ci+1);
-      if (ci === 0) {
-        c.value = 'TOTALE PORTAFOGLIO';
-        styleHdr(c, C.DARK_BLUE, C.WHITE, 12);
-      } else if (ci === 4) {
-        c.value = +totalLordo.toFixed(2); c.numFmt = '#,##0.00 "€"';
-        styleHdr(c, C.DARK_BLUE, C.AMBER, 13);
-        c.alignment = { horizontal:'right', vertical:'middle' };
-      } else if (ci === 6) {
-        c.value = +totalNettoAll.toFixed(2); c.numFmt = '#,##0.00 "€"';
-        styleHdr(c, C.DARK_BLUE, C.GREEN, 14);
-        c.alignment = { horizontal:'right', vertical:'middle' };
-      } else if (ci === 7) {
-        c.value = +(totalNettoAll/12).toFixed(2); c.numFmt = '#,##0.00 "€"';
-        styleHdr(c, C.GREEN, C.WHITE, 13);
-        c.alignment = { horizontal:'right', vertical:'middle' };
-      } else {
-        const c2 = ws4.getCell(projRow, ci+1);
-        c2.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: C.DARK_BLUE } };
-      }
+    // ── Monthly totals row ────────────────────────────────────────────────────
+    ws4.getRow(projRow).height = 4; projRow++;
+    ws4.getRow(projRow).height = 28;
+    const maxM = Math.max(...monthTotals);
+
+    // Label block A-E
+    ws4.mergeCells(projRow, 1, projRow, 5);
+    const totLbl = ws4.getCell(projRow, 1);
+    totLbl.value = `TOTALE MENSILE  (annuo netto: ${totalNettoAll.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})})`;
+    styleHdr(totLbl, C.DARK_BLUE, C.WHITE, 11);
+    totLbl.alignment = { horizontal:'left', vertical:'middle' };
+
+    // Month totals F-Q
+    monthTotals.forEach((tot, mi) => {
+      const c = ws4.getCell(projRow, 6+mi);
+      c.value = +tot.toFixed(2); c.numFmt = '#,##0.00 "€"';
+      // Highlight the biggest month(s)
+      const isTop = tot === maxM && tot > 0;
+      c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: isTop ? C.GREEN : (tot > 0 ? C.TEAL : C.DARK_BLUE) } };
+      c.font  = { bold:true, name:'Calibri', size:10, color:{ argb: C.WHITE } };
+      c.alignment = { horizontal:'center', vertical:'middle' };
+      c.border = { top:{style:'medium',color:{argb:C.WHITE}}, left:{style:'thin',color:{argb:C.WHITE}},
+                   bottom:{style:'medium',color:{argb:C.WHITE}}, right:{style:'thin',color:{argb:C.WHITE}} };
     });
     projRow += 2;
 
-    // KPI summary boxes
-    ws4.getRow(projRow).height = 40;
+    // ── KPI boxes ─────────────────────────────────────────────────────────────
+    ws4.getRow(projRow).height = 44;
+    const bestMonth = MESI[monthTotals.indexOf(maxM)];
+    const nPayMonths = monthTotals.filter(v => v > 0).length;
     const kpis4 = [
-      { label:'Reddito Lordo\n12 Mesi', val: totalLordo, fmt:'#,##0 "€"', color: C.AMBER },
-      { label:'Reddito Netto\n12 Mesi', val: totalNettoAll, fmt:'#,##0 "€"', color: C.GREEN },
-      { label:'Reddito Netto\nMensile', val: totalNettoAll/12, fmt:'#,##0 "€"', color: C.TEAL },
-      { label:'Yield Medio\nPonderato', val: avgYield, fmt:'0.00"%"', color: C.MID_BLUE },
+      { label:'Reddito Lordo\n12 Mesi',   val: totalLordo.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),  color: C.AMBER },
+      { label:'Reddito Netto\n12 Mesi',   val: totalNettoAll.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}), color: C.GREEN },
+      { label:'Mese Migliore',            val: `${bestMonth} (${maxM.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})})`, color: C.TEAL },
+      { label:'Mesi con Incassi',         val: `${nPayMonths} / 12`, color: C.MID_BLUE },
     ];
-    const kpi4Cols = [[1,2],[3,4],[5,6],[7,8]];
+    // 4 KPI boxes each spanning 4 cols (A-D, E-H, I-L, M-P — within the 17-col sheet)
+    const kpiSpans = [[1,4],[5,8],[9,12],[13,16]];
     kpis4.forEach((kpi, ki) => {
-      const [c1, c2] = kpi4Cols[ki];
-      if (c1 !== c2) ws4.mergeCells(projRow, c1, projRow, c2);
+      const [c1, c2] = kpiSpans[ki];
+      ws4.mergeCells(projRow, c1, projRow, c2);
       const c = ws4.getCell(projRow, c1);
-      c.value = kpi.label + '\n' + (ki < 3 ? kpi.val.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : kpi.val.toFixed(2)+'%');
+      c.value = kpi.label + '\n' + kpi.val;
       c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: kpi.color } };
       c.font  = { bold:true, name:'Calibri', size:12, color:{ argb: C.WHITE } };
       c.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
