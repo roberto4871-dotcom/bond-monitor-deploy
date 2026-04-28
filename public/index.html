@@ -3670,8 +3670,7 @@
     if (b.tipo === 'ETF') {
       const live = allETFs.find(e => e.isin === b.isin);
       if (live && live.yld != null) return live.yld;
-      // Per ETF ad accumulazione: fallback su YTM statico del portafoglio sottostante
-      if (live && live.acc && live.ytm != null) return live.ytm;
+      if (live && live.ytm != null) return live.ytm;
     }
     return null;
   }
@@ -4089,6 +4088,7 @@
     {
       key:'prudente', icon:'🛡️', name:'Prudente', badge:'EUR',
       desc:'Bassa volatilità · duration corta · capitale protetto',
+      orizzonte:'1–3 anni',
       rationale:'Strategia orientata alla protezione del capitale con duration contenuta entro i 4 anni. La prevalenza di titoli governativi EUR a breve scadenza minimizza la sensibilità ai tassi di interesse. Il componente corporate investment grade aggiunge spread limitato senza sacrificare la qualità creditizia. Adatto a investitori con orizzonte di 1–3 anni e bassa tolleranza alla volatilità.',
       currency:'EUR', yieldRange:'3–4%', durRange:'2–4', riskLevel:1, color:'#22c55e',
       components:[
@@ -4109,6 +4109,7 @@
     {
       key:'bilanciato', icon:'⚖️', name:'Bilanciato', badge:'EUR',
       desc:'Rendimento / rischio equilibrato · duration media',
+      orizzonte:'3–5 anni',
       rationale:'Portafoglio che bilancia rendimento e rischio attraverso una duration media di 5–7 anni, ottimale nel ciclo attuale dei tassi. Il mix di governativi EUR, corporate IG e un\'esposizione controllata all\'high yield permette di catturare carry aggiuntivo senza eccessiva volatilità. La diversificazione per emittente e qualità creditizia riduce il rischio idiosincratico. Ideale per investitori con orizzonte 3–5 anni e tolleranza media al rischio.',
       currency:'EUR', yieldRange:'4–5%', durRange:'5–7', riskLevel:2, color:'#3b82f6',
       components:[
@@ -4130,6 +4131,7 @@
     {
       key:'rendimento', icon:'🚀', name:'Rendimento', badge:'EUR',
       desc:'Massimizzare flusso cedolare · rischio medio-alto',
+      orizzonte:'3–5 anni',
       rationale:'Strategia ad alto rendimento che privilegia il flusso cedolare massimo accettando un rischio di credito elevato. L\'esposizione ad AT1/CoCo e high yield europeo genera yield superiori al 6%, supportati da fondamentali bancari solidi nel ciclo post-normativo. La componente EM coperta in EUR aggiunge carry geografico diversificato. Adatto a investitori con tolleranza al rischio medio-alta e orizzonte almeno 3–5 anni.',
       currency:'EUR', yieldRange:'6–8%', durRange:'4–6', riskLevel:3, color:'#ef4444',
       components:[
@@ -4148,6 +4150,7 @@
     {
       key:'dollaro', icon:'💵', name:'Dollaro', badge:'USD',
       desc:'Esposizione valutaria USD · Treasuries + Corporate',
+      orizzonte:'2–4 anni',
       rationale:'Portafoglio in dollari che sfrutta il ciclo della FED e il carry valutario USD/EUR. I Treasury a breve termine offrono rendimenti reali positivi con volatilità minima, mentre il tratto 7–10 anni cattura il premio a termine storico. La componente corporate IG aggiunge spread su emittenti di qualità dell\'economia americana. Ideale per chi cerca diversificazione valutaria verso il dollaro su orizzonte 2–4 anni.',
       currency:'USD', yieldRange:'4.5–6%', durRange:'4–8', riskLevel:2, color:'#6366f1',
       components:[
@@ -4166,6 +4169,7 @@
     {
       key:'emergenti', icon:'🌍', name:'Emergenti', badge:'EM',
       desc:'Mercati emergenti · Multi-valuta · Carry elevato',
+      orizzonte:'4–6 anni',
       rationale:'Portafoglio EM che cattura il carry geografico attraverso quattro assi: governativi USD (massima liquidità), governativi coperti EUR (protezione valutaria), corporate emergenti (spread aggiuntivo) e valute locali (diversificazione FX). Il carry complessivo di 5–7% remunera i rischi politici e di credito tipici degli emittenti emergenti. Adatto a investitori con orizzonte 4–6 anni e buona diversificazione nel portafoglio complessivo.',
       currency:'MULTI', yieldRange:'5–7%', durRange:'5–7', riskLevel:3, color:'#f59e0b',
       components:[
@@ -4183,6 +4187,7 @@
     {
       key:'inflation', icon:'🔥', name:'Anti-Inflazione', badge:'INFL',
       desc:'Protezione reale · Inflation-linked EUR + USD',
+      orizzonte:'5+ anni',
       rationale:'Strategia di protezione dal potere d\'acquisto tramite linker EUR (BTPi, OATi) e TIPS USA, strumenti che adeguano il capitale all\'inflazione realizzata. La componente TIPS aggiunge diversificazione verso il CPI americano, storicamente meno volatile di quello europeo. I linker globali con copertura EUR completano la diversificazione geografica. Indicata per investitori che temono un ritorno dell\'inflazione su orizzonti medio-lunghi (5+ anni).',
       currency:'EUR/USD', yieldRange:'CPI +1–2%', durRange:'6–9', riskLevel:2, color:'#f97316',
       components:[
@@ -4203,6 +4208,7 @@
     {
       key:'income', icon:'⚡', name:'Income Max', badge:'HY',
       desc:'Massimo flusso cedolare · Rischio alto · Multi-asset',
+      orizzonte:'5+ anni',
       rationale:'Portafoglio orientato al massimo reddito distribuito, combinando HY EUR, AT1/CoCo bancari, HY USA e governativi emergenti per generare un flusso cedolare superiore al 7%. La diversificazione multi-asset e multi-valuta mitiga parzialmente il rischio di credito concentrato. La duration corta (3–5 anni) riduce la sensibilità ai rialzi dei tassi. Destinato esclusivamente a investitori professionali con alta tolleranza alle perdite temporanee e orizzonte minimo 5 anni.',
       currency:'EUR', yieldRange:'7–10%', durRange:'3–5', riskLevel:4, color:'#a855f7',
       components:[
@@ -4223,6 +4229,7 @@
     {
       key:'liquidita', icon:'🏖️', name:'Parcheggio', badge:'MM',
       desc:'Liquidità · Duration bassissima · Rischio minimo',
+      orizzonte:'0–12 mesi',
       rationale:'Soluzione di parcheggio della liquidità con duration vicina allo zero e volatilità quasi nulla. I fondi monetari e i floating rate replicano il tasso overnight della BCE, catturando il rendimento senza rischio di tasso. I titoli governativi a breve scadenza aggiungono rendimento marginale con liquidità giornaliera. Indicato come riserva di liquidità operativa o parcheggio in attesa di opportunità di investimento.',
       currency:'EUR/USD', yieldRange:'2.5–3.5%', durRange:'0–1', riskLevel:1, color:'#2dd4bf',
       components:[
@@ -4242,6 +4249,7 @@
     {
       key:'btp-ladder', icon:'🇮🇹', name:'BTP Ladder', badge:'BTP',
       desc:'Solo titoli di stato italiani · Scadenze scaglionate',
+      orizzonte:'5–15 anni',
       rationale:'Ladder di soli BTP italiani che distribuisce le scadenze uniformemente da 0 a 15+ anni, generando un flusso cedolare regolare e reinvestimenti periodici. La struttura a scala riduce il rischio di reinvestimento concentrato e smorza la sensibilità ai movimenti dei tassi rispetto a un singolo titolo. Ogni tranche scade in periodi diversi, fornendo liquidità scaglionata. Ideale per investitori retail italiani che cercano rendimento sovereign EUR con cedole certe.',
       currency:'EUR', yieldRange:'3.5–4.5%', durRange:'2–12', riskLevel:1, color:'#22c55e',
       components:[
@@ -4266,6 +4274,7 @@
     {
       key:'eurozona-gov', icon:'🌍', name:'Eurozona Gov', badge:'GOV',
       desc:'Governativi eurozona diversificati · IT + DE + FR + ES',
+      orizzonte:'3–7 anni',
       rationale:'Portafoglio di governativi eurozona che combina il carry dei BTP italiani con la sicurezza dei Bund tedeschi AAA, la solidità delle OAT francesi e lo spread della periferia iberica. La diversificazione per paese riduce l\'esposizione al rischio sovrano specifico di un singolo emittente. Il mix IT/DE/FR/ES rispecchia i pesi del debito pubblico europeo, bilanciando rendimento e qualità. Adatto come portafoglio core EUR per investitori europei.',
       currency:'EUR', yieldRange:'3–4.5%', durRange:'4–9', riskLevel:1, color:'#3b82f6',
       components:[
@@ -4291,6 +4300,7 @@
     {
       key:'ladder-globale', icon:'📅', name:'Ladder Scadenze', badge:'LAD',
       desc:'Scadenze uniformemente distribuite · 1–20 anni · Qualsiasi paese',
+      orizzonte:'5–15 anni',
       rationale:'Ladder globale multi-paese con scadenze distribuite da 1 a 20 anni, progettato per smorzare la volatilità totale del portafoglio attraverso la diversificazione temporale. Ogni anno una tranche scade e viene reinvestita ai tassi correnti, eliminando il rischio di dover vendere in perdita. La componente USD aggiunge diversificazione valutaria rispetto ai soli titoli EUR. Strategia robusta per investitori con orizzonte lungo che vogliono cedole annuali prevedibili.',
       currency:'EUR', yieldRange:'3.5–4.5%', durRange:'3–10', riskLevel:2, color:'#f59e0b',
       components:[
@@ -4319,6 +4329,7 @@
     {
       key:'rendita-btp', icon:'🇮🇹', name:'Rendita BTP', badge:'BTP',
       desc:'Solo BTP italiani · Cedole scaglionate · Massimo rendimento EUR',
+      orizzonte:'5–15 anni',
       rationale:'Portafoglio puro di BTP per investitori che cercano il massimo rendimento sovereign EUR con cedole semestrali garantite dallo Stato italiano. La distribuzione su quattro tranche di duration (2–12 anni) genera un flusso cedolare distribuito nel corso dell\'anno, riducendo il rischio di concentrazione delle cedole. A differenza degli ETF, i BTP diretti eliminano il tracking error e le commissioni di gestione. Ideale per investitori retail italiani che puntano alla rendita.',
       currency:'EUR', yieldRange:'3.5–4.5%', durRange:'2–12', riskLevel:1, color:'#22c55e',
       bondFirst:true,
@@ -4345,6 +4356,7 @@
     {
       key:'rendita-eurozona', icon:'🌍', name:'Rendita Eurozona', badge:'GOV',
       desc:'Governativi IT + DE + FR + ES · Cedole diversificate · Rischio paese ridotto',
+      orizzonte:'5–15 anni',
       rationale:'Rendita basata su titoli governativi fisici di quattro paesi eurozona (IT, DE, FR, ES) per ridurre la concentrazione sul singolo emittente italiano. I BTP forniscono il carry più elevato, mentre Bund e OAT aggiungono qualità creditizia AAA/AA che stabilizza il portafoglio nei periodi di stress. Le cedole distribuite su emittenti diversi generano flusso mensile/trimestrale più regolare. Strategia ottimale per chi vuole rendita EUR con diversificazione del rischio paese.',
       currency:'EUR', yieldRange:'3–4.5%', durRange:'4–9', riskLevel:1, color:'#3b82f6',
       bondFirst:true,
@@ -4371,6 +4383,7 @@
     {
       key:'cedole-ladder', icon:'📅', name:'Cedole Ladder', badge:'LAD',
       desc:'Scadenze scaglionate · Flusso cedolare costante ogni anno · Multi-paese',
+      orizzonte:'5–15 anni',
       rationale:'Ladder di titoli governativi fisici a peso uguale (25% per tranche) per generare cedole distribuite uniformemente su 1–15 anni, indipendentemente dal paese emittente. La struttura equal-weight massimizza la diversificazione temporale e geografica minimizzando le scelte discrezionali. Ogni anno una quota del portafoglio scade e viene reinvestita, adattandosi ai tassi correnti senza dover vendere in perdita. Ideale per investitori che necessitano di flussi di cassa annuali prevedibili.',
       currency:'EUR', yieldRange:'3–4.5%', durRange:'2–12', riskLevel:1, color:'#f59e0b',
       bondFirst:true,
@@ -4398,6 +4411,7 @@
     {
       key:'hy-eur-dist', icon:'💰', name:'Rendita HY EUR', badge:'DIST',
       desc:'Cedole elevate · ETF distributing · High Yield euro',
+      orizzonte:'5+ anni',
       rationale:'Portafoglio di ETF distributing focalizzati sull\'high yield europeo, progettato per massimizzare le distribuzioni trimestrali/semestrali. Il nucleo HY EUR offre spread ampi su emittenti BB/B, mentre gli AT1/CoCo bancari aggiungono yield spesso superiore all\'8% con distribuzione semestrale. La componente short duration riduce la sensibilità ai tassi e i drawdown in caso di stress. Destinato a investitori esperti che accettano volatilità elevata in cambio di flusso cedolare superiore al 6%.',
       currency:'EUR', yieldRange:'6–9%', durRange:'3–5', riskLevel:4, color:'#f97316',
       components:[
@@ -4420,6 +4434,27 @@
                 {isin:'IE00B2NPKV68',ticker:'IEMB', name:'iShares JPM $ EM Bond UCITS ETF'}] },
       ]
     },
+    {
+      key:'verde-esg', icon:'🌿', name:'Verde ESG', badge:'ESG',
+      desc:'Green Bond · Corporate ESG · Impatto ambientale positivo',
+      orizzonte:'3–7 anni',
+      rationale:'Portafoglio di obbligazioni green e strumenti ESG best-in-class, progettato per generare rendimento in linea con i mercati obbligazionari tradizionali limitando l\'impatto ambientale. I green bond governativi e corporate finanziano progetti certificati per la riduzione delle emissioni di CO₂ e la transizione energetica. La componente aggregate SRI applica filtri di esclusione su settori controversi. Duration media in linea con le scadenze tipiche dei green bond. Adatto a investitori sensibili alle tematiche ESG con orizzonte 3–7 anni.',
+      currency:'EUR', yieldRange:'3–4%', durRange:'5–7', riskLevel:2, color:'#16a34a',
+      components:[
+        { label:'Green Bond EUR', pct:35, desc:'Green bond governativi e sovranazionali eurozona certificati ICMA',
+          etfs:[{isin:'IE00BMDBMN04',ticker:'GRON',name:'iShares EUR Green Bond'},
+                {isin:'LU1563454310',ticker:'LGBO',name:'Lyxor Green Bond'}] },
+        { label:'Corporate ESG EUR', pct:30, desc:'Corporate investment grade con filtri ESG best-in-class',
+          etfs:[{isin:'IE00BYZTVT56',ticker:'SUOE',name:'iShares EUR Corp Bond ESG SRI'},
+                {isin:'LU2178481649',ticker:'XZE5',name:'Xtrackers EUR Corp Bond Short Dur ESG'}] },
+        { label:'Aggregate EUR SRI', pct:25, desc:'Mercato obbligazionario EUR broad con esclusioni ESG',
+          etfs:[{isin:'LU2182388236',ticker:'EGRI',name:'Amundi Index Euro Aggregate SRI'},
+                {isin:'IE00B3DKXQ41',ticker:'IEAG',name:'iShares EU Aggregate Bond'}] },
+        { label:'Gov. EUR Blend', pct:10, desc:'Governativi eurozona diversificati come stabilizzatore',
+          etfs:[{isin:'IE00BH04GL39',ticker:'VGEB',name:'Vanguard EUR Eurozone Gov Bond'},
+                {isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}] },
+      ]
+    },
   ];
 
   let currentTemplate = null, tmplAmount = 10000;
@@ -4430,11 +4465,18 @@
     const container = document.getElementById('portTemplateCards');
     if (!container) return;
     const riskLabels = ['','Basso','Medio-Basso','Medio','Alto','Molto Alto'];
-    container.innerHTML = PORTFOLIO_TEMPLATES.map(t => `
-      <div class="port-idea-card" onclick="openTemplate('${t.key}')" style="cursor:pointer">
+    const allTmpl = [
+      ...PORTFOLIO_TEMPLATES,
+      ...JSON.parse(localStorage.getItem('customTemplates') || '[]')
+    ];
+    container.innerHTML = allTmpl.map(t => `
+      <div class="port-idea-card" onclick="openTemplate('${t.key}')" style="cursor:pointer;${t._isCustom ? 'border-color:rgba(234,179,8,.3)' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
           <div class="port-idea-icon">${t.icon}</div>
-          <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;background:${t.color}20;color:${t.color};border:1px solid ${t.color}40">${t.badge}</span>
+          <div style="display:flex;gap:4px;align-items:center">
+            ${t._isCustom ? `<button onclick="event.stopPropagation();deleteCustomTmpl('${t.key}')" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.3);font-size:11px;padding:0 2px" title="Elimina">✕</button>` : ''}
+            <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;background:${t.color}20;color:${t.color};border:1px solid ${t.color}40">${t.badge}</span>
+          </div>
         </div>
         <div class="port-idea-name">${t.name}</div>
         <div class="port-idea-desc">${t.desc}</div>
@@ -4446,13 +4488,14 @@
           <span class="port-idea-dur">Duration ${t.durRange}</span>
         </div>
         <div style="margin-top:10px;font-size:10px;color:${t.color};font-weight:600;text-align:right">
-          ${riskLabels[t.riskLevel]} · ${t.components.length} ETF → Clicca per implementare
+          ⏱ ${t.orizzonte||'—'} · ${riskLabels[t.riskLevel]||''} · ${t.components.length} ETF → Clicca
         </div>
       </div>`).join('');
   }
 
   function openTemplate(key) {
-    currentTemplate = PORTFOLIO_TEMPLATES.find(t => t.key === key);
+    const allTmpl = [...PORTFOLIO_TEMPLATES, ...JSON.parse(localStorage.getItem('customTemplates') || '[]')];
+    currentTemplate = allTmpl.find(t => t.key === key);
     if (!currentTemplate) return;
     tmplAmount = 10000;
     allocMode  = 'etf';
@@ -4504,9 +4547,88 @@
     badge.style.cssText = `background:${t.color}20;color:${t.color};border-color:${t.color}50;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap;align-self:flex-start;margin-top:4px;`;
     const dots = [1,2,3,4,5].map(i=>'<span style="color:'+(i<=t.riskLevel?t.color:'rgba(255,255,255,.15)')+';font-size:15px">●</span>').join('');
     document.getElementById('tmplKpiRisk').innerHTML = dots;
+    const oriEl = document.getElementById('tmplKpiOrizzonte');
+    if (oriEl) oriEl.textContent = t.orizzonte || '—';
     renderAllocView();
     const rat = document.getElementById('tmplRationale');
     if (rat) rat.textContent = t.rationale || '';
+    // Compute dynamic duration from liveAlloc
+    if (etfLoaded && liveAlloc.length) {
+      let wSum = 0, dSum = 0;
+      liveAlloc.forEach(item => {
+        const e = allETFs.find(x => x.isin === item.isin);
+        const dur = e ? e.dur : null;
+        if (dur != null) { dSum += dur * item.pct; wSum += item.pct; }
+      });
+      const avgDur = wSum > 0 ? (dSum / wSum).toFixed(1) : null;
+      const durEl = document.getElementById('tmplKpiDur');
+      if (durEl && avgDur) durEl.textContent = avgDur + ' anni';
+    }
+    renderTmplPie();
+  }
+
+  function renderTmplPie() {
+    const wrap = document.getElementById('tmplPieWrap');
+    if (!wrap || !currentTemplate) return;
+    const comps = currentTemplate.components;
+    const baseColor = currentTemplate.color;
+    const colors = comps.map((_, i) => {
+      const alpha = 1 - (i * 0.18);
+      return `${baseColor}${Math.round(alpha * 255).toString(16).padStart(2,'0')}`;
+    });
+    const cx = 50, cy = 50, R = 40, r = 24;
+    let startAngle = -Math.PI / 2;
+    const total = comps.reduce((s,c) => s + c.pct, 0);
+    let paths = '';
+    comps.forEach((c, i) => {
+      const angle = (c.pct / total) * 2 * Math.PI;
+      const endAngle = startAngle + angle;
+      const x1 = cx + R * Math.cos(startAngle), y1 = cy + R * Math.sin(startAngle);
+      const x2 = cx + R * Math.cos(endAngle),   y2 = cy + R * Math.sin(endAngle);
+      const xi1 = cx + r * Math.cos(startAngle), yi1 = cy + r * Math.sin(startAngle);
+      const xi2 = cx + r * Math.cos(endAngle),   yi2 = cy + r * Math.sin(endAngle);
+      const large = angle > Math.PI ? 1 : 0;
+      const col = colors[i] || baseColor;
+      paths += `<path d="M${xi1.toFixed(1)},${yi1.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R},0,${large},1,${x2.toFixed(1)},${y2.toFixed(1)} L${xi2.toFixed(1)},${yi2.toFixed(1)} A${r},${r},0,${large},0,${xi1.toFixed(1)},${yi1.toFixed(1)} Z" fill="${col}" stroke="var(--bg2)" stroke-width="1.5"/>`;
+      startAngle = endAngle;
+    });
+    const legend = comps.map((c,i) =>
+      `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2)">
+        <span style="width:8px;height:8px;border-radius:2px;background:${colors[i]||baseColor};flex-shrink:0"></span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.label}</span>
+        <strong style="color:var(--text);font-size:10px">${c.pct}%</strong>
+      </div>`).join('');
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center">
+        <svg width="100" height="100" viewBox="0 0 100 100">${paths}</svg>
+        <div style="display:flex;flex-direction:column;gap:5px;max-width:240px">${legend}</div>
+      </div>`;
+  }
+
+  function saveTmplVariant() {
+    const name = prompt('Nome per questo template personalizzato:', (currentTemplate?.name || '') + ' (custom)');
+    if (!name) return;
+    const saved = JSON.parse(localStorage.getItem('customTemplates') || '[]');
+    const custom = {
+      ...currentTemplate,
+      key: 'custom_' + Date.now(),
+      name: name,
+      icon: '⭐',
+      badge: 'CUSTOM',
+      _isCustom: true,
+      _liveAlloc: JSON.parse(JSON.stringify(liveAlloc)),
+    };
+    saved.push(custom);
+    localStorage.setItem('customTemplates', JSON.stringify(saved));
+    alert('Template "' + name + '" salvato!');
+    initTemplateCards();
+  }
+
+  function deleteCustomTmpl(key) {
+    if (!confirm('Eliminare questo template personalizzato?')) return;
+    const saved = JSON.parse(localStorage.getItem('customTemplates') || '[]');
+    localStorage.setItem('customTemplates', JSON.stringify(saved.filter(t => t.key !== key)));
+    initTemplateCards();
   }
 
   // ── Build pre-compiled "Solo ETF" allocation ─────────────────────────────
@@ -5324,9 +5446,14 @@
         <div class="tmpl-kpi-lbl">Strumenti</div>
         <div class="tmpl-kpi-val" id="tmplKpiN">—</div>
       </div>
+      <div class="tmpl-kpi">
+        <div class="tmpl-kpi-lbl">Orizzonte</div>
+        <div class="tmpl-kpi-val" id="tmplKpiOrizzonte">—</div>
+      </div>
     </div>
 
     <div id="tmplRationale" class="tmpl-rationale"></div>
+    <div id="tmplPieWrap" style="display:flex;justify-content:center;margin:14px 24px 0;"></div>
     <div class="tmpl-comp-section" id="tmplComponents"></div>
 
     <div class="tmpl-footer">
@@ -5334,6 +5461,7 @@
         Modello indicativo a scopo educativo. Gli importi sono ripartiti proporzionalmente
         al nominale selezionato. Verifica prezzi e condizioni prima di investire.
       </div>
+      <button class="tmpl-quick-btn" onclick="saveTmplVariant()" style="border-color:rgba(255,255,255,.2)">💾 Salva come template</button>
       <button class="tmpl-add-all-btn" id="tmplAddAllBtn" onclick="addAllTemplate()">
         💼 Aggiungi tutto al portafoglio
       </button>
