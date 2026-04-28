@@ -4889,15 +4889,40 @@
   let currentTemplate = null, tmplAmount = 10000;
   let allocMode = 'etf';   // 'etf' | 'mixed'
   let liveAlloc = [];       // current working allocation (editable by user)
+  let _customTemplates = []; // cache sincronizzata col server
 
-  function initTemplateCards() {
+  // ── Custom template helpers (server-side persistence) ─────────────────────
+  async function _loadCustomTemplates() {
+    try {
+      const r = await fetch('/api/templates');
+      if (r.ok) {
+        _customTemplates = await r.json();
+        // aggiorna anche localStorage come cache offline
+        localStorage.setItem('customTemplates', JSON.stringify(_customTemplates));
+      }
+    } catch(e) {
+      // fallback localStorage se server non raggiungibile
+      _customTemplates = JSON.parse(localStorage.getItem('customTemplates') || '[]');
+    }
+    return _customTemplates;
+  }
+
+  function _allTemplates() {
+    return [...PORTFOLIO_TEMPLATES, ..._customTemplates];
+  }
+
+  async function initTemplateCards() {
+    const container = document.getElementById('portTemplateCards');
+    if (!container) return;
+    await _loadCustomTemplates();
+    _renderTemplateCards();
+  }
+
+  function _renderTemplateCards() {
     const container = document.getElementById('portTemplateCards');
     if (!container) return;
     const riskLabels = ['','Basso','Medio-Basso','Medio','Alto','Molto Alto'];
-    const allTmpl = [
-      ...PORTFOLIO_TEMPLATES,
-      ...JSON.parse(localStorage.getItem('customTemplates') || '[]')
-    ];
+    const allTmpl = _allTemplates();
     container.innerHTML = allTmpl.map(t => `
       <div class="port-idea-card" onclick="openTemplate('${t.key}')" style="cursor:pointer;${t._isCustom ? 'border-color:rgba(234,179,8,.3)' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
@@ -4923,8 +4948,7 @@
   }
 
   function openTemplate(key) {
-    const allTmpl = [...PORTFOLIO_TEMPLATES, ...JSON.parse(localStorage.getItem('customTemplates') || '[]')];
-    currentTemplate = allTmpl.find(t => t.key === key);
+    currentTemplate = _allTemplates().find(t => t.key === key);
     if (!currentTemplate) return;
     tmplAmount = 10000;
     allocMode  = 'etf';
@@ -5034,10 +5058,9 @@
       </div>`;
   }
 
-  function saveTmplVariant() {
+  async function saveTmplVariant() {
     const name = prompt('Nome per questo template personalizzato:', (currentTemplate?.name || '') + ' (custom)');
     if (!name) return;
-    const saved = JSON.parse(localStorage.getItem('customTemplates') || '[]');
     const custom = {
       ...currentTemplate,
       key: 'custom_' + Date.now(),
@@ -5047,17 +5070,33 @@
       _isCustom: true,
       _liveAlloc: JSON.parse(JSON.stringify(liveAlloc)),
     };
-    saved.push(custom);
-    localStorage.setItem('customTemplates', JSON.stringify(saved));
-    alert('Template "' + name + '" salvato!');
-    initTemplateCards();
+    try {
+      const r = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(custom)
+      });
+      if (!r.ok) throw new Error(await r.text());
+      _customTemplates.push(custom);
+      localStorage.setItem('customTemplates', JSON.stringify(_customTemplates));
+      alert('✅ Template "' + name + '" salvato sul server!');
+    } catch(e) {
+      // fallback localStorage se server non risponde
+      _customTemplates.push(custom);
+      localStorage.setItem('customTemplates', JSON.stringify(_customTemplates));
+      alert('⚠️ Salvato in locale (server non raggiungibile)');
+    }
+    _renderTemplateCards();
   }
 
-  function deleteCustomTmpl(key) {
+  async function deleteCustomTmpl(key) {
     if (!confirm('Eliminare questo template personalizzato?')) return;
-    const saved = JSON.parse(localStorage.getItem('customTemplates') || '[]');
-    localStorage.setItem('customTemplates', JSON.stringify(saved.filter(t => t.key !== key)));
-    initTemplateCards();
+    try {
+      await fetch('/api/templates/' + encodeURIComponent(key), { method: 'DELETE' });
+    } catch(e) { /* continua anche se offline */ }
+    _customTemplates = _customTemplates.filter(t => t.key !== key);
+    localStorage.setItem('customTemplates', JSON.stringify(_customTemplates));
+    _renderTemplateCards();
   }
 
   // ── Build pre-compiled "Solo ETF" allocation ─────────────────────────────

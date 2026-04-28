@@ -391,7 +391,52 @@ async function refreshData() {
 // Middleware CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
+});
+app.use(express.json({ limit: '1mb' }));
+
+// ── Custom Templates — server-side persistence ─────────────────────────────
+// Su Railway: crea un Volume e montalo su /data  →  i template sopravvivono ai deploy
+const DATA_DIR   = process.env.DATA_DIR || path.join(__dirname, 'data');
+const TMPL_FILE  = path.join(DATA_DIR, 'custom-templates.json');
+
+function loadCustomTemplates() {
+  try {
+    if (fs.existsSync(TMPL_FILE)) return JSON.parse(fs.readFileSync(TMPL_FILE, 'utf8'));
+  } catch (e) { console.error('[templates] load error:', e.message); }
+  return [];
+}
+function saveCustomTemplates(list) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(TMPL_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch (e) { console.error('[templates] save error:', e.message); }
+}
+
+// GET  /api/templates        — lista tutti i custom template
+app.get('/api/templates', (req, res) => {
+  res.json(loadCustomTemplates());
+});
+
+// POST /api/templates        — crea o aggiorna un template (upsert per key)
+app.post('/api/templates', (req, res) => {
+  const tmpl = req.body;
+  if (!tmpl || !tmpl.key) return res.status(400).json({ error: 'key mancante' });
+  const list = loadCustomTemplates();
+  const idx  = list.findIndex(t => t.key === tmpl.key);
+  if (idx >= 0) list[idx] = tmpl; else list.push(tmpl);
+  saveCustomTemplates(list);
+  res.json({ ok: true, count: list.length });
+});
+
+// DELETE /api/templates/:key — elimina un template
+app.delete('/api/templates/:key', (req, res) => {
+  const list = loadCustomTemplates().filter(t => t.key !== req.params.key);
+  saveCustomTemplates(list);
+  res.json({ ok: true });
 });
 
 // API: versione build — il client lo usa per rilevare deploy e ricaricare automaticamente
