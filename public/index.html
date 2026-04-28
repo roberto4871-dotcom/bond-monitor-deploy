@@ -4700,28 +4700,28 @@
         +'</div>'
         // Pane: bonds browser
         +'<div class="ab-pane" id="abpane-bonds">'
-          +'<input class="ab-filter" placeholder="Filtra per nome, paese, ISIN..." oninput="renderBondBrowser(this.value)" id="bondBrowserFilter">'
+          +'<input class="ab-filter" placeholder="Filtra per nome, paese, ISIN..." oninput="_bfRefresh()" id="bondBrowserFilter">'
           +'<div class="ab-filters">'
             +'<span class="ab-filter-lbl">Yield</span>'
-            +'<input class="ab-filter-num" type="number" placeholder="min%" id="bondYldMin" step="0.1" min="0" oninput="renderBondBrowser(document.getElementById(\'bondBrowserFilter\').value)">'
+            +'<input class="ab-filter-num" type="text" inputmode="decimal" placeholder="min%" id="bondYldMin" oninput="_bfRefresh()">'
             +'<span class="ab-filter-sep">–</span>'
-            +'<input class="ab-filter-num" type="number" placeholder="max%" id="bondYldMax" step="0.1" min="0" oninput="renderBondBrowser(document.getElementById(\'bondBrowserFilter\').value)">'
+            +'<input class="ab-filter-num" type="text" inputmode="decimal" placeholder="max%" id="bondYldMax" oninput="_bfRefresh()">'
             +'<span class="ab-filter-lbl" style="margin-left:6px">Scadenza</span>'
-            +'<input class="ab-filter-num" type="number" placeholder="dal" id="bondScadMin" step="1" min="2024" max="2070" oninput="renderBondBrowser(document.getElementById(\'bondBrowserFilter\').value)">'
+            +'<input class="ab-filter-num" type="text" inputmode="numeric" placeholder="dal" id="bondScadMin" oninput="_bfRefresh()">'
             +'<span class="ab-filter-sep">–</span>'
-            +'<input class="ab-filter-num" type="number" placeholder="al" id="bondScadMax" step="1" min="2024" max="2070" oninput="renderBondBrowser(document.getElementById(\'bondBrowserFilter\').value)">'
+            +'<input class="ab-filter-num" type="text" inputmode="numeric" placeholder="al" id="bondScadMax" oninput="_bfRefresh()">'
             +'<button class="ab-filter-reset" onclick="resetBondFilters()">✕ Reset</button>'
           +'</div>'
           +'<div class="ab-scroll" id="bondBrowserScroll"><div class="tmpl-search-empty">Caricamento…</div></div>'
         +'</div>'
         // Pane: ETFs browser
         +'<div class="ab-pane" id="abpane-etfs">'
-          +'<input class="ab-filter" placeholder="Filtra per nome, categoria, ticker..." oninput="renderEtfBrowser(this.value)" id="etfBrowserFilter">'
+          +'<input class="ab-filter" placeholder="Filtra per nome, categoria, ticker..." oninput="_efRefresh()" id="etfBrowserFilter">'
           +'<div class="ab-filters">'
             +'<span class="ab-filter-lbl">Yield</span>'
-            +'<input class="ab-filter-num" type="number" placeholder="min%" id="etfYldMin" step="0.1" min="0" oninput="renderEtfBrowser(document.getElementById(\'etfBrowserFilter\').value)">'
+            +'<input class="ab-filter-num" type="text" inputmode="decimal" placeholder="min%" id="etfYldMin" oninput="_efRefresh()">'
             +'<span class="ab-filter-sep">–</span>'
-            +'<input class="ab-filter-num" type="number" placeholder="max%" id="etfYldMax" step="0.1" min="0" oninput="renderEtfBrowser(document.getElementById(\'etfBrowserFilter\').value)">'
+            +'<input class="ab-filter-num" type="text" inputmode="decimal" placeholder="max%" id="etfYldMax" oninput="_efRefresh()">'
             +'<button class="ab-filter-reset" onclick="resetEtfFilters()">✕ Reset</button>'
           +'</div>'
           +'<div class="ab-scroll" id="etfBrowserScroll"><div class="tmpl-search-empty">Caricamento…</div></div>'
@@ -4881,6 +4881,10 @@
     if (arrow) arrow.classList.toggle('collapsed', col);
   }
 
+  // ── Filter refresh helpers (called from oninput on filter inputs) ─────────
+  function _bfRefresh() { renderBondBrowser(document.getElementById('bondBrowserFilter')?.value||''); }
+  function _efRefresh() { renderEtfBrowser(document.getElementById('etfBrowserFilter')?.value||''); }
+
   // ── Reset bond browser filters ────────────────────────────────────────────
   function resetBondFilters() {
     ['bondYldMin','bondYldMax','bondScadMin','bondScadMax'].forEach(id => {
@@ -4896,10 +4900,12 @@
     const q = (filterText||'').toLowerCase().trim();
     const defaultNom = _allocDefaultNom();
 
-    const yldMin  = parseFloat(document.getElementById('bondYldMin')?.value);
-    const yldMax  = parseFloat(document.getElementById('bondYldMax')?.value);
-    const scadMin = parseInt(document.getElementById('bondScadMin')?.value);
-    const scadMax = parseInt(document.getElementById('bondScadMax')?.value);
+    const _pf = s => parseFloat((s||'').replace(',','.'));
+    const _pi = s => parseInt((s||'').trim());
+    const yldMin  = _pf(document.getElementById('bondYldMin')?.value);
+    const yldMax  = _pf(document.getElementById('bondYldMax')?.value);
+    const scadMin = _pi(document.getElementById('bondScadMin')?.value);
+    const scadMax = _pi(document.getElementById('bondScadMax')?.value);
 
     const matchBond = (b, mon) =>
       b.tipo !== 'ETF' && b.isin && b.monitor === mon &&
@@ -5010,8 +5016,9 @@
     const q = (filterText||'').toLowerCase().trim();
     const defaultNom = _allocDefaultNom();
 
-    const yldMin = parseFloat(document.getElementById('etfYldMin')?.value);
-    const yldMax = parseFloat(document.getElementById('etfYldMax')?.value);
+    const _pf2 = s => parseFloat((s||'').replace(',','.'));
+    const yldMin = _pf2(document.getElementById('etfYldMin')?.value);
+    const yldMax = _pf2(document.getElementById('etfYldMax')?.value);
 
     let html = '', hasAny = false;
 
