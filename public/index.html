@@ -2397,6 +2397,145 @@
       aRow++;
     });
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 4: 💰 Proiezione Reddito 12 Mesi
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws4 = wb.addWorksheet('💰 Proiezione Reddito');
+    ws4.columns = [
+      { width:38 }, // Descrizione
+      { width:12 }, // Tipo
+      { width:14 }, // Nominale
+      { width:12 }, // Yield %
+      { width:16 }, // Lordo/Anno
+      { width:16 }, // Aliquota
+      { width:16 }, // Netto/Anno
+      { width:14 }, // Netto/Mese
+    ];
+
+    // Title
+    ws4.mergeCells('A1:H1');
+    const t4 = ws4.getCell('A1');
+    t4.value = `💰 Proiezione Reddito 12 Mesi  ·  ${new Date().toLocaleDateString('it-IT')}`;
+    styleHdr(t4, C.AMBER, C.DARK_BLUE, 15);
+    t4.alignment = { horizontal:'left', vertical:'middle' };
+    ws4.getRow(1).height = 48;
+
+    // Subtitle
+    ws4.mergeCells('A2:H2');
+    const sub4 = ws4.getCell('A2');
+    sub4.value = 'Proiezione basata su yield corrente. Aliquota: 12,5% Titoli di Stato EU · 26% Corporate e altri · ETF Gov 12,5% · ETF Corp/HY 26%';
+    sub4.font = { italic:true, name:'Calibri', size:9, color:{ argb:'FF555555' } };
+    sub4.alignment = { horizontal:'left', vertical:'middle' };
+    ws4.getRow(2).height = 20;
+
+    // Header row
+    const proj4Hdrs = ['Descrizione','Tipo','Nominale €','Yield %','Lordo/Anno €','Aliquota','Netto/Anno €','Netto/Mese €'];
+    ws4.getRow(3).height = 28;
+    proj4Hdrs.forEach((h, ci) => {
+      const c = ws4.getCell(3, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 11);
+      if (ci >= 2) c.alignment = { horizontal:'right', vertical:'middle', wrapText:false };
+    });
+    ws4.views = [{ state:'frozen', ySplit:3 }];
+
+    // Helper: determine tax rate
+    const taxRate = b => {
+      if (b.tipo === 'ETF') {
+        const em = allETFs.find(e => e.isin === b.isin);
+        if (em) {
+          const govCats = ['Gov EUR 1-3Y','Gov EUR 3-5Y','Gov EUR 5-7Y','Gov EUR 7-10Y','Gov EUR 10-15Y','Gov EUR 15+Y','Gov EUR 10+Y','Gov EUR Blend','Gov Inflation EUR','Gov ITA','Gov USD 1-3Y','Gov USD 7-10Y','Gov USD 10+Y','Gov Inflation USD','Gov USD EUR H','Gov USD 1-3Y EUR H','Gov Inflation GLB','Gov GLB EUR H','Aggregate EUR','Aggregate GLB EUR H'];
+          if (govCats.includes(em.cat)) return 0.125;
+        }
+        return 0.26;
+      }
+      // Bonds: gov bonds 12.5%, corporate 26%
+      const govMonitors = ['BTP - Italia','BTP Futura / Valore / Più','BOT','Titoli di stato europei','Germania','Francia','Romania','Unione Europea','Sovranazionali','Altri titoli di stato','Stati Uniti'];
+      if (govMonitors.includes(b.monitor)) return 0.125;
+      return 0.26;
+    };
+
+    let projRow = 4;
+    let totalLordo = 0, totalNettoGov = 0, totalNettoCorp = 0, totalNettoAll = 0;
+
+    enriched.forEach(({ pos, b, yv, mv }) => {
+      if (!yv || yv <= 0) return;
+      const nom = pos.nominale || mv || 0;
+      const lordo = nom * yv / 100;
+      const rate  = taxRate(b);
+      const netto = lordo * (1 - rate);
+      const isEtf = b.tipo === 'ETF';
+      const tipo  = isEtf ? (allETFs.find(e=>e.isin===b.isin)?.acc ? 'ETF ACC' : 'ETF DIST') : (b.tipo||'Bond');
+      const rowBg = rate === 0.125 ? 'FFECFDF5' : 'FFFFF8E1';
+
+      totalLordo += lordo; totalNettoAll += netto;
+
+      ws4.getRow(projRow).height = 20;
+      const rowData = [b.descrizione||b.isin, tipo, nom, yv/100, lordo, rate, netto, netto/12];
+      rowData.forEach((v, ci) => {
+        const c = ws4.getCell(projRow, ci+1);
+        styleData(c, rowBg);
+        c.alignment = { vertical:'middle', horizontal: ci < 2 ? 'left' : 'right' };
+        if (ci === 0) { c.value = v; c.font = { name:'Calibri', size:10 }; }
+        else if (ci === 1) { c.value = v; c.font = { name:'Calibri', size:9, color:{ argb:'FF555555' } }; }
+        else if (ci === 2) { c.value = +nom.toFixed(0); c.numFmt = '#,##0 "€"'; }
+        else if (ci === 3) { c.value = +yv.toFixed(2); c.numFmt = '0.00"%"'; }
+        else if (ci === 5) { c.value = rate; c.numFmt = '0"%"'; c.value = +(rate*100).toFixed(1); c.numFmt = '0.0"%"'; }
+        else { c.value = +v.toFixed(2); c.numFmt = '#,##0.00 "€"'; c.font = { bold: ci === 6, name:'Calibri', size:ci===6?11:10, color:{ argb: ci===6 ? C.GREEN : '00000000' } }; }
+      });
+      projRow++;
+    });
+
+    // Spacer + totals
+    ws4.getRow(projRow).height = 6; projRow++;
+    ws4.getRow(projRow).height = 32;
+    const totData4 = ['TOTALE PORTAFOGLIO','','','',''+totalLordo.toFixed(2),'',''+totalNettoAll.toFixed(2),''+( totalNettoAll/12).toFixed(2)];
+    const totLabels4 = ['TOTALE PORTAFOGLIO','','','','Lordo/Anno','','Netto/Anno','Netto/Mese'];
+    totLabels4.forEach((lbl, ci) => {
+      const c = ws4.getCell(projRow, ci+1);
+      if (ci === 0) {
+        c.value = 'TOTALE PORTAFOGLIO';
+        styleHdr(c, C.DARK_BLUE, C.WHITE, 12);
+      } else if (ci === 4) {
+        c.value = +totalLordo.toFixed(2); c.numFmt = '#,##0.00 "€"';
+        styleHdr(c, C.DARK_BLUE, C.AMBER, 13);
+        c.alignment = { horizontal:'right', vertical:'middle' };
+      } else if (ci === 6) {
+        c.value = +totalNettoAll.toFixed(2); c.numFmt = '#,##0.00 "€"';
+        styleHdr(c, C.DARK_BLUE, C.GREEN, 14);
+        c.alignment = { horizontal:'right', vertical:'middle' };
+      } else if (ci === 7) {
+        c.value = +(totalNettoAll/12).toFixed(2); c.numFmt = '#,##0.00 "€"';
+        styleHdr(c, C.GREEN, C.WHITE, 13);
+        c.alignment = { horizontal:'right', vertical:'middle' };
+      } else {
+        const c2 = ws4.getCell(projRow, ci+1);
+        c2.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: C.DARK_BLUE } };
+      }
+    });
+    projRow += 2;
+
+    // KPI summary boxes
+    ws4.getRow(projRow).height = 40;
+    const kpis4 = [
+      { label:'Reddito Lordo\n12 Mesi', val: totalLordo, fmt:'#,##0 "€"', color: C.AMBER },
+      { label:'Reddito Netto\n12 Mesi', val: totalNettoAll, fmt:'#,##0 "€"', color: C.GREEN },
+      { label:'Reddito Netto\nMensile', val: totalNettoAll/12, fmt:'#,##0 "€"', color: C.TEAL },
+      { label:'Yield Medio\nPonderato', val: avgYield, fmt:'0.00"%"', color: C.MID_BLUE },
+    ];
+    const kpi4Cols = [[1,2],[3,4],[5,6],[7,8]];
+    kpis4.forEach((kpi, ki) => {
+      const [c1, c2] = kpi4Cols[ki];
+      if (c1 !== c2) ws4.mergeCells(projRow, c1, projRow, c2);
+      const c = ws4.getCell(projRow, c1);
+      c.value = kpi.label + '\n' + (ki < 3 ? kpi.val.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : kpi.val.toFixed(2)+'%');
+      c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: kpi.color } };
+      c.font  = { bold:true, name:'Calibri', size:12, color:{ argb: C.WHITE } };
+      c.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+      c.border = { top:{style:'thin',color:{argb:C.WHITE}}, left:{style:'thin',color:{argb:C.WHITE}},
+                   bottom:{style:'thin',color:{argb:C.WHITE}}, right:{style:'thin',color:{argb:C.WHITE}} };
+    });
+
     // ── Write & download ──────────────────────────────────────────────────────
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -4453,6 +4592,82 @@
         { label:'Gov. EUR Blend', pct:10, desc:'Governativi eurozona diversificati come stabilizzatore',
           etfs:[{isin:'IE00BH04GL39',ticker:'VGEB',name:'Vanguard EUR Eurozone Gov Bond'},
                 {isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}] },
+      ]
+    },
+    // ── HY RENDITA GLOBALE ─────────────────────────────────────────────────
+    {
+      key:'hy-global-dist', icon:'🌐', name:'Rendita HY Globale', badge:'HY+',
+      desc:'HY EUR + USD + EM · Cedole elevate · Diversificazione globale',
+      orizzonte:'5+ anni',
+      rationale:'Portafoglio di cedola che allarga l\'universo dell\'high yield oltre la sola Europa, aggiungendo HY americano, emergenti corporate e AT1 bancari per massimizzare il carry complessivo. L\'HY USD, con spread storicamente superiori a quelli EUR e tassi della FED ancora elevati, contribuisce al rendimento distribuito. La componente EM corporate aggiunge diversificazione geografica e spread extra. Il cambio USD è parzialmente naturale per gli investitori che accettano esposizione valutaria, oppure è riducibile con ETF hedged. Riservato a investitori con alta tolleranza al rischio e orizzonte minimo 5 anni.',
+      currency:'MULTI', yieldRange:'7–9%', durRange:'3–5', riskLevel:4, color:'#dc2626',
+      components:[
+        { label:'HY Corp EUR — Core', pct:30,
+          desc:'Nucleo high yield eurozona: spread ampi su BB/B, cedole trimestrali/semestrali',
+          etfs:[{isin:'IE00B66F4759',ticker:'IHYG',  name:'iShares EUR HY Corp Bond'},
+                {isin:'LU1681040496',ticker:'AHYE',  name:'Amundi Euro HY Liq Bond'},
+                {isin:'LU1215415214',ticker:'HYBB',  name:'Amundi Iboxx EUR Liq HY BB'}] },
+        { label:'HY Corp USD', pct:30,
+          desc:'High yield americano: tassi FED elevati, spread +200bps, emittenti diversificati',
+          etfs:[{isin:'IE00B4PY7Y77',ticker:'IHYU',  name:'iShares $ HY Corp Bond'},
+                {isin:'IE00BF8HV600',ticker:'STHE',  name:'PIMCO US Short-Term HY EUR Hedged'}] },
+        { label:'EM Corp USD — Carry', pct:20,
+          desc:'Corporate emergenti USD: spread aggiuntivo +100bps, emittenti investment grade locali',
+          etfs:[{isin:'IE00B6TLBW47',ticker:'EMCR',  name:'iShares JPM $ EM Corp Bond'},
+                {isin:'IE00B2NPKV68',ticker:'IEMB',  name:'iShares JPM $ EM Bond'}] },
+        { label:'AT1 / CoCo Bancari', pct:20,
+          desc:'Subordinati Additional Tier 1: yield 7–9%, distribuzione semestrale',
+          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',   name:'Invesco AT1 Capital Bond'},
+                {isin:'IE00BFZPF439',ticker:'XAT1',  name:'Invesco AT1 Cap Bond EUR H'}] },
+      ]
+    },
+    // ── HY SHORT DURATION CEDOLA ───────────────────────────────────────────
+    {
+      key:'hy-short-dist', icon:'⚡', name:'Rendita HY Short Dur', badge:'DIST',
+      desc:'HY breve scadenza · Cedole alte · Bassa sensibilità ai tassi',
+      orizzonte:'2–4 anni',
+      rationale:'Portafoglio di rendita che privilegia la stabilità del capitale combinando HY a breve scadenza (1–3 anni), AT1 bancari e floating rate per generare cedole elevate con la minima esposizione al rischio di tasso. La duration corta (1–3 anni) riduce sensibilmente il drawdown in caso di rialzo dei tassi, mantenendo un carry superiore al 5%. I floating rate si adattano automaticamente ai movimenti del tasso BCE. Adatto a investitori che vogliono rendite elevate senza la volatilità tipica del reddito fisso a lunga scadenza.',
+      currency:'EUR', yieldRange:'5–7%', durRange:'1–3', riskLevel:3, color:'#e11d48',
+      components:[
+        { label:'HY Short Duration EUR', pct:35,
+          desc:'HY 1–3 anni: cedole elevate, scadenze ravvicinate, drawdown limitato',
+          etfs:[{isin:'LU1617164998',ticker:'HYS',   name:'Amundi EUR Short Term HY Corp ESG'},
+                {isin:'IE00BF8HV600',ticker:'STHE',  name:'PIMCO US Short-Term HY EUR Hedged'}] },
+        { label:'AT1 / CoCo Breve', pct:25,
+          desc:'Additional Tier 1 bancari: yield >7%, call entro 2–5 anni, distribuzione semestrale',
+          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',   name:'Invesco AT1 Capital Bond'},
+                {isin:'IE00BZ0XVF52',ticker:'CCBO',  name:'WisdomTree AT1 CoCo Bond'}] },
+        { label:'Float Rate USD/EUR', pct:25,
+          desc:'Tasso variabile: adeguamento automatico al tasso BCE/FED, volatilità quasi nulla',
+          etfs:[{isin:'IE00BZ048462',ticker:'FLTR',  name:'iShares $ Floating Rate Bond'},
+                {isin:'LU1681041031',ticker:'HFRN',  name:'Amundi USD FRN Corp ESG EUR H'}] },
+        { label:'EM Corp — Carry Extra', pct:15,
+          desc:'Corporate emergenti breve/medio: spread geografico +150bps su HY EUR',
+          etfs:[{isin:'IE00B6TLBW47',ticker:'EMCR',  name:'iShares JPM $ EM Corp Bond'},
+                {isin:'LU0321462953',ticker:'XEMB',  name:'Xtrackers II EM Bond EUR H'}] },
+      ]
+    },
+    // ── BARBELL ────────────────────────────────────────────────────────────
+    {
+      key:'barbell', icon:'🏋️', name:'Barbell', badge:'BBL',
+      desc:'50% brevissimo · 50% lunghissimo · Cattura l\'intera curva',
+      orizzonte:'5–10 anni',
+      rationale:'Strategia barbell (bilanciere) che polarizza il portafoglio su due estremi della curva dei tassi: il 50% in strumenti a brevissima scadenza (0–2 anni) genera rendimento immediato con liquidità giornaliera, mentre il 50% in obbligazioni a lunghissima scadenza (15+ anni) cattura il premio a termine storico e guadagna in conto capitale quando i tassi scendono. La duration media risultante è media (5–7 anni), ma il profilo di rischio/rendimento è molto diverso da un portafoglio a duration media tradizionale: il barbell sovraperforma nei cicli di steepening della curva. Adatto a investitori con orizzonte medio-lungo che vogliono sfruttare le opportunità ai due estremi della curva.',
+      currency:'EUR', yieldRange:'3.5–4.5%', durRange:'6–9', riskLevel:2, color:'#7c3aed',
+      components:[
+        { label:'Breve Termine (0–2 anni)', pct:50,
+          desc:'Strumenti a brevissima scadenza: BOT, BTP brevi, ETF 1-3Y · liquidità immediata, rendimento certo',
+          etfs:[{isin:'LU1650487413',ticker:'EM13',   name:'Amundi Euro Gov Bond 1-3Y'},
+                {isin:'LU1598691050',ticker:'BTP13',  name:'Amundi EMTS 1-3Y ITA BTP'},
+                {isin:'IE00B3VTMJ91',ticker:'CSBGE3', name:'iShares Euro Gov Bond 1-3yr'},
+                {isin:'IE00BCRY6557',ticker:'ERNE',   name:'iShares EUR Ultrashort Bond'}],
+          bonds:{paese:['IT','DE','FR','ES'],durMax:2} },
+        { label:'Lungo Termine (15+ anni)', pct:50,
+          desc:'BTP o ETF a lunghissima scadenza: premium a termine massimo, gain di capitale in discesa tassi',
+          etfs:[{isin:'LU1287023268',ticker:'EM15',   name:'Amundi Euro Gov Bond 15+Y'},
+                {isin:'LU1407890620',ticker:'US10',   name:'Amundi Core US Treasury 10+Y'},
+                {isin:'LU1650489385',ticker:'EM1015', name:'Amundi Euro Gov Bond 10-15Y'}],
+          bonds:{paese:['IT','DE','FR'],durMin:12} },
       ]
     },
   ];
