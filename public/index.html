@@ -628,17 +628,35 @@
     .tmpl-sug-btn.done{border-color:var(--green);color:var(--green);}
     .tmpl-sug-more{font-size:10px;color:var(--blue);cursor:pointer;margin-top:6px;display:inline-block;}
     .tmpl-sug-more:hover{text-decoration:underline;}
-    /* ── Inline search panel ── */
+    /* ── Inline search / browser panel ── */
     .tmpl-search-wrap{margin-top:10px;}
     .tmpl-search-toggle{width:100%;padding:7px 12px;background:transparent;border:1px dashed rgba(255,255,255,.13);border-radius:7px;color:var(--text2);cursor:pointer;font-size:11px;text-align:left;display:flex;align-items:center;gap:7px;transition:all .15s;}
     .tmpl-search-toggle:hover{border-color:var(--blue);color:var(--blue);}
-    .tmpl-search-panel{display:none;margin-top:8px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;}
+    .tmpl-search-panel{display:none;margin-top:8px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
     .tmpl-search-panel.open{display:block;}
+    /* browser tab bar */
+    .ab-tabs{display:flex;border-bottom:1px solid var(--border);}
+    .ab-tab{flex:1;padding:7px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:none;border:none;color:var(--text2);cursor:pointer;transition:all .12s;border-bottom:2px solid transparent;margin-bottom:-1px;}
+    .ab-tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+    .ab-tab:hover:not(.active){color:var(--text);}
+    .ab-pane{display:none;padding:10px 12px;}
+    .ab-pane.active{display:block;}
     .tmpl-search-input{width:100%;padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;box-sizing:border-box;}
     .tmpl-search-input:focus{outline:none;border-color:var(--blue);}
-    .tmpl-search-results{margin-top:8px;max-height:220px;overflow-y:auto;}
+    .tmpl-search-results{margin-top:8px;max-height:200px;overflow-y:auto;}
     .tmpl-search-empty{font-size:11px;color:var(--text2);padding:10px 0;text-align:center;}
     .tmpl-search-sep{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin:8px 0 4px;}
+    /* bond/etf browser table */
+    .ab-table{width:100%;border-collapse:collapse;font-size:11px;}
+    .ab-table thead th{color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.3px;font-size:9px;padding:4px 6px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1;}
+    .ab-table tbody tr:hover td{background:rgba(255,255,255,.04);}
+    .ab-table td{padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle;}
+    .ab-scroll{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;margin-top:6px;}
+    .ab-filter{width:100%;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;box-sizing:border-box;margin-bottom:6px;}
+    .ab-filter:focus{outline:none;border-color:var(--blue);}
+    .ab-add-btn{padding:3px 8px;font-size:10px;font-weight:700;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text2);cursor:pointer;white-space:nowrap;}
+    .ab-add-btn:hover{border-color:var(--green);color:var(--green);}
+    .ab-add-btn.done{border-color:var(--green);color:var(--green);}
 
     /* CALCULATOR MODAL */
     .calc-modal {
@@ -2093,17 +2111,39 @@
       curRow++;
     });
 
-    // Totals row
-    ws1.getRow(curRow).height = 24;
-    ['TOTALE','','',  '','',
+    // Totals row — show yield, cedole and total
+    ws1.getRow(curRow).height = 26;
+    ['TOTALE','','', avgYield.toFixed(2)+'%', avgDur.toFixed(1)+' anni',
       totalNom.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
       totalMV.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
       '100%'
     ].forEach((v, ci) => {
       const c = ws1.getCell(curRow, ci+1);
       c.value = v;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 10);
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 11);
       if (ci >= 3) c.alignment = { horizontal:'right', vertical:'middle' };
+    });
+    // Highlight yield total in green, cedola/anno in amber
+    const ws1YieldCell = ws1.getCell(curRow, 4);
+    ws1YieldCell.font = { bold:true, name:'Calibri', size:12, color:{ argb: C.GREEN } };
+    curRow++;
+
+    // Cedole/anno summary row
+    ws1.getRow(curRow).height = 22;
+    ws1.mergeCells(curRow, 1, curRow, 3);
+    const cedLabel = ws1.getCell(curRow, 1);
+    cedLabel.value = '💰 Cedole / Reddito atteso annuo';
+    cedLabel.font  = { bold:true, name:'Calibri', size:10, color:{ argb: C.AMBER } };
+    cedLabel.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFF8E1' } };
+    cedLabel.alignment = { vertical:'middle' };
+    const cedVal = ws1.getCell(curRow, 6);
+    cedVal.value = totalCed.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+    cedVal.font  = { bold:true, name:'Calibri', size:12, color:{ argb: C.AMBER } };
+    cedVal.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFF8E1' } };
+    cedVal.alignment = { horizontal:'right', vertical:'middle' };
+    [4,5,7,8].forEach(col => {
+      const c = ws1.getCell(curRow, col);
+      c.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFF8E1' } };
     });
     curRow++;
 
@@ -2203,16 +2243,52 @@
     // Spacer before totals
     ws2.getRow(enriched.length + 4).height = 6;
 
-    // Totals row
+    // Totals row — include avgYield in col 7 (Yield%) and avgDur in col 8 (Duration)
     const totRow = enriched.length + 5;
-    ws2.getRow(totRow).height = 28;
-    ['TOTALE','','','','','','','','',
+    ws2.getRow(totRow).height = 30;
+    ['TOTALE','','','','',
+      '', avgYield.toFixed(2)+'%', avgDur.toFixed(1),  // prezzo blank, yield, duration
+      '',
       totalNom, +totalMV.toFixed(2), +totalCed.toFixed(2), ''
     ].forEach((v, ci) => {
       const c = ws2.getCell(totRow, ci+1);
       c.value = v;
       styleHdr(c, C.DARK_BLUE, C.WHITE, 12);
-      if (ci >= 9) c.alignment = { horizontal:'right', vertical:'middle' };
+      if (ci >= 6) c.alignment = { horizontal:'right', vertical:'middle' };
+    });
+    // Highlight yield and cedola/anno cells in totals
+    const yieldTotCell = ws2.getCell(totRow, 7);
+    yieldTotCell.font = { bold:true, name:'Calibri', size:13, color:{ argb: C.GREEN } };
+    yieldTotCell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: C.DARK_BLUE } };
+    const cedTotCell = ws2.getCell(totRow, 12);
+    cedTotCell.font = { bold:true, name:'Calibri', size:13, color:{ argb: C.AMBER } };
+    cedTotCell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: C.DARK_BLUE } };
+
+    // Summary KPI row below totals
+    ws2.getRow(totRow + 1).height = 8;
+    const kpiRow2 = totRow + 2;
+    ws2.getRow(kpiRow2).height = 26;
+    const kpi2Labels = ['Yield Medio Pond.', 'Cedole/Anno', 'Duration Media', 'Val. Mercato', 'Nominale'];
+    const kpi2Colors = [C.GREEN, C.AMBER, C.TEAL, C.DARK_BLUE, C.MID_BLUE];
+    const kpi2Vals = [
+      avgYield.toFixed(2)+'%',
+      totalCed.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+      avgDur.toFixed(1)+' anni',
+      totalMV.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+      totalNom.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+    ];
+    // merge pairs of columns for each KPI block
+    const kpiCols = [1,3,5,7,10]; // start columns for each KPI
+    kpiCols.forEach((col, ki) => {
+      const endCol = ki < 3 ? col+1 : col+2;
+      if (endCol > col) ws2.mergeCells(kpiRow2, col, kpiRow2, endCol);
+      const c = ws2.getCell(kpiRow2, col);
+      c.value = kpi2Labels[ki]+'\n'+kpi2Vals[ki];
+      c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: kpi2Colors[ki] } };
+      c.font  = { bold:true, name:'Calibri', size:11, color:{ argb: C.WHITE } };
+      c.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+      c.border = { top:{style:'thin',color:{argb:C.WHITE}}, left:{style:'thin',color:{argb:C.WHITE}},
+                   bottom:{style:'thin',color:{argb:C.WHITE}}, right:{style:'thin',color:{argb:C.WHITE}} };
     });
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -4609,10 +4685,29 @@
     const itemsHtml = liveAlloc.map((item, idx) => renderAllocItem(item, idx)).join('');
 
     const searchHtml = '<div class="alloc-add-section">'
-      +'<button class="tmpl-search-toggle" onclick="toggleAllocSearch()">🔍 Aggiungi titolo o ETF...</button>'
+      +'<button class="tmpl-search-toggle" onclick="toggleAllocSearch()" id="allocSearchToggle">➕ Aggiungi titolo o ETF...</button>'
       +'<div class="tmpl-search-panel" id="allocSearchPanel">'
-      +'<input class="tmpl-search-input" placeholder="Cerca ISIN, nome emittente, ticker..." oninput="searchAllocItems(this.value)">'
-      +'<div class="tmpl-search-results" id="allocSearchResults"></div>'
+        // Tab bar
+        +'<div class="ab-tabs">'
+          +'<button class="ab-tab active" id="abtab-search" onclick="switchAllocBrowserTab(\'search\')">🔍 Cerca</button>'
+          +'<button class="ab-tab" id="abtab-bonds" onclick="switchAllocBrowserTab(\'bonds\')">📋 Sfoglia Titoli</button>'
+          +'<button class="ab-tab" id="abtab-etfs" onclick="switchAllocBrowserTab(\'etfs\')">📊 Sfoglia ETF</button>'
+        +'</div>'
+        // Pane: search
+        +'<div class="ab-pane active" id="abpane-search">'
+          +'<input class="tmpl-search-input" placeholder="Cerca ISIN, nome, ticker, emittente..." oninput="searchAllocItems(this.value)" id="allocSearchInput">'
+          +'<div class="tmpl-search-results" id="allocSearchResults"><div class="tmpl-search-empty">Digita per cercare…</div></div>'
+        +'</div>'
+        // Pane: bonds browser
+        +'<div class="ab-pane" id="abpane-bonds">'
+          +'<input class="ab-filter" placeholder="Filtra per nome, paese, ISIN..." oninput="renderBondBrowser(this.value)" id="bondBrowserFilter">'
+          +'<div class="ab-scroll" id="bondBrowserScroll"><div class="tmpl-search-empty">Caricamento…</div></div>'
+        +'</div>'
+        // Pane: ETFs browser
+        +'<div class="ab-pane" id="abpane-etfs">'
+          +'<input class="ab-filter" placeholder="Filtra per nome, categoria, ticker..." oninput="renderEtfBrowser(this.value)" id="etfBrowserFilter">'
+          +'<div class="ab-scroll" id="etfBrowserScroll"><div class="tmpl-search-empty">Caricamento…</div></div>'
+        +'</div>'
       +'</div></div>';
 
     document.getElementById('tmplComponents').innerHTML =
@@ -4712,34 +4807,148 @@
   function toggleAllocSearch() {
     const panel = document.getElementById('allocSearchPanel');
     if (!panel) return;
-    panel.classList.toggle('open');
-    if (panel.classList.contains('open')) {
+    const isOpen = panel.classList.toggle('open');
+    const tog = document.getElementById('allocSearchToggle');
+    if (tog) tog.textContent = isOpen ? '✕ Chiudi' : '➕ Aggiungi titolo o ETF...';
+    if (isOpen) {
       if (!etfLoaded) fetchAndRenderETF();
-      const inp = panel.querySelector('.tmpl-search-input');
+      const inp = document.getElementById('allocSearchInput');
       if (inp) { inp.value=''; inp.focus(); }
-      const res = document.getElementById('allocSearchResults');
-      if (res) res.innerHTML = '<div class="tmpl-search-empty">Digita per cercare…</div>';
     }
+  }
+
+  // ── Switch browser tab ────────────────────────────────────────────────────
+  function switchAllocBrowserTab(tab) {
+    ['search','bonds','etfs'].forEach(t => {
+      const btn = document.getElementById('abtab-'+t);
+      const pane = document.getElementById('abpane-'+t);
+      if (btn) btn.classList.toggle('active', t===tab);
+      if (pane) pane.classList.toggle('active', t===tab);
+    });
+    if (tab === 'bonds') {
+      const f = document.getElementById('bondBrowserFilter');
+      renderBondBrowser(f ? f.value : '');
+      if (f) f.focus();
+    }
+    if (tab === 'etfs') {
+      if (!etfLoaded) fetchAndRenderETF().then(() => renderEtfBrowser(''));
+      else renderEtfBrowser('');
+      const f = document.getElementById('etfBrowserFilter');
+      if (f) f.focus();
+    }
+  }
+
+  // ── Render bond browser table ─────────────────────────────────────────────
+  function renderBondBrowser(filterText) {
+    const el = document.getElementById('bondBrowserScroll');
+    if (!el) return;
+    const q = (filterText||'').toLowerCase().trim();
+    const bonds = allBonds
+      .filter(b => b.tipo !== 'ETF' && b.isin && (
+        !q ||
+        (b.isin||'').toLowerCase().includes(q) ||
+        (b.descrizione||'').toLowerCase().includes(q) ||
+        (b.emittente||'').toLowerCase().includes(q) ||
+        (b.paese||'').toLowerCase().includes(q)
+      ))
+      .sort((a,b) => (b.yield||0) - (a.yield||0))
+      .slice(0, 80);
+    if (!bonds.length) {
+      el.innerHTML = '<div class="tmpl-search-empty">Nessun titolo trovato</div>';
+      return;
+    }
+    const defaultNom = _allocDefaultNom();
+    let html = '<table class="ab-table"><thead><tr>'
+      +'<th>Paese</th><th>Descrizione</th><th style="text-align:right">Yield</th>'
+      +'<th style="text-align:right">Dur.</th><th style="text-align:right">Scad.</th><th></th>'
+      +'</tr></thead><tbody>';
+    bonds.forEach((b, bi) => {
+      const badge = (b.isin||'').substr(0,2)||'—';
+      const scad = b.scadenza ? new Date(b.scadenza).getFullYear() : '∞';
+      const yldTxt = b.yield ? b.yield.toFixed(2)+'%' : '—';
+      const yldColor = !b.yield ? 'var(--text2)' : b.yield >= 5 ? '#f59e0b' : '#22c55e';
+      const btnId = 'bbn'+bi;
+      html += '<tr>'
+        +'<td><span class="monitor-badge" style="background:rgba(34,197,94,.1);color:#22c55e;font-size:9px">'+badge+'</span></td>'
+        +'<td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px" title="'+escHtml(b.descrizione)+'">'+escHtml(b.descrizione)+'</td>'
+        +'<td style="text-align:right;font-weight:700;color:'+yldColor+';font-size:10px">'+yldTxt+'</td>'
+        +'<td style="text-align:right;color:var(--text2);font-size:10px">'+(b.duration ? b.duration.toFixed(1) : '—')+'</td>'
+        +'<td style="text-align:right;color:var(--text2);font-size:10px">'+scad+'</td>'
+        +'<td><button class="ab-add-btn" id="'+btnId+'" onclick="addFromAllocSearch(\''+b.isin+'\',\'bond\',\''+escHtml(b.descrizione)+'\','+defaultNom+',this)">+ Agg.</button></td>'
+        +'</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  // ── Render ETF browser table ──────────────────────────────────────────────
+  function renderEtfBrowser(filterText) {
+    const el = document.getElementById('etfBrowserScroll');
+    if (!el) return;
+    if (!etfLoaded) { el.innerHTML = '<div class="tmpl-search-empty">⏳ ETF in caricamento…</div>'; return; }
+    const q = (filterText||'').toLowerCase().trim();
+    const etfs = allETFs
+      .filter(e =>
+        !q ||
+        (e.ticker||'').toLowerCase().includes(q) ||
+        (e.name||'').toLowerCase().includes(q) ||
+        (e.isin||'').toLowerCase().includes(q) ||
+        (e.cat||'').toLowerCase().includes(q)
+      )
+      .slice(0, 80);
+    if (!etfs.length) {
+      el.innerHTML = '<div class="tmpl-search-empty">Nessun ETF trovato</div>';
+      return;
+    }
+    const defaultNom = _allocDefaultNom();
+    let html = '<table class="ab-table"><thead><tr>'
+      +'<th>Ticker</th><th>Nome</th><th>Cat.</th>'
+      +'<th style="text-align:right">Rend.</th><th style="text-align:right">Dur.</th><th></th>'
+      +'</tr></thead><tbody>';
+    etfs.forEach((e, ei) => {
+      const ticker = e.ticker || 'ETF';
+      const yv = e.yld != null ? e.yld : (e.acc && e.ytm != null ? e.ytm : null);
+      const yldTxt = yv != null ? yv.toFixed(2)+'%'+(e.acc&&!e.yld?'<sup style="font-size:7px;opacity:.6">YTM</sup>':'') : '—';
+      const yldColor = !yv ? 'var(--text2)' : yv >= 5 ? '#f59e0b' : '#22c55e';
+      const accPill = '<span style="font-size:8px;font-weight:700;color:'+(e.acc?'#a78bfa':'#34d399')+'">'+(e.acc?'ACC':'DIST')+'</span>';
+      const btnId = 'ebn'+ei;
+      html += '<tr>'
+        +'<td><span class="monitor-badge" style="background:rgba(59,130,246,.15);color:#3b82f6;font-size:9px">'+escHtml(ticker)+'</span></td>'
+        +'<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px" title="'+escHtml(e.name)+'">'+escHtml(e.name)+'</td>'
+        +'<td style="font-size:9px;color:var(--text2)">'+escHtml(e.cat||'')+'<br>'+accPill+'</td>'
+        +'<td style="text-align:right;font-weight:700;color:'+yldColor+';font-size:10px">'+yldTxt+'</td>'
+        +'<td style="text-align:right;color:var(--text2);font-size:10px">'+(e.dur != null ? e.dur.toFixed(1) : '—')+'</td>'
+        +'<td><button class="ab-add-btn" id="'+btnId+'" onclick="addFromAllocSearch(\''+e.isin+'\',\'etf\',\''+escHtml(e.name)+'\','+defaultNom+',this)">+ Agg.</button></td>'
+        +'</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  function _allocDefaultNom() {
+    return liveAlloc.length
+      ? Math.max(1000, Math.round(liveAlloc.reduce((s,i)=>s+i.nominale,0)/liveAlloc.length/1000)*1000)
+      : 5000;
   }
 
   // ── Search bonds + ETFs for the alloc search panel ────────────────────────
   function searchAllocItems(query) {
-    const defaultNom = liveAlloc.length
-      ? Math.max(1000, Math.round(liveAlloc.reduce((s,i)=>s+i.nominale,0)/liveAlloc.length/1000)*1000)
-      : 5000;
+    const defaultNom = _allocDefaultNom();
     const q = (query||'').toLowerCase().trim();
     const container = document.getElementById('allocSearchResults');
     if (!container) return;
     if (q.length < 2) { container.innerHTML = '<div class="tmpl-search-empty">Digita almeno 2 caratteri…</div>'; return; }
+    // Bonds: no yield filter — show all matching bonds
     const bonds = allBonds.filter(b =>
-      b.tipo !== 'ETF' && b.yield > 0 &&
-      (b.isin.toLowerCase().includes(q)||(b.descrizione||'').toLowerCase().includes(q)||(b.emittente||'').toLowerCase().includes(q))
-    ).slice(0,6);
+      b.tipo !== 'ETF' && b.isin &&
+      (b.isin.toLowerCase().includes(q)||(b.descrizione||'').toLowerCase().includes(q)||
+       (b.emittente||'').toLowerCase().includes(q)||(b.paese||'').toLowerCase().includes(q))
+    ).sort((a,b)=>(b.yield||0)-(a.yield||0)).slice(0,8);
     const etfs = allETFs.filter(e =>
       (e.ticker||'').toLowerCase().includes(q)||(e.name||'').toLowerCase().includes(q)||(e.isin||'').toLowerCase().includes(q)
     ).slice(0,5);
     if (!bonds.length && !etfs.length) {
-      container.innerHTML = '<div class="tmpl-search-empty">Nessun risultato per "'+escHtml(query)+'"</div>';
+      container.innerHTML = '<div class="tmpl-search-empty">Nessun risultato — prova a sfogliare i titoli con i tab qui sopra</div>';
       return;
     }
     let html = '';
@@ -4750,7 +4959,7 @@
         const badge = (b.isin||'').substr(0,2)||'GOV';
         const metric = b.yield ? b.yield.toFixed(2)+'%' : '';
         html += buildSugRow('bond', badge, b.descrizione, metric, b.isin, id, defaultNom, false,
-          "addFromAllocSearch('"+b.isin+"','bond','"+escHtml(b.descrizione)+"',document.getElementById('"+id+"').value)", '');
+          "addFromAllocSearch('"+b.isin+"','bond','"+escHtml(b.descrizione)+"',document.getElementById('"+id+"').value,this)", '');
       });
     }
     if (etfs.length) {
@@ -4760,9 +4969,10 @@
         etfs.forEach((e, ei) => {
           const id = 'asr_e'+ei;
           const ticker = e.ticker||'ETF';
-          const metric = e.yld ? e.yld.toFixed(2)+'%' : '';
+          const yv = e.yld != null ? e.yld : (e.acc && e.ytm != null ? e.ytm : null);
+          const metric = yv ? yv.toFixed(2)+'%' : '';
           html += buildSugRow('etf', ticker, e.name, metric, e.isin, id, defaultNom, false,
-            "addFromAllocSearch('"+e.isin+"','etf','"+escHtml(e.name)+"',document.getElementById('"+id+"').value)", '');
+            "addFromAllocSearch('"+e.isin+"','etf','"+escHtml(e.name)+"',document.getElementById('"+id+"').value,this)", '');
         });
       }
     }
@@ -4770,8 +4980,8 @@
   }
 
   // ── Add a searched item to liveAlloc ──────────────────────────────────────
-  function addFromAllocSearch(isin, type, name, nomStr) {
-    const nom = Math.max(1000, Math.round(parseFloat(nomStr||5000)/1000)*1000);
+  function addFromAllocSearch(isin, type, name, nomOrStr, btn) {
+    const nom = Math.max(1000, Math.round(parseFloat(nomOrStr||5000)/1000)*1000);
     if (type === 'bond') {
       const b = allBonds.find(x => x.isin === isin);
       if (b) liveAlloc.push({
@@ -4786,11 +4996,28 @@
         pct:0, label:'Aggiunto', nominale:nom, alts:[],
       });
     }
-    renderAllocView();
-    setTimeout(() => {
-      const panel = document.getElementById('allocSearchPanel');
-      if (panel) panel.classList.add('open');
-    }, 30);
+    // Flash the button green so user sees it was added, then re-render
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Aggiunto'; btn.classList.add('done'); btn.disabled = true;
+      setTimeout(() => {
+        // Re-render keeps the search panel open and on the same tab
+        const activeTab = document.querySelector('.ab-tab.active');
+        const tabId = activeTab ? activeTab.id.replace('abtab-','') : 'search';
+        renderAllocView();
+        setTimeout(() => {
+          const panel = document.getElementById('allocSearchPanel');
+          if (panel) panel.classList.add('open');
+          switchAllocBrowserTab(tabId);
+        }, 20);
+      }, 700);
+    } else {
+      renderAllocView();
+      setTimeout(() => {
+        const panel = document.getElementById('allocSearchPanel');
+        if (panel) panel.classList.add('open');
+      }, 30);
+    }
   }
 
   // ── (kept for backwards compatibility, no longer the primary path) ────────
