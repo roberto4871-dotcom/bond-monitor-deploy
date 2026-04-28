@@ -2019,148 +2019,149 @@
     });
 
     // Blank row 6
-    ws1.getRow(6).height = 12;
+    ws1.getRow(6).height = 16;
 
-    // ── Breakdown per Tipo (row 7+) ───────────────────────────────────────────
     let curRow = 7;
-    sectionHdr(ws1, curRow, '▸ Breakdown per Tipo', 1, 4, C.MID_BLUE); curRow++;
-    ['Tipo','Posizioni','Val. Mercato','% Portafoglio'].forEach((h,ci) => {
-      const c = ws1.getCell(curRow, ci+1);
-      c.value = h;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
-    });
-    ws1.getRow(curRow).height = 18; curRow++;
 
-    const byTipo = {};
-    enriched.forEach(({b, mv}) => {
-      const t = b.tipo === 'ETF' ? 'ETF' : 'Bond Governativo';
-      if (!byTipo[t]) byTipo[t] = { count:0, mv:0 };
-      byTipo[t].count++; byTipo[t].mv += mv;
-    });
-    Object.entries(byTipo).forEach(([tipo, d], ri) => {
-      const bg = ri%2===0 ? C.GRAY_LIGHT : C.WHITE;
-      const row = ws1.getRow(curRow); row.height = 18;
-      [[tipo],[d.count],[d.mv.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})],[(d.mv/totalMV*100).toFixed(1)+'%']].forEach((v,ci) => {
-        const c = ws1.getCell(curRow, ci+1);
-        c.value = v[0];
-        styleData(c, bg);
-        if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
-      });
-      curRow++;
-    });
+    // ── Portfolio rationale (if a template is active) ─────────────────────────
+    const ratText = currentTemplate && currentTemplate.rationale ? currentTemplate.rationale : null;
+    const tmplName = currentTemplate ? currentTemplate.name : null;
+    if (ratText) {
+      // Section header
+      sectionHdr(ws1, curRow, '▸ Strategia del Portafoglio' + (tmplName ? '  —  ' + tmplName : ''), 1, 6, C.MID_BLUE); curRow++;
+      ws1.mergeCells(curRow, 1, curRow, 6);
+      const rc = ws1.getCell(curRow, 1);
+      rc.value = ratText;
+      rc.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFF0F6FF' } };
+      rc.font  = { name:'Calibri', size:11, color:{ argb:C.TEXT_DARK }, italic:true };
+      rc.alignment = { vertical:'middle', horizontal:'left', wrapText:true };
+      rc.border = {
+        top:    { style:'thin', color:{ argb: C.MID_BLUE } },
+        left:   { style:'medium', color:{ argb: C.MID_BLUE } },
+        bottom: { style:'thin', color:{ argb:'FFD1D5DB' } },
+        right:  { style:'thin', color:{ argb:'FFD1D5DB' } },
+      };
+      ws1.getRow(curRow).height = 52; curRow++;
+      ws1.getRow(curRow).height = 14; curRow++;
+    }
 
-    curRow++;
-    // ── Breakdown per Paese ───────────────────────────────────────────────────
-    sectionHdr(ws1, curRow, '▸ Breakdown per Paese / Valuta', 1, 4, C.TEAL); curRow++;
-    ['Paese/Divisa','Posizioni','Val. Mercato','% Portafoglio'].forEach((h,ci) => {
-      const c = ws1.getCell(curRow, ci+1);
-      c.value = h;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
-    });
-    ws1.getRow(curRow).height = 18; curRow++;
-
-    const byPaese = {};
-    enriched.forEach(({b, mv}) => {
-      const key = b.divisa ? `${b.paese||'—'} (${b.divisa})` : b.paese||'—';
-      if (!byPaese[key]) byPaese[key] = { count:0, mv:0 };
-      byPaese[key].count++; byPaese[key].mv += mv;
-    });
-    Object.entries(byPaese).sort((a,b) => b[1].mv-a[1].mv).forEach(([paese, d], ri) => {
-      const bg = ri%2===0 ? C.GRAY_LIGHT : C.WHITE;
-      ws1.getRow(curRow).height = 17;
-      [[paese],[d.count],[d.mv.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})],[(d.mv/totalMV*100).toFixed(1)+'%']].forEach((v,ci) => {
-        const c = ws1.getCell(curRow, ci+1);
-        c.value = v[0];
-        styleData(c, bg);
-        if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
-      });
-      curRow++;
-    });
-
-    curRow++;
-    // ── Scenario Analysis ─────────────────────────────────────────────────────
-    sectionHdr(ws1, curRow, '▸ Analisi di Scenario (variazione tassi)', 1, 6, C.AMBER); curRow++;
-    ['Scenario','Δ Tassi','Δ Prezzo Est.','P&L Stimato','Val. Stimato','Note'].forEach((h,ci) => {
-      const c = ws1.getCell(curRow, ci+1);
-      c.value = h;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
-    });
-    ws1.getRow(curRow).height = 18; curRow++;
-
-    const scenarios = [
-      ['Bull — Taglio forte', -1.5, avgDur*1.5, C.LIGHT_GREEN, 'Taglio FED/BCE >150bps'],
-      ['Bull — Taglio moderato', -0.75, avgDur*0.75, C.LIGHT_TEAL, 'Taglio 50–75bps'],
-      ['Base — Stabile', 0, 0, C.WHITE, 'Tassi invariati'],
-      ['Bear — Rialzo moderato', +0.5, -avgDur*0.5, C.LIGHT_AMBER, 'Rialzo 50bps'],
-      ['Bear — Rialzo forte', +1.0, -avgDur*1.0, C.LIGHT_RED, 'Rialzo >100bps'],
+    // ── Titoli in portafoglio ─────────────────────────────────────────────────
+    sectionHdr(ws1, curRow, '▸ Titoli in Portafoglio', 1, 6, C.DARK_BLUE); curRow++;
+    const sumHdrs = ['Tipo','ISIN','Descrizione','Yield %','Duration','Nominale €','Val. Mercato €','% Port.'];
+    ws1.columns = [
+      { width:8 }, { width:16 }, { width:42 }, { width:10 }, { width:11 }, { width:15 }, { width:16 }, { width:9 },
     ];
-    scenarios.forEach(([label, deltaRate, deltaPct, bg, note]) => {
-      const pnl = totalMV * deltaPct / 100;
-      const estVal = totalMV + pnl;
-      ws1.getRow(curRow).height = 18;
-      [label, (deltaRate>=0?'+':'')+deltaRate.toFixed(2)+'%', (deltaPct>=0?'+':'')+deltaPct.toFixed(1)+'%',
-       (pnl>=0?'+':'')+pnl.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
-       estVal.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}), note
-      ].forEach((v,ci) => {
+    ws1.getRow(curRow).height = 22;
+    sumHdrs.forEach((h, ci) => {
+      const c = ws1.getCell(curRow, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 10);
+    });
+    curRow++;
+
+    enriched.forEach(({pos, b, yv, mv}, ri) => {
+      const isEtf = b.tipo === 'ETF';
+      const etfMeta = isEtf ? allETFs.find(e => e.isin === b.isin) : null;
+      const accLabel = isEtf ? (etfMeta && etfMeta.acc ? 'ETF ACC' : 'ETF DIST') : (b.tipo || 'Bond');
+      const bg = isEtf ? C.LIGHT_BLUE : C.LIGHT_GREEN;
+      ws1.getRow(curRow).height = 22;
+      const rowVals = [
+        accLabel,
+        b.isin || '',
+        b.descrizione || '',
+        yv != null ? yv.toFixed(2) + '%' : '—',
+        b.duration != null ? b.duration.toFixed(1) : '—',
+        pos.nominale,
+        +mv.toFixed(2),
+        (mv / totalMV * 100).toFixed(1) + '%',
+      ];
+      rowVals.forEach((v, ci) => {
         const c = ws1.getCell(curRow, ci+1);
         c.value = v;
         styleData(c, bg);
-        if (ci===3) c.font = { bold:true, name:'Calibri', size:10, color:{ argb: pnl>=0 ? C.GREEN : C.RED } };
-        if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
+        c.font = { name:'Calibri', size:10, color:{ argb: C.TEXT_DARK } };
+        if (ci === 3 && yv != null) {
+          c.font = { bold:true, name:'Calibri', size:10,
+            color:{ argb: yv >= 6 ? C.RED : yv >= 4 ? C.AMBER : C.GREEN } };
+          c.alignment = { horizontal:'right', vertical:'middle' };
+        } else if (ci >= 3) {
+          c.alignment = { horizontal:'right', vertical:'middle' };
+        } else {
+          c.alignment = { vertical:'middle' };
+        }
       });
       curRow++;
     });
+
+    // Totals row
+    ws1.getRow(curRow).height = 24;
+    ['TOTALE','','',  '','',
+      totalNom.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+      totalMV.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+      '100%'
+    ].forEach((v, ci) => {
+      const c = ws1.getCell(curRow, ci+1);
+      c.value = v;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 10);
+      if (ci >= 3) c.alignment = { horizontal:'right', vertical:'middle' };
+    });
+    curRow++;
 
     // ══════════════════════════════════════════════════════════════════════════
     // SHEET 2: 📋 Posizioni
     // ══════════════════════════════════════════════════════════════════════════
     const ws2 = wb.addWorksheet('📋 Posizioni');
     ws2.columns = [
-      { width:8  }, // Tipo
-      { width:16 }, // ISIN
-      { width:40 }, // Descrizione
-      { width:18 }, // Emittente
-      { width:11 }, // Scadenza
-      { width:9  }, // Prezzo
-      { width:8  }, // Yield %
-      { width:9  }, // Duration
-      { width:7  }, // Divisa
-      { width:13 }, // Nominale
-      { width:14 }, // Val. Mercato
-      { width:13 }, // Cedola/anno
-      { width:15 }, // Link
+      { width:10 }, // Tipo
+      { width:18 }, // ISIN
+      { width:46 }, // Descrizione
+      { width:22 }, // Emittente
+      { width:13 }, // Scadenza
+      { width:11 }, // Prezzo
+      { width:10 }, // Yield %
+      { width:11 }, // Duration
+      { width:8  }, // Divisa
+      { width:16 }, // Nominale
+      { width:17 }, // Val. Mercato
+      { width:16 }, // Cedola/anno
+      { width:17 }, // Link
     ];
 
     // Title
     ws2.mergeCells('A1:M1');
     const t2 = ws2.getCell('A1');
     t2.value = `📋 Posizioni Portafoglio  ·  ${positions.length} titoli  ·  ${new Date().toLocaleDateString('it-IT')}`;
-    styleHdr(t2, C.DARK_BLUE, C.WHITE, 13);
+    styleHdr(t2, C.DARK_BLUE, C.WHITE, 15);
     t2.alignment = { horizontal:'left', vertical:'middle' };
-    ws2.getRow(1).height = 36;
+    ws2.getRow(1).height = 48;
 
-    // Header row 2
+    // Spacer row 2
+    ws2.getRow(2).height = 8;
+
+    // Header row 3
     const posHdrs = ['Tipo','ISIN','Descrizione','Emittente','Scadenza','Prezzo','Yield %','Duration','Divisa','Nominale €','Val. Mercato €','Cedola/anno €','Link'];
-    ws2.getRow(2).height = 22;
+    ws2.getRow(3).height = 28;
     posHdrs.forEach((h,ci) => {
-      const c = ws2.getCell(2, ci+1);
+      const c = ws2.getCell(3, ci+1);
       c.value = h;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 11);
     });
-    ws2.views = [{ state:'frozen', ySplit:2 }];
+    ws2.views = [{ state:'frozen', ySplit:3 }];
 
-    // Data rows
+    // Data rows (start at row 4)
     enriched.forEach(({pos, b, yv, mv, ced}, ri) => {
       const isEtf = b.tipo === 'ETF';
+      const etfMeta2 = isEtf ? allETFs.find(e => e.isin === b.isin) : null;
+      const accLabel2 = isEtf ? (etfMeta2 && etfMeta2.acc ? 'ETF ACC' : 'ETF DIST') : (b.tipo || 'Bond');
       const rowBg = isEtf ? C.LIGHT_BLUE : C.LIGHT_GREEN;
       const scad  = b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : 'Perpetuo';
       const linkUrl = isEtf ? jurl(b.isin) : burl(b.isin);
       const linkLabel = isEtf ? 'JustETF ↗' : 'Borsa IT ↗';
-      const rowIdx = ri + 3;
-      ws2.getRow(rowIdx).height = 18;
+      const rowIdx = ri + 4;
+      ws2.getRow(rowIdx).height = 26;
 
       const vals = [
-        b.tipo||'Bond',
+        accLabel2,
         b.isin||'',
         b.descrizione||'',
         b.emittente||'',
@@ -2177,10 +2178,10 @@
       vals.forEach((v, ci) => {
         const c = ws2.getCell(rowIdx, ci+1);
         styleData(c, rowBg);
+        c.font = { name:'Calibri', size:11, color:{ argb: C.TEXT_DARK } };
         if (ci === 6 && yv != null) {
-          // Yield color coding
           c.value = v;
-          c.font = { bold:true, name:'Calibri', size:10,
+          c.font = { bold:true, name:'Calibri', size:11,
             color:{ argb: yv >= 6 ? C.RED : yv >= 4 ? C.AMBER : C.GREEN } };
           c.alignment = { horizontal:'right', vertical:'middle' };
         } else if (ci >= 5 && v !== null) {
@@ -2188,25 +2189,29 @@
           c.alignment = { horizontal:'right', vertical:'middle' };
         } else if (v !== null) {
           c.value = v;
+          c.alignment = { vertical:'middle' };
         }
       });
       // Link cell
       const lc = ws2.getCell(rowIdx, 13);
       lc.value = { text: linkLabel, hyperlink: linkUrl };
-      lc.font  = { name:'Calibri', size:10, color:{ argb: C.MID_BLUE }, underline:true };
+      lc.font  = { name:'Calibri', size:11, color:{ argb: C.MID_BLUE }, underline:true };
       styleData(lc, rowBg);
       lc.alignment = { horizontal:'center', vertical:'middle' };
     });
 
+    // Spacer before totals
+    ws2.getRow(enriched.length + 4).height = 6;
+
     // Totals row
-    const totRow = enriched.length + 3;
-    ws2.getRow(totRow).height = 22;
+    const totRow = enriched.length + 5;
+    ws2.getRow(totRow).height = 28;
     ['TOTALE','','','','','','','','',
       totalNom, +totalMV.toFixed(2), +totalCed.toFixed(2), ''
     ].forEach((v, ci) => {
       const c = ws2.getCell(totRow, ci+1);
       c.value = v;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 10);
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 12);
       if (ci >= 9) c.alignment = { horizontal:'right', vertical:'middle' };
     });
 
@@ -2215,15 +2220,15 @@
     // ══════════════════════════════════════════════════════════════════════════
     const ws3 = wb.addWorksheet('📈 Analisi');
     ws3.columns = [
-      { width:26 }, { width:16 }, { width:16 }, { width:16 }, { width:16 }, { width:16 },
+      { width:30 }, { width:18 }, { width:20 }, { width:18 }, { width:18 }, { width:18 },
     ];
 
     ws3.mergeCells('A1:F1');
     const t3 = ws3.getCell('A1');
     t3.value = '📈 Analisi del Portafoglio — Distribuzioni & Top Posizioni';
-    styleHdr(t3, C.DARK_BLUE, C.WHITE, 13);
+    styleHdr(t3, C.DARK_BLUE, C.WHITE, 15);
     t3.alignment = { horizontal:'left', vertical:'middle' };
-    ws3.getRow(1).height = 36;
+    ws3.getRow(1).height = 48;
 
     let aRow = 3;
 
@@ -2232,9 +2237,9 @@
     ['Fascia Duration','Posizioni','Val. Mercato','% Port.'].forEach((h,ci) => {
       const c = ws3.getCell(aRow, ci+1);
       c.value = h;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 11);
     });
-    ws3.getRow(aRow).height = 18; aRow++;
+    ws3.getRow(aRow).height = 24; aRow++;
 
     const durBuckets = [
       ['0–2 anni',  0, 2],
@@ -2250,12 +2255,14 @@
       });
       const bMV = items.reduce((s,x) => s+x.mv, 0);
       const bg  = ri%2===0 ? C.GRAY_LIGHT : C.WHITE;
-      ws3.getRow(aRow).height = 17;
+      ws3.getRow(aRow).height = 22;
       [label, items.length, bMV.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}), (totalMV>0?(bMV/totalMV*100).toFixed(1):0)+'%'].forEach((v,ci) => {
         const c = ws3.getCell(aRow, ci+1);
         c.value = v;
         styleData(c, bg);
+        c.font = { name:'Calibri', size:11, color:{ argb: C.TEXT_DARK } };
         if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
+        else c.alignment = { vertical:'middle' };
       });
       aRow++;
     });
@@ -2266,9 +2273,9 @@
     ['Fascia Yield','Posizioni','Val. Mercato','% Port.'].forEach((h,ci) => {
       const c = ws3.getCell(aRow, ci+1);
       c.value = h;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 11);
     });
-    ws3.getRow(aRow).height = 18; aRow++;
+    ws3.getRow(aRow).height = 24; aRow++;
 
     const yldBuckets = [
       ['< 2%',    0,   2,   C.LIGHT_TEAL],
@@ -2283,30 +2290,32 @@
         return y >= lo && y < hi;
       });
       const bMV = items.reduce((s,x) => s+x.mv, 0);
-      ws3.getRow(aRow).height = 17;
+      ws3.getRow(aRow).height = 22;
       [label, items.length, bMV.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}), (totalMV>0?(bMV/totalMV*100).toFixed(1):0)+'%'].forEach((v,ci) => {
         const c = ws3.getCell(aRow, ci+1);
         c.value = v;
         styleData(c, bg);
+        c.font = { name:'Calibri', size:11, color:{ argb: C.TEXT_DARK } };
         if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
+        else c.alignment = { vertical:'middle' };
       });
       aRow++;
     });
 
     aRow++;
     // ── Top 10 positions ─────────────────────────────────────────────────────
-    sectionHdr(ws3, aRow, '▸ Top 10 Posizioni per Valore di Mercato', 1, 5, C.GREEN); aRow++;
+    sectionHdr(ws3, aRow, '▸ Top 10 Posizioni per Valore di Mercato', 1, 6, C.GREEN); aRow++;
     ['#','Descrizione','Tipo','Yield %','Val. Mercato','% Port.'].forEach((h,ci) => {
       const c = ws3.getCell(aRow, ci+1);
       c.value = h;
-      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 11);
     });
-    ws3.getRow(aRow).height = 18; aRow++;
+    ws3.getRow(aRow).height = 24; aRow++;
 
     enriched.slice().sort((a,b) => b.mv-a.mv).slice(0,10).forEach(({b, yv, mv}, ri) => {
       const isEtf = b.tipo === 'ETF';
       const bg = isEtf ? C.LIGHT_BLUE : C.LIGHT_GREEN;
-      ws3.getRow(aRow).height = 18;
+      ws3.getRow(aRow).height = 24;
       [ri+1, b.descrizione||b.isin, b.tipo||'Bond', yv!=null?yv.toFixed(2)+'%':'—',
        mv.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
        (mv/totalMV*100).toFixed(1)+'%'
@@ -2314,8 +2323,10 @@
         const c = ws3.getCell(aRow, ci+1);
         c.value = v;
         styleData(c, bg);
+        c.font = { name:'Calibri', size:11, color:{ argb: C.TEXT_DARK } };
         if (ci===0) c.alignment = { horizontal:'center', vertical:'middle' };
-        if (ci>=3)  c.alignment = { horizontal:'right',  vertical:'middle' };
+        else if (ci>=3) c.alignment = { horizontal:'right', vertical:'middle' };
+        else c.alignment = { vertical:'middle' };
       });
       aRow++;
     });
@@ -2929,9 +2940,11 @@
         <td onclick="event.stopPropagation()"><button class="wl-star c1 ${inPort}" style="font-size:16px;font-style:normal;" onclick="addETFToPortfolio('${e.isin}')" title="+ Portafoglio">+</button></td>
         <td style="font-weight:600;font-family:monospace;color:${gc}">${e.ticker || '—'}</td>
         <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(e.name)}">${escHtml(e.name)}</td>
-        <td><span class="cat-badge" style="${catBadgeStyle}">${escHtml(e.cat)}</span></td>
+        <td><span class="cat-badge" style="${catBadgeStyle}">${escHtml(e.cat)}</span> <span style="font-size:9px;font-weight:700;letter-spacing:.3px;padding:1px 4px;border-radius:3px;${e.acc?'background:rgba(167,139,250,0.15);color:#a78bfa':'background:rgba(52,211,153,0.15);color:#34d399'}">${e.acc?'ACC':'DIST'}</span></td>
         <td style="font-weight:600">${e.price != null ? e.price.toFixed(2) + ' ' + (e.currency||'EUR') : '—'}</td>
-        <td style="color:var(--green);font-weight:600">${e.yld != null ? e.yld.toFixed(2) + '%' : '—'}</td>
+        <td style="color:var(--green);font-weight:600">
+          ${e.yld != null ? e.yld.toFixed(2) + '%' : (e.acc && e.ytm != null ? '<span title="YTM stimato portafoglio sottostante (ETF ad accumulazione)" style="color:var(--text2)">' + e.ytm.toFixed(2) + '%<sup style=\'font-size:8px\'>YTM</sup></span>' : '—')}
+        </td>
         <td class="${pctCls(e.changePercent)}">${fmtPct(e.changePercent)}</td>
         <td class="${pctCls(ytdV)}">${fmtPct(ytdV)}</td>
         <td style="color:var(--text2)">${e.low52w != null ? e.low52w.toFixed(2) : '—'}</td>
@@ -3581,8 +3594,16 @@
     if (b.tipo === 'ETF') {
       const live = allETFs.find(e => e.isin === b.isin);
       if (live && live.yld != null) return live.yld;
+      // Per ETF ad accumulazione: fallback su YTM statico del portafoglio sottostante
+      if (live && live.acc && live.ytm != null) return live.ytm;
     }
     return null;
+  }
+
+  // Restituisce true se l'ETF è ad accumulazione
+  function isAccETF(isin) {
+    const e = allETFs.find(x => x.isin === isin);
+    return !!(e && e.acc);
   }
 
   function renderPortfolio() {
@@ -3599,15 +3620,26 @@
     tbody.innerHTML = positions.map(pos => {
       const b   = pos.bond;
       const isETF = b.tipo === 'ETF';
+      const acc   = isETF && isAccETF(b.isin);
       const yv  = resolveYield(b) ?? 0;
       const mv  = pos.nominale * (b.prezzo || 100) / 100;
       const ced = pos.nominale * yv / 100;
       const rowCls   = yv >= 5 ? 'port-row-high' : yv >= 3 ? 'port-row-mid' : yv > 0 ? 'port-row-low' : 'port-row-none';
       const yieldCls = yv >= 5 ? 'port-yield-hi'  : yv >= 3 ? 'port-yield-md'  : 'port-yield-lo';
       const yieldTxt = yv > 0 ? yv.toFixed(2)+'%' : (resolveYield(b) != null ? '0.00%' : '—');
-      const yieldNote = isETF && b.yield == null && yv > 0 ? ' <span style="font-size:9px;opacity:.6" title="Dato live da ETF">~</span>' : '';
+      // Per ETF ACC: se lo yield viene da ytm statico, aggiungi nota "~"
+      const liveEtf = isETF ? allETFs.find(e => e.isin === b.isin) : null;
+      const fromStaticYtm = acc && liveEtf && liveEtf.ytm != null && (liveEtf.yld == null) && b.yield == null;
+      const yieldNote = fromStaticYtm ? ' <span style="font-size:9px;opacity:.55;font-weight:normal" title="YTM stimato portafoglio sottostante (ETF ad accumulazione)">YTM~</span>' : '';
+      // Badge tipo + ACC/DIST sub-label
+      const accDistBadge = isETF
+        ? `<span style="display:inline-flex;flex-direction:column;gap:1px;align-items:center">
+            <span class="monitor-badge" style="background:rgba(59,130,246,0.15);color:#3b82f6">ETF</span>
+            <span style="font-size:9px;font-weight:700;letter-spacing:.4px;color:${acc?'#a78bfa':'#34d399'}">${acc?'ACC':'DIST'}</span>
+           </span>`
+        : `<span class="monitor-badge" style="background:rgba(34,197,94,0.1);color:#22c55e">${b.tipo||'Bond'}</span>`;
       return `<tr class="${rowCls}">
-        <td><span class="monitor-badge" style="${isETF?'background:rgba(59,130,246,0.15);color:#3b82f6':'background:rgba(34,197,94,0.1);color:#22c55e'}">${b.tipo||'Bond'}</span></td>
+        <td>${accDistBadge}</td>
         <td>
           <span class="port-desc-main" title="${escHtml(b.descrizione)}">${escHtml(b.descrizione)}</span>
           <span class="port-desc-isin">${b.isin}</span>
