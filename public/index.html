@@ -3776,6 +3776,9 @@
     const inp = document.getElementById('tmplAmountInput');
     if (inp) inp.value = tmplAmount;
     liveAlloc = buildEtfAlloc(currentTemplate, tmplAmount);
+    // Always reset the add-all button so it's never stuck from a previous session
+    const btn = document.getElementById('tmplAddAllBtn');
+    if (btn) { btn.disabled = false; btn.textContent = '🧳 Aggiungi tutto al portafoglio'; }
     renderTmplModal();
     document.getElementById('tmplOverlay').classList.add('show');
   }
@@ -4189,35 +4192,70 @@
   async function addAllTemplate() {
     if (!currentTemplate || !liveAlloc.length) return;
     const btn = document.getElementById('tmplAddAllBtn');
+    const origLabel = btn ? btn.textContent : '';
     if (btn) { btn.textContent = '⏳ Caricamento...'; btn.disabled = true; }
-    // Need ETF data for ETF items
-    const hasEtf = liveAlloc.some(item => item.type === 'etf');
-    if (hasEtf && !etfLoaded) await fetchAndRenderETF();
-    for (const item of liveAlloc) {
-      // Read current input value (user may have edited it)
-      const nomEl = document.getElementById('alnom'+liveAlloc.indexOf(item));
-      const nom   = nomEl ? Math.max(1000,Math.round(parseFloat(nomEl.value)/1000)*1000) : item.nominale;
-      if (item.type === 'etf') {
-        const etf = allETFs.find(x => x.isin === item.isin);
-        portfolio[item.isin] = {
-          bond: {
-            isin: item.isin, descrizione: etf ? etf.name : item.name, emittente: item.ticker||'',
-            scadenza: null, prezzo: etf ? (etf.price||100) : 100,
-            yield: etf ? etf.yld||null : null, duration: etf ? etf.dur||null : null,
-            divisa: etf ? (etf.currency||'EUR') : 'EUR', tipo: 'ETF',
-            cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
-          },
-          nominale: nom,
-        };
-      } else {
-        const b = allBonds.find(x => x.isin === item.isin);
-        if (b) portfolio[item.isin] = { bond: b, nominale: nom };
+
+    try {
+      // Load ETF data if not already loaded (only if needed)
+      const hasEtf = liveAlloc.some(item => item.type === 'etf');
+      if (hasEtf && !etfLoaded) {
+        await Promise.race([
+          fetchAndRenderETF(),
+          new Promise(res => setTimeout(res, 10000)), // 10s max wait
+        ]);
       }
+
+      // Snapshot nominal values from DOM before any re-render
+      const nominals = liveAlloc.map((_, idx) => {
+        const el = document.getElementById('alnom'+idx);
+        return el ? Math.max(1000, Math.round(parseFloat(el.value)||1000) / 1000 * 1000) : liveAlloc[idx].nominale;
+      });
+
+      for (let i = 0; i < liveAlloc.length; i++) {
+        const item = liveAlloc[i];
+        const nom  = nominals[i];
+        if (item.type === 'etf') {
+          const etf = allETFs.find(x => x.isin === item.isin);
+          portfolio[item.isin] = {
+            bond: {
+              isin: item.isin, descrizione: etf ? etf.name : (item.name||item.isin),
+              emittente: item.ticker||'',
+              scadenza: null, prezzo: etf ? (etf.price||100) : 100,
+              yield: etf ? (etf.yld||null) : null, duration: etf ? (etf.dur||null) : null,
+              divisa: etf ? (etf.currency||'EUR') : 'EUR', tipo: 'ETF',
+              cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
+            },
+            nominale: nom,
+          };
+        } else {
+          const b = allBonds.find(x => x.isin === item.isin);
+          if (b) {
+            portfolio[item.isin] = { bond: b, nominale: nom };
+          } else if (item.isin) {
+            // Bond not yet in allBonds → create record from item metadata
+            portfolio[item.isin] = {
+              bond: {
+                isin: item.isin, descrizione: item.name||item.isin,
+                emittente: item.paese||'', scadenza: null,
+                prezzo: item.prezzo||100, yield: item.yield||null,
+                duration: item.duration||null, divisa: 'EUR',
+                tipo: 'GOV', paese: item.paese||'', monitor: item.paese||'',
+              },
+              nominale: nom,
+            };
+          }
+        }
+      }
+
+      savePortfolio();
+      closeTmpl();
+      switchPanel('portfolio');
+      renderPortfolio();
+
+    } catch (err) {
+      console.error('[addAllTemplate]', err);
+      if (btn) { btn.textContent = origLabel; btn.disabled = false; }
     }
-    savePortfolio();
-    closeTmpl();
-    switchPanel('portfolio');
-    renderPortfolio();
   }
 
 </script>
