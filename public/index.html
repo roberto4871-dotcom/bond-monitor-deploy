@@ -2581,10 +2581,11 @@
     XLSX.writeFile(wb, `bond_monitor_${date}.xlsx`);
   }
 
-  // ── ETF Excel export (SheetJS) ────────────────────────────────────────────
-  function exportETFXLSX() {
-    if (!window.XLSX) { alert('Libreria Excel non ancora caricata — riprova'); return; }
+  // ── ETF Excel export (ExcelJS — professional styling) ────────────────────
+  async function exportETFXLSX() {
+    if (typeof ExcelJS === 'undefined') { alert('Libreria ExcelJS non ancora caricata — riprova'); return; }
     if (!etfLoaded || !allETFs.length) { alert('Apri prima il pannello ETF per caricare i dati'); return; }
+
     const date   = new Date().toISOString().slice(0,10);
     const search = (document.getElementById('etfSearch')?.value||'').toLowerCase();
     const etfs   = allETFs.filter(e => {
@@ -2598,38 +2599,194 @@
       return true;
     });
     if (!etfs.length) { alert('Nessun ETF corrisponde ai filtri correnti'); return; }
-    const wb   = XLSX.utils.book_new();
+
     const jurl = isin => `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
     const burl = isin => `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
-    const hdr  = ['ISIN','Ticker','Nome','Categoria','Valuta',
-                  'Prezzo','Yield %','Var %','YTD %','Min 52W','Max 52W',
-                  'Duration','TER %','JustETF','Borsa Italiana'];
-    const data = [hdr];
-    etfs.forEach(e => {
-      const ytd = e.ytdReturn    != null ? +(e.ytdReturn*100).toFixed(2)    : '';
-      const chg = e.changePercent != null ? +(e.changePercent*100).toFixed(2) : '';
-      data.push([e.isin, e.ticker||'', e.name||'', e.cat||'', e.currency||'EUR',
-        e.price  != null ? e.price  : '',
-        e.yld    != null ? e.yld    : '',
-        chg, ytd,
-        e.low52w  != null ? e.low52w  : '',
-        e.high52w != null ? e.high52w : '',
-        e.dur     != null ? e.dur     : '',
-        e.ter     != null ? e.ter     : '',
-        jurl(e.isin), burl(e.isin)]);
+
+    const C = {
+      DARK_BLUE:'FF1E3A5F', MID_BLUE:'FF1D4ED8', LIGHT_BLUE:'FFDBEAFE',
+      GREEN:'FF15803D', LIGHT_GREEN:'FFDCFCE7', AMBER:'FFD97706', LIGHT_AMBER:'FFFEF3C7',
+      RED:'FFDC2626', TEAL:'FF0D9488', LIGHT_TEAL:'FFCCFBF1',
+      WHITE:'FFFFFFFF', TEXT_DARK:'FF1F2937', TEXT_MID:'FF6B7280',
+      PURPLE:'FF7C3AED', LIGHT_PURPLE:'FFEDE9FE',
+    };
+    const border = { top:{style:'hair',color:{argb:'FFE5E7EB'}}, left:{style:'hair',color:{argb:'FFE5E7EB'}},
+                     bottom:{style:'hair',color:{argb:'FFE5E7EB'}}, right:{style:'hair',color:{argb:'FFE5E7EB'}} };
+    const thBorder = { top:{style:'thin',color:{argb:'FFE5E7EB'}}, left:{style:'thin',color:{argb:'FFE5E7EB'}},
+                       bottom:{style:'medium',color:{argb:'FFE5E7EB'}}, right:{style:'thin',color:{argb:'FFE5E7EB'}} };
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Bond Monitor'; wb.created = new Date();
+
+    // ── Group ETFs by category for grouped sheet ──────────────────────────────
+    const groups = ETF_GROUPS.map(g => ({
+      ...g,
+      items: etfs.filter(e => g.cats.includes(e.cat))
+    })).filter(g => g.items.length > 0);
+
+    // ── Sheet 1: 📊 Riepilogo ──────────────────────────────────────────────────
+    const ws1 = wb.addWorksheet('📊 Riepilogo');
+    ws1.columns = [
+      {width:8},{width:7},{width:44},{width:24},{width:7},
+      {width:10},{width:10},{width:10},{width:10},{width:11},{width:11},
+      {width:10},{width:7},{width:18},{width:20},
+    ];
+
+    // Title band
+    ws1.mergeCells('A1:O1');
+    const t1 = ws1.getCell('A1');
+    t1.value = `📊 ETF Obbligazionari — Bond Monitor  ·  ${new Date().toLocaleDateString('it-IT')}  ·  ${etfs.length} ETF`;
+    t1.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: C.DARK_BLUE } };
+    t1.font = { bold:true, name:'Calibri', size:16, color:{ argb: C.WHITE } };
+    t1.alignment = { horizontal:'left', vertical:'middle' };
+    ws1.getRow(1).height = 52;
+
+    // Subtitle
+    ws1.mergeCells('A2:O2');
+    const sub1 = ws1.getCell('A2');
+    sub1.value = 'Dati aggiornati in tempo reale. Yield: distribuzione annua live o stima YTM (simbolo ~). ACC = accumulazione. DIST = distribuzione.';
+    sub1.font = { italic:true, name:'Calibri', size:9, color:{ argb: C.TEXT_MID } };
+    sub1.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFF0F4FF' } };
+    sub1.alignment = { horizontal:'left', vertical:'middle' };
+    ws1.getRow(2).height = 18;
+
+    // KPI summary strip
+    const allYlds = etfs.filter(e => e.yld != null || e.ytm != null);
+    const avgYld  = allYlds.length ? allYlds.reduce((s,e) => s+(e.yld??e.ytm??0), 0)/allYlds.length : 0;
+    const avgDur2 = etfs.filter(e=>e.dur!=null).reduce((s,e)=>s+(e.dur??0),0) / (etfs.filter(e=>e.dur!=null).length||1);
+    const avgTer  = etfs.filter(e=>e.ter!=null).reduce((s,e)=>s+(e.ter??0),0) / (etfs.filter(e=>e.ter!=null).length||1);
+    const nAcc    = etfs.filter(e=>e.acc).length;
+    const nDist   = etfs.length - nAcc;
+    const kpiDefs = [
+      { label:'ETF Totali', val: etfs.length.toString(), col:C.DARK_BLUE },
+      { label:'Accumulazione', val: nAcc.toString(), col:C.PURPLE },
+      { label:'Distribuzione', val: nDist.toString(), col:C.TEAL },
+      { label:'Yield Medio', val: avgYld.toFixed(2)+'%', col:C.GREEN },
+      { label:'Duration Media', val: avgDur2.toFixed(1)+' anni', col:C.MID_BLUE },
+      { label:'TER Medio', val: avgTer.toFixed(2)+'%', col:C.AMBER },
+    ];
+    ws1.getRow(3).height = 8;
+    ws1.getRow(4).height = 40;
+    const kpiW = [1,3,5,7,9,12]; // starting cols (pairs)
+    kpiDefs.forEach((k, ki) => {
+      const c1 = kpiW[ki], c2 = c1+1;
+      if (c2 <= 15) ws1.mergeCells(4, c1, 4, c2);
+      const c = ws1.getCell(4, c1);
+      c.value = k.label+'\n'+k.val;
+      c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: k.col } };
+      c.font  = { bold:true, name:'Calibri', size:13, color:{ argb: C.WHITE } };
+      c.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+      c.border = { top:{style:'thin',color:{argb:C.WHITE}}, left:{style:'thin',color:{argb:C.WHITE}},
+                   bottom:{style:'thin',color:{argb:C.WHITE}}, right:{style:'thin',color:{argb:C.WHITE}} };
     });
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    etfs.forEach((e, ri) => {
-      const jc = XLSX.utils.encode_cell({ r: ri+1, c: 13 });
-      const bc = XLSX.utils.encode_cell({ r: ri+1, c: 14 });
-      if (ws[jc]) { ws[jc].v = 'JustETF ↗';        ws[jc].l = { Target: jurl(e.isin) }; }
-      if (ws[bc]) { ws[bc].v = 'Borsa Italiana ↗'; ws[bc].l = { Target: burl(e.isin) }; }
+    ws1.getRow(5).height = 8;
+
+    // Column headers
+    ws1.getRow(6).height = 28;
+    const hdrs = ['Tipo','ISIN','Nome ETF','Categoria','Val.','Prezzo','Yield %','Var %','YTD %','Min 52W','Max 52W','Duration','TER %','JustETF','Borsa IT'];
+    hdrs.forEach((h, ci) => {
+      const c = ws1.getCell(6, ci+1);
+      c.value = h;
+      c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.DARK_BLUE } };
+      c.font  = { bold:true, name:'Calibri', size:10, color:{ argb: C.WHITE } };
+      c.alignment = { horizontal: ci < 2 ? 'center' : (ci >= 5 ? 'right' : 'left'), vertical:'middle' };
+      c.border = thBorder;
     });
-    ws['!cols'] = [{wch:16},{wch:8},{wch:42},{wch:22},{wch:7},
-                   {wch:10},{wch:8},{wch:8},{wch:8},{wch:10},{wch:10},
-                   {wch:10},{wch:7},{wch:20},{wch:22}];
-    XLSX.utils.book_append_sheet(wb, ws, 'ETF');
-    XLSX.writeFile(wb, `etf_export_${date}.xlsx`);
+    ws1.views = [{ state:'frozen', ySplit:6 }];
+
+    // Data rows — iterate by group for colour banding
+    let dRow = 7;
+    groups.forEach(g => {
+      // Group header
+      ws1.mergeCells(dRow, 1, dRow, 15);
+      const gh = ws1.getCell(dRow, 1);
+      gh.value = `${g.icon}  ${g.label.toUpperCase()}  (${g.items.length} ETF)`;
+      gh.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: g.color.replace('#','FF') } };
+      gh.font  = { bold:true, name:'Calibri', size:10, color:{ argb: C.WHITE } };
+      gh.alignment = { horizontal:'left', vertical:'middle' };
+      ws1.getRow(dRow).height = 20; dRow++;
+
+      g.items.forEach((e, ri) => {
+        const rowBg = ri % 2 === 0 ? 'FFFAFAFA' : C.WHITE;
+        ws1.getRow(dRow).height = 20;
+
+        const accLabel = e.acc ? 'ACC' : 'DIST';
+        const accColor = e.acc ? C.PURPLE : C.TEAL;
+        const yv = e.yld ?? e.ytm;
+        const ytd = e.ytdReturn != null ? +(e.ytdReturn*100).toFixed(2) : null;
+        const chg = e.changePercent != null ? +(e.changePercent*100).toFixed(2) : null;
+
+        // ACC/DIST badge col 1
+        const c1 = ws1.getCell(dRow, 1);
+        c1.value = accLabel;
+        c1.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: e.acc ? C.LIGHT_PURPLE : C.LIGHT_TEAL } };
+        c1.font  = { bold:true, name:'Calibri', size:9, color:{ argb: accColor } };
+        c1.alignment = { horizontal:'center', vertical:'middle' }; c1.border = border;
+
+        const rowVals = [
+          e.isin, e.name||'', e.cat||'', e.currency||'EUR',
+          e.price != null ? e.price : '—',
+          yv != null ? +yv.toFixed(2) : '—',
+          chg != null ? chg : '—',
+          ytd != null ? ytd : '—',
+          e.low52w  != null ? e.low52w  : '—',
+          e.high52w != null ? e.high52w : '—',
+          e.dur != null ? e.dur : '—',
+          e.ter != null ? e.ter : '—',
+        ];
+        rowVals.forEach((v, ci) => {
+          const c = ws1.getCell(dRow, ci+2);
+          c.value = v === '—' ? '—' : v;
+          c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: rowBg } };
+          c.font  = { name:'Calibri', size:10, color:{ argb: C.TEXT_DARK } };
+          c.border = border;
+          // Numeric columns: right align + colour
+          if (ci >= 4) {
+            c.alignment = { horizontal:'right', vertical:'middle' };
+            if (ci === 4 && typeof v === 'number' && v > 0) {  // Yield
+              c.font = { bold:true, name:'Calibri', size:10, color:{ argb: v >= 5 ? C.AMBER : C.GREEN } };
+              c.numFmt = '0.00"%"';
+            } else if ((ci === 5 || ci === 6) && typeof v === 'number') { // Var / YTD
+              c.font = { name:'Calibri', size:9, color:{ argb: v >= 0 ? C.GREEN : C.RED } };
+              c.numFmt = '0.00"%"';
+            } else if (ci >= 7 && ci <= 9 && typeof v === 'number') { // 52W min/max, duration
+              c.numFmt = '0.00'; c.font = { name:'Calibri', size:9, color:{ argb: C.TEXT_MID } };
+            }
+          } else {
+            c.alignment = { horizontal: ci === 0 ? 'left' : 'left', vertical:'middle' };
+            if (ci === 0) c.font = { bold:true, name:'Calibri', size:10, color:{ argb: C.TEXT_DARK } }; // ISIN
+            if (ci === 1) c.font = { name:'Calibri', size:10, color:{ argb: C.TEXT_DARK } }; // Name
+            if (ci === 2) c.font = { name:'Calibri', size:9, italic:true, color:{ argb: C.TEXT_MID } }; // Cat
+          }
+        });
+
+        // Link cells
+        const jc = ws1.getCell(dRow, 14);
+        jc.value = { text:'JustETF ↗', hyperlink: jurl(e.isin) };
+        jc.font  = { name:'Calibri', size:9, color:{ argb: C.MID_BLUE }, underline:true };
+        jc.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: rowBg } };
+        jc.alignment = { horizontal:'center', vertical:'middle' }; jc.border = border;
+
+        const bc = ws1.getCell(dRow, 15);
+        bc.value = { text:'Borsa IT ↗', hyperlink: burl(e.isin) };
+        bc.font  = { name:'Calibri', size:9, color:{ argb: C.MID_BLUE }, underline:true };
+        bc.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: rowBg } };
+        bc.alignment = { horizontal:'center', vertical:'middle' }; bc.border = border;
+
+        dRow++;
+      });
+      // Group spacer
+      ws1.getRow(dRow).height = 4; dRow++;
+    });
+
+    // Download
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `etf_export_${date}.xlsx`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
   // ─────────────────────────────────────────────
