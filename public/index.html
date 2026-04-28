@@ -797,6 +797,7 @@
     </div>
   </div>
   <div class="header-right">
+    <button onclick="openGlobalSearch()" title="Ricerca globale (Cmd+K)" style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;">🔍 <kbd style="font-size:9px;padding:1px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;color:var(--text2)">⌘K</kbd></button>
     <div id="spreadWidget" style="font-size:12px;color:var(--text2);display:flex;gap:10px;align-items:center;"></div>
     <div class="countdown">Prossimo aggiornamento: <span id="countdown">--:--</span></div>
     <div class="status-badge">
@@ -915,6 +916,9 @@
           <option value="200">200 per pagina</option>
           <option value="999999">Tutti</option>
         </select>
+        <button class="btn btn-secondary print-hide" onclick="openScreener()" title="Screener avanzato multi-criterio">🔍 Screener</button>
+        <button class="btn btn-secondary print-hide" onclick="openYTMCalculator()" title="Calcolatore YTM">🧮 Calc</button>
+        <button class="btn btn-secondary print-hide" onclick="openChartComparison()" title="Confronta grafici">📈 Confronta</button>
         <button class="btn btn-secondary print-hide" onclick="exportCSV()">⬇ CSV</button>
         <button class="btn btn-secondary print-hide" onclick="exportBondXLSX()" title="Esporta tabella filtrata in Excel con link Borsa Italiana">📊 Excel</button>
         <button class="btn btn-secondary print-hide" onclick="exportPDF()">🖨 PDF</button>
@@ -968,6 +972,7 @@
         <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
           <span>🏦 ETF Bond — prezzi in tempo reale</span>
           <div style="display:flex;gap:8px">
+            <button onclick="openChartComparison()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;" title="Confronta grafici di due titoli">📈 Confronta</button>
             <button onclick="exportETFXLSX()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;" title="Esporta tabella ETF in Excel con link JustETF e Borsa Italiana">📊 Excel</button>
             <button onclick="reloadETF()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;">↻ Aggiorna</button>
           </div>
@@ -1041,6 +1046,10 @@
         <div id="yieldCurvePanel" style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
           <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Curva BTP (rendimenti per scadenza)</div>
           <svg id="yieldCurveSvg" width="100%" height="180"></svg>
+        </div>
+        <div style="margin-top:16px;padding:12px 16px 4px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">📅 Prossimi eventi macro</div>
+          <div id="macroCalendar" style="padding:0 0 8px"></div>
         </div>
       </div>
     </div>
@@ -1802,7 +1811,7 @@
         <td class="emittente-cell" onclick="openChartByIdx(this.parentElement)">${escHtml(b.mercato || '—')}</td>
         <td class="print-hide" onclick="event.stopPropagation()" style="white-space:nowrap;">
           <button class="btn-add-port" onclick="addToPortfolio(filteredBonds[${start+i}])" title="Aggiungi al portafoglio">+ Port.</button>
-          <button class="btn-add-port" onclick="openCalc(filteredBonds[${start+i}])" title="Calcolatore rendimento" style="margin-left:2px;">🧮</button>
+          <button class="btn-add-port" onclick="openYTMCalculator('${b.isin}')" title="Calcolatore YTM" style="margin-left:2px;">🧮</button>
         </td>
       </tr>`;
     }).join('');
@@ -3167,7 +3176,7 @@
     if (panel === 'yieldcurve') renderYieldCurve();
     if (panel === 'ladder')     renderLadder();
     if (panel === 'etf')        loadETFPanel();
-    if (panel === 'macro')      loadMacroPanel();
+    if (panel === 'macro')      { loadMacroPanel(); renderMacroCalendar(); }
     if (panel === 'portfolio')  renderPortfolio();
   }
 
@@ -6508,7 +6517,748 @@
     document.body.insertAdjacentHTML('beforeend', html);
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 10 — GLOBAL SEARCH (Cmd+K)
+  // ══════════════════════════════════════════════════════════════════════════
+  function openGlobalSearch() {
+    const overlay = document.getElementById('globalSearchOverlay');
+    overlay.style.display = 'flex';
+    const inp = document.getElementById('globalSearchInput');
+    inp.value = '';
+    inp.focus();
+    runGlobalSearch('');
+  }
+
+  function closeGlobalSearch() {
+    document.getElementById('globalSearchOverlay').style.display = 'none';
+  }
+
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openGlobalSearch(); }
+    if (e.key === 'Escape') closeGlobalSearch();
+  });
+  document.getElementById('globalSearchOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeGlobalSearch();
+  });
+
+  function runGlobalSearch(q) {
+    const el = document.getElementById('globalSearchResults');
+    if (!el) return;
+    q = (q||'').toLowerCase().trim();
+
+    if (!q) {
+      el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-size:12px">Digita per cercare bond, ETF, clienti, template…<br><br><span style="opacity:.5">Cmd+K per aprire · ESC per chiudere</span></div>';
+      return;
+    }
+
+    const sections = [];
+
+    const matchBonds = allBonds.filter(b =>
+      b.isin?.toLowerCase().includes(q) || b.descrizione?.toLowerCase().includes(q) ||
+      b.emittente?.toLowerCase().includes(q) || b.monitor?.toLowerCase().includes(q)
+    ).slice(0, 6);
+    if (matchBonds.length) sections.push({
+      title: '📋 Titoli Obbligazionari',
+      items: matchBonds.map(b => ({
+        icon: b.monitor && b.monitor.includes('BTP') ? '🇮🇹' : '📄',
+        label: b.descrizione || b.isin,
+        sub: `${b.monitor} · ${b.yield != null ? b.yield.toFixed(2)+'%' : '—'} · ${b.scadenza || '—'}`,
+        action: `closeGlobalSearch();switchPanel('table');setTimeout(()=>{const i=document.getElementById('filterSearch');if(i){i.value=${JSON.stringify(b.isin)};applyFilters();}},100)`
+      }))
+    });
+
+    const matchETFs = allETFs.filter(e =>
+      e.isin?.toLowerCase().includes(q) || e.name?.toLowerCase().includes(q) ||
+      e.ticker?.toLowerCase().includes(q) || e.cat?.toLowerCase().includes(q)
+    ).slice(0, 4);
+    if (matchETFs.length) sections.push({
+      title: '📊 ETF',
+      items: matchETFs.map(e => ({
+        icon: e.acc ? '🔵' : '🟢',
+        label: e.name,
+        sub: `${e.cat} · ${(e.yld??e.ytm)?.toFixed(2)||'—'}% · ${e.acc?'ACC':'DIST'}`,
+        action: `closeGlobalSearch();switchPanel('etf');setTimeout(()=>{const i=document.getElementById('etfSearch');if(i){i.value=${JSON.stringify(e.ticker||'')};renderETF();}},100)`
+      }))
+    });
+
+    const portMatches = Object.values(portfolio).filter(p =>
+      p.bond?.isin?.toLowerCase().includes(q) || p.bond?.desc?.toLowerCase().includes(q) ||
+      p.bond?.name?.toLowerCase().includes(q) || p.bond?.descrizione?.toLowerCase().includes(q)
+    ).slice(0, 3);
+    if (portMatches.length) sections.push({
+      title: '💼 In Portafoglio',
+      items: portMatches.map(p => ({
+        icon: '💼',
+        label: p.bond.descrizione || p.bond.name || p.bond.isin,
+        sub: `Nominale €${p.nominale?.toLocaleString('it-IT')} · Yield ${(resolveYield(p.bond)||0).toFixed(2)}%`,
+        action: `closeGlobalSearch();switchPanel('portfolio')`
+      }))
+    });
+
+    const allTmpls = [...(typeof PORTFOLIO_TEMPLATES !== 'undefined' ? PORTFOLIO_TEMPLATES : []), ..._customTemplates];
+    const tmplMatches = allTmpls.filter(t => t.name?.toLowerCase().includes(q) || t.badge?.toLowerCase().includes(q)).slice(0, 3);
+    if (tmplMatches.length) sections.push({
+      title: '🗂 Template',
+      items: tmplMatches.map(t => ({
+        icon: t.icon || '⭐',
+        label: t.name,
+        sub: `${t.badge||''} · Yield ${t.yieldRange||'—'} · Duration ${t.durRange||'—'}`,
+        action: `closeGlobalSearch();switchPanel('portfolio');setTimeout(()=>openTemplate(${JSON.stringify(t.key)}),100)`
+      }))
+    });
+
+    const clientMatches = _clients.filter(c => c.name?.toLowerCase().includes(q)).slice(0, 3);
+    if (clientMatches.length) sections.push({
+      title: '👤 Clienti',
+      items: clientMatches.map(c => ({
+        icon: '👤',
+        label: c.name,
+        sub: `ID: ${c.id}`,
+        action: `closeGlobalSearch();switchClient(${JSON.stringify(c.id)});switchPanel('portfolio')`
+      }))
+    });
+
+    if (!sections.length) {
+      el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text2);font-size:12px">Nessun risultato per "<strong>' + escHtml(q) + '</strong>"</div>';
+      return;
+    }
+
+    el.innerHTML = sections.map(s => `
+      <div style="margin-bottom:4px">
+        <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:8px 12px 4px">${s.title}</div>
+        ${s.items.map(item => `
+          <div onclick="${item.action}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;transition:background .1s"
+               onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">
+            <span style="font-size:16px;min-width:24px;text-align:center">${item.icon}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(item.label)}</div>
+              <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(item.sub)}</div>
+            </div>
+            <span style="font-size:10px;color:rgba(255,255,255,.15)">↵</span>
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 11 — YTM / YIELD CALCULATOR
+  // ══════════════════════════════════════════════════════════════════════════
+  function calcYTM(price, couponRate, yearsToMat, freq) {
+    const periods = Math.round(yearsToMat * freq);
+    if (periods < 1) return NaN;
+    const couponPerPeriod = couponRate / 100 / freq;
+    const pv = price / 100;
+    let ytm = couponRate / 100 || 0.04;
+    for (let i = 0; i < 200; i++) {
+      const r = ytm / freq;
+      let pv_calc = 0, dpv = 0;
+      for (let t = 1; t <= periods; t++) {
+        const disc = Math.pow(1 + r, -t);
+        pv_calc += couponPerPeriod * disc;
+        dpv -= t / freq * couponPerPeriod * disc / (1 + r);
+      }
+      const disc_final = Math.pow(1 + r, -periods);
+      pv_calc += disc_final;
+      dpv -= periods / freq * disc_final / (1 + r);
+      const diff = pv_calc - pv;
+      if (Math.abs(diff) < 1e-10) break;
+      ytm -= diff / dpv;
+    }
+    return ytm * 100;
+  }
+
+  function calcDuration(price, couponRate, yearsToMat, freq, ytm) {
+    const periods = Math.round(yearsToMat * freq);
+    const couponPerPeriod = couponRate / 100 / freq;
+    const r = ytm / 100 / freq;
+    const pv = price / 100;
+    let macD = 0;
+    for (let t = 1; t <= periods; t++) {
+      const cf = t === periods ? couponPerPeriod + 1 : couponPerPeriod;
+      const disc = cf / Math.pow(1 + r, t);
+      macD += (t / freq) * disc;
+    }
+    macD /= pv;
+    const modD = macD / (1 + r);
+    return { macaulay: macD, modified: modD };
+  }
+
+  function calcPriceFromYTM(ytmTarget, couponRate, yearsToMat, freq) {
+    const periods = Math.round(yearsToMat * freq);
+    const couponPerPeriod = couponRate / 100 / freq;
+    const r = ytmTarget / 100 / freq;
+    let price = 0;
+    for (let t = 1; t <= periods; t++) {
+      price += couponPerPeriod / Math.pow(1 + r, t);
+    }
+    price += 1 / Math.pow(1 + r, periods);
+    return price * 100;
+  }
+
+  let _calcMode = 'A';
+
+  function openYTMCalculator(prefillIsin) {
+    let prefill = {};
+    if (prefillIsin) {
+      const b = allBonds.find(x => x.isin === prefillIsin);
+      if (b) {
+        prefill.coupon   = b.cedola != null ? b.cedola : '';
+        prefill.price    = b.prezzo != null ? b.prezzo : '';
+        prefill.maturity = b.scadenza ? b.scadenza.slice(0,10) : '';
+      }
+    }
+    const ex = document.getElementById('calcOverlay');
+    if (ex) ex.remove();
+
+    const html = `
+    <div id="calcOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(480px,95vw);max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:16px;font-weight:700">🧲 Calcolatore Obbligazionario</div>
+          <button onclick="document.getElementById('calcOverlay').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;gap:4px;background:var(--bg3);border-radius:8px;padding:3px;margin-bottom:16px">
+          <button id="calcTabA" onclick="switchCalcTab('A')" style="flex:1;padding:6px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:var(--bg2);color:var(--text)">Prezzo → YTM</button>
+          <button id="calcTabB" onclick="switchCalcTab('B')" style="flex:1;padding:6px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:none;color:var(--text2)">YTM → Prezzo</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Cedola annua %</div>
+            <input id="calcCouponNew" type="text" inputmode="decimal" placeholder="es. 3.5" value="${prefill.coupon||''}"
+              style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box" oninput="runCalcNew()">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Scadenza</div>
+            <input id="calcMaturityNew" type="date" value="${prefill.maturity||''}"
+              style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box" oninput="runCalcNew()">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Frequenza cedole</div>
+            <select id="calcFreqNew" style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box" onchange="runCalcNew()">
+              <option value="2">Semestrale (2/anno)</option>
+              <option value="1">Annuale (1/anno)</option>
+            </select>
+          </div>
+          <div id="calcInputA">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Prezzo %</div>
+            <input id="calcPriceNew" type="text" inputmode="decimal" placeholder="es. 98.5" value="${prefill.price||''}"
+              style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box" oninput="runCalcNew()">
+          </div>
+          <div id="calcInputB" style="display:none">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">YTM target %</div>
+            <input id="calcYTMTarget" type="text" inputmode="decimal" placeholder="es. 4.2"
+              style="width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box" oninput="runCalcNew()">
+          </div>
+        </div>
+        <div id="calcResults" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:4px">
+          <div style="color:var(--text2);font-size:12px;text-align:center">Inserisci i dati per calcolare</div>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    _calcMode = 'A';
+    if (prefill.coupon && prefill.price && prefill.maturity) runCalcNew();
+  }
+
+  function switchCalcTab(mode) {
+    _calcMode = mode;
+    const tabA = document.getElementById('calcTabA');
+    const tabB = document.getElementById('calcTabB');
+    const inpA = document.getElementById('calcInputA');
+    const inpB = document.getElementById('calcInputB');
+    if (!tabA) return;
+    tabA.style.cssText = 'flex:1;padding:6px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;' + (mode==='A' ? 'background:var(--bg2);color:var(--text)' : 'background:none;color:var(--text2)');
+    tabB.style.cssText = 'flex:1;padding:6px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;' + (mode==='B' ? 'background:var(--bg2);color:var(--text)' : 'background:none;color:var(--text2)');
+    if (inpA) inpA.style.display = mode === 'A' ? '' : 'none';
+    if (inpB) inpB.style.display = mode === 'B' ? '' : 'none';
+    runCalcNew();
+  }
+
+  function runCalcNew() {
+    const el = document.getElementById('calcResults');
+    if (!el) return;
+    const pf = s => parseFloat((s||'').replace(',','.'));
+    const coupon   = pf(document.getElementById('calcCouponNew')?.value);
+    const matStr   = document.getElementById('calcMaturityNew')?.value;
+    const freq     = parseInt(document.getElementById('calcFreqNew')?.value || '2');
+
+    if (!matStr) { el.innerHTML = '<div style="color:var(--text2);font-size:12px;text-align:center">Inserisci la data di scadenza</div>'; return; }
+    const yearsToMat = (new Date(matStr) - Date.now()) / (365.25*24*3600*1000);
+    if (yearsToMat <= 0) { el.innerHTML = '<div style="color:var(--red);font-size:12px;text-align:center">⚠️ Titolo scaduto</div>'; return; }
+    if (isNaN(coupon) || coupon < 0) { el.innerHTML = '<div style="color:var(--text2);font-size:12px;text-align:center">Inserisci la cedola annua</div>'; return; }
+
+    try {
+      if (_calcMode === 'A') {
+        const price = pf(document.getElementById('calcPriceNew')?.value);
+        if (isNaN(price) || price <= 0) { el.innerHTML = '<div style="color:var(--text2);font-size:12px;text-align:center">Inserisci il prezzo</div>'; return; }
+        const ytm = calcYTM(price, coupon, yearsToMat, freq);
+        const { macaulay, modified } = calcDuration(price, coupon, yearsToMat, freq, ytm);
+        const ytmNetto = ytm * 0.74;
+        el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${[
+          ['YTM Lordo', ytm.toFixed(3)+'%', 'var(--green)'],
+          ['YTM Netto ~', ytmNetto.toFixed(3)+'%', 'var(--green)'],
+          ['Duration Macaulay', macaulay.toFixed(2)+' anni', 'var(--text)'],
+          ['Duration Modificata', modified.toFixed(2), 'var(--text)'],
+          ['Scadenza tra', yearsToMat.toFixed(1)+' anni', 'var(--text2)'],
+          ['Cedola netta ~', (coupon*0.8739).toFixed(3)+'%', 'var(--text2)'],
+        ].map(([l,v,c]) => `<div style="background:var(--bg2);border-radius:8px;padding:10px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text2)">${l}</div><div style="font-size:16px;font-weight:700;color:${c}">${v}</div></div>`).join('')}</div>`;
+      } else {
+        const ytmTarget = pf(document.getElementById('calcYTMTarget')?.value);
+        if (isNaN(ytmTarget) || ytmTarget < 0) { el.innerHTML = '<div style="color:var(--text2);font-size:12px;text-align:center">Inserisci il rendimento target</div>'; return; }
+        const theoPx = calcPriceFromYTM(ytmTarget, coupon, yearsToMat, freq);
+        el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${[
+          ['Prezzo teorico', theoPx.toFixed(3)+'%', 'var(--green)'],
+          ['Per €100k nominale', '€'+(theoPx*1000).toLocaleString('it-IT',{maximumFractionDigits:0}), 'var(--green)'],
+          ['YTM target', ytmTarget.toFixed(3)+'%', 'var(--text)'],
+          ['Scadenza tra', yearsToMat.toFixed(1)+' anni', 'var(--text2)'],
+        ].map(([l,v,c]) => `<div style="background:var(--bg2);border-radius:8px;padding:10px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text2)">${l}</div><div style="font-size:16px;font-weight:700;color:${c}">${v}</div></div>`).join('')}</div>`;
+      }
+    } catch(e2) {
+      el.innerHTML = '<div style="color:var(--red);font-size:12px;text-align:center">Errore nel calcolo: ' + escHtml(e2.message) + '</div>';
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 12 — SIDE-BY-SIDE CHART COMPARISON
+  // ══════════════════════════════════════════════════════════════════════════
+  let _chartCompareData = { a: null, b: null };
+  let _compPeriod = '1Y', _compMode = 'abs';
+
+  function openChartComparison() {
+    const ex = document.getElementById('chartCompOverlay');
+    if (ex) ex.remove();
+    const optList = [...allBonds.slice(0,200), ...allETFs].map(b=>`<option value="${escHtml(b.isin)}">${escHtml(b.isin)} — ${escHtml(b.descrizione||b.name||'')}</option>`).join('');
+    const html = `
+    <div id="chartCompOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(780px,97vw);max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:16px;font-weight:700">📈 Confronto Grafici</div>
+          <button onclick="document.getElementById('chartCompOverlay').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <div style="font-size:11px;color:#3b82f6;font-weight:700;margin-bottom:4px">■ Titolo A</div>
+            <input id="chartCompA" list="chartCompListA" type="text" placeholder="ISIN o nome…"
+              style="width:100%;padding:8px;background:var(--bg3);border:1px solid #3b82f650;border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box">
+            <datalist id="chartCompListA">${optList}</datalist>
+          </div>
+          <div>
+            <div style="font-size:11px;color:#f59e0b;font-weight:700;margin-bottom:4px">■ Titolo B</div>
+            <input id="chartCompB" list="chartCompListB" type="text" placeholder="ISIN o nome…"
+              style="width:100%;padding:8px;background:var(--bg3);border:1px solid #f59e0b50;border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box">
+            <datalist id="chartCompListB">${optList}</datalist>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+          <div style="display:flex;gap:4px;background:var(--bg3);border-radius:7px;padding:2px">
+            ${['1M','3M','6M','1Y','3Y'].map(p=>`<button onclick="loadComparisonCharts('${p}')" id="ccPer${p}" style="padding:4px 10px;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;background:${p==='1Y'?'var(--bg2)':'none'};color:${p==='1Y'?'var(--text)':'var(--text2)'}">${p}</button>`).join('')}
+          </div>
+          <div style="display:flex;gap:4px;background:var(--bg3);border-radius:7px;padding:2px">
+            <button onclick="_compMode='abs';renderCompChart()" id="ccModeAbs" style="padding:4px 10px;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;background:var(--bg2);color:var(--text)">Prezzo</button>
+            <button onclick="_compMode='pct';renderCompChart()" id="ccModePct" style="padding:4px 10px;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;background:none;color:var(--text2)">Var %</button>
+          </div>
+          <button onclick="loadComparisonCharts(_compPeriod)" style="padding:6px 14px;background:#3b82f620;border:1px solid #3b82f640;border-radius:7px;color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer">🔄 Confronta</button>
+        </div>
+        <div id="compChartArea" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;min-height:220px;display:flex;align-items:center;justify-content:center">
+          <div style="color:var(--text2);font-size:12px">Seleziona due titoli e clicca Confronta</div>
+        </div>
+        <div id="compChartStats" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"></div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    _compPeriod = '1Y'; _compMode = 'abs';
+    _chartCompareData = { a: null, b: null };
+  }
+
+  async function loadComparisonCharts(period) {
+    _compPeriod = period;
+    ['1M','3M','6M','1Y','3Y'].forEach(p => {
+      const b = document.getElementById('ccPer'+p);
+      if(b) { b.style.background = p===period ? 'var(--bg2)' : 'none'; b.style.color = p===period ? 'var(--text)' : 'var(--text2)'; }
+    });
+    const area = document.getElementById('compChartArea');
+    if (!area) return;
+    area.innerHTML = '<div style="color:var(--text2);font-size:12px">Caricamento...</div>';
+    const resolveIsin = val => {
+      if (!val) return null;
+      const v = val.trim().toUpperCase();
+      const b = allBonds.find(x => x.isin === v) || allBonds.find(x => x.descrizione?.toUpperCase().includes(v));
+      const e = allETFs.find(x => x.isin === v) || allETFs.find(x => x.name?.toUpperCase().includes(v) || x.ticker?.toUpperCase() === v);
+      return (b || e)?.isin || v;
+    };
+    const isinA = resolveIsin(document.getElementById('chartCompA')?.value);
+    const isinB = resolveIsin(document.getElementById('chartCompB')?.value);
+    if (!isinA || !isinB) { area.innerHTML = '<div style="color:var(--amber);font-size:12px;text-align:center">⚠️ Inserisci entrambi i titoli</div>'; return; }
+    const periodDays = {'1M':'30','3M':'90','6M':'180','1Y':'365','3Y':'1095'}[period] || '365';
+    try {
+      const [rA, rB] = await Promise.all([
+        fetch('/api/chart/'+isinA+'?days='+periodDays).then(r=>r.json()),
+        fetch('/api/chart/'+isinB+'?days='+periodDays).then(r=>r.json()),
+      ]);
+      const getName = isin => {
+        const b = allBonds.find(x=>x.isin===isin); const e = allETFs.find(x=>x.isin===isin);
+        return b?.descrizione || e?.name || isin;
+      };
+      const extractCloses = d => {
+        if (d.closes && Array.isArray(d.closes)) return d.closes;
+        if (d.price && Array.isArray(d.price)) return d.price.map(([,v])=>v);
+        return [];
+      };
+      _chartCompareData = {
+        a: { isin: isinA, closes: extractCloses(rA), name: getName(isinA) },
+        b: { isin: isinB, closes: extractCloses(rB), name: getName(isinB) },
+      };
+      renderCompChart();
+    } catch(e) {
+      area.innerHTML = '<div style="color:var(--red);font-size:12px;text-align:center">Errore: '+escHtml(e.message)+'</div>';
+    }
+  }
+
+  function renderCompChart() {
+    const area = document.getElementById('compChartArea');
+    if (!area || !_chartCompareData.a || !_chartCompareData.b) return;
+    const dA = _chartCompareData.a, dB = _chartCompareData.b;
+    if (!dA.closes?.length || !dB.closes?.length) {
+      area.innerHTML = '<div style="color:var(--amber);font-size:12px;text-align:center">⚠️ Dati storici non disponibili per uno dei titoli</div>';
+      return;
+    }
+    ['Abs','Pct'].forEach(m => {
+      const b = document.getElementById('ccMode'+m);
+      const active = (m==='Abs' && _compMode==='abs') || (m==='Pct' && _compMode==='pct');
+      if(b) { b.style.background = active ? 'var(--bg2)' : 'none'; b.style.color = active ? 'var(--text)' : 'var(--text2)'; }
+    });
+    const W = 720, H = 220, PAD = {t:20,r:16,b:28,l:50};
+    const normalize = arr => _compMode === 'pct' ? arr.map(v => ((v-arr[0])/arr[0])*100) : arr;
+    const vA = normalize(dA.closes), vB = normalize(dB.closes);
+    const allV = [...vA, ...vB];
+    const minV = Math.min(...allV), maxV = Math.max(...allV);
+    const rng = maxV - minV || 1;
+    const nA = dA.closes.length, nB = dB.closes.length;
+    const px = (i,n) => PAD.l + (i/(n-1||1))*(W-PAD.l-PAD.r);
+    const py = v => PAD.t + (1-(v-minV)/rng)*(H-PAD.t-PAD.b);
+    const pathA = vA.map((v,i)=>`${i===0?'M':'L'}${px(i,nA).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
+    const pathB = vB.map((v,i)=>`${i===0?'M':'L'}${px(i,nB).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
+    const nGrids = 4;
+    const grids = Array.from({length:nGrids+1},(_,i)=>{
+      const v = minV+(rng/nGrids)*i; const y = py(v);
+      const label = _compMode==='pct' ? v.toFixed(1)+'%' : v.toFixed(1);
+      return `<line x1="${PAD.l}" y1="${y.toFixed(1)}" x2="${W-PAD.r}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/><text x="${(PAD.l-4)}" y="${(y+4).toFixed(1)}" font-size="9" fill="rgba(255,255,255,.3)" text-anchor="end">${label}</text>`;
+    }).join('');
+    area.innerHTML = `<div>
+      <div style="display:flex;gap:16px;margin-bottom:8px;font-size:11px">
+        <span style="color:#3b82f6;font-weight:600">■ ${escHtml(dA.name)}</span>
+        <span style="color:#f59e0b;font-weight:600">■ ${escHtml(dB.name)}</span>
+      </div>
+      <svg width="${W}" height="${H}" style="max-width:100%;overflow:visible">${grids}
+        <path d="${pathA}" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+        <path d="${pathB}" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+      </svg></div>`;
+    const statsEl = document.getElementById('compChartStats');
+    if (statsEl) {
+      const statCard = (d, color) => {
+        const closes = d.closes;
+        if (!closes?.length) return `<div style="background:var(--bg3);border-radius:8px;padding:10px"><div style="color:var(--text2);font-size:11px">Dati non disponibili</div></div>`;
+        const first = closes[0], last = closes[closes.length-1];
+        const chg = ((last-first)/first*100);
+        const bond = allBonds.find(b=>b.isin===d.isin) || allETFs.find(e=>e.isin===d.isin);
+        return `<div style="background:var(--bg3);border:1px solid ${color}30;border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:${color};font-weight:700;margin-bottom:8px">■ ${escHtml(d.name)}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+            <div><span style="color:var(--text2)">Inizio</span><br><strong>${first.toFixed(2)}</strong></div>
+            <div><span style="color:var(--text2)">Fine</span><br><strong>${last.toFixed(2)}</strong></div>
+            <div><span style="color:var(--text2)">Variazione</span><br><strong style="color:${chg>=0?'var(--green)':'var(--red)'}">${chg>=0?'+':''}${chg.toFixed(2)}%</strong></div>
+            <div><span style="color:var(--text2)">Yield att.</span><br><strong>${bond ? (resolveYield(bond)||0).toFixed(2)+'%' : '—'}</strong></div>
+          </div></div>`;
+      };
+      statsEl.innerHTML = statCard(_chartCompareData.a,'#3b82f6') + statCard(_chartCompareData.b,'#f59e0b');
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 4 — ADVANCED BOND SCREENER
+  // ══════════════════════════════════════════════════════════════════════════
+  let _screenerFilters = {
+    yldMin:'', yldMax:'', scadMin:'', scadMax:'',
+    durMin:'', durMax:'', cedMin:'', cedMax:'',
+    tipo:'all', rating:'all', monitors:[]
+  };
+  let _savedScreeners = JSON.parse(localStorage.getItem('savedScreeners')||'[]');
+
+  function openScreener() {
+    const ex = document.getElementById('screenerOverlay');
+    if (ex) ex.remove();
+    const monitors = [...new Set(allBonds.map(b=>b.monitor).filter(Boolean))].sort();
+    const monCheckboxes = monitors.map(m =>
+      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;padding:2px 0">
+        <input type="checkbox" value="${escHtml(m)}" ${_screenerFilters.monitors.includes(m)?'checked':''} onchange="_screenerMonitorChange(this)"> ${escHtml(m)}
+      </label>`
+    ).join('');
+    const savedOpts = _savedScreeners.map((s,i)=>`<option value="${i}">${escHtml(s.name)}</option>`).join('');
+    const html = `
+    <div id="screenerOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9998;display:flex;padding:0" onclick="if(event.target===this)document.getElementById('screenerOverlay').remove()">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;margin:16px auto;display:flex;flex-direction:column;width:min(98vw,1100px);max-height:95vh;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div style="font-size:16px;font-weight:700">🔍 Screener Avanzato</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="screenerCount" style="font-size:12px;color:var(--text2)"></span>
+            <button onclick="_saveScreener()" style="padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px">💾 Salva ricerca</button>
+            ${_savedScreeners.length ? `<select onchange="_loadScreener(this.value);this.value=''" style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);font-size:12px;cursor:pointer"><option value="">📋 Ricerche salvate...</option>${savedOpts}</select>` : ''}
+            <button onclick="screenerExportExcel()" style="padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px">📊 Esporta</button>
+            <button onclick="document.getElementById('screenerOverlay').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
+          </div>
+        </div>
+        <div style="display:flex;flex:1;overflow:hidden">
+          <div style="width:260px;min-width:260px;overflow-y:auto;padding:14px;border-right:1px solid var(--border);background:var(--bg3)">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);margin-bottom:10px;letter-spacing:.6px">Filtri</div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Tipo</div>
+              <select id="scrTipo" onchange="_screenerFilters.tipo=this.value;_runScreenerUI()" style="width:100%;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+                <option value="all" ${_screenerFilters.tipo==='all'?'selected':''}>Tutti</option>
+                <option value="bond" ${_screenerFilters.tipo==='bond'?'selected':''}>Solo Bond</option>
+                <option value="etf" ${_screenerFilters.tipo==='etf'?'selected':''}>Solo ETF</option>
+              </select>
+            </div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Yield % (min / max)</div>
+              <div style="display:flex;gap:5px">
+                <input type="text" inputmode="decimal" placeholder="Min" value="${_screenerFilters.yldMin}" oninput="_screenerFilters.yldMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+                <input type="text" inputmode="decimal" placeholder="Max" value="${_screenerFilters.yldMax}" oninput="_screenerFilters.yldMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Scadenza anno (da / a)</div>
+              <div style="display:flex;gap:5px">
+                <input type="text" inputmode="numeric" placeholder="2025" value="${_screenerFilters.scadMin}" oninput="_screenerFilters.scadMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+                <input type="text" inputmode="numeric" placeholder="2040" value="${_screenerFilters.scadMax}" oninput="_screenerFilters.scadMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Duration modificata (min / max)</div>
+              <div style="display:flex;gap:5px">
+                <input type="text" inputmode="decimal" placeholder="Min" value="${_screenerFilters.durMin}" oninput="_screenerFilters.durMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+                <input type="text" inputmode="decimal" placeholder="Max" value="${_screenerFilters.durMax}" oninput="_screenerFilters.durMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Cedola % (min / max)</div>
+              <div style="display:flex;gap:5px">
+                <input type="text" inputmode="decimal" placeholder="Min" value="${_screenerFilters.cedMin}" oninput="_screenerFilters.cedMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+                <input type="text" inputmode="decimal" placeholder="Max" value="${_screenerFilters.cedMax}" oninput="_screenerFilters.cedMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Rating</div>
+              <select id="scrRating" onchange="_screenerFilters.rating=this.value;_runScreenerUI()" style="width:100%;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+                <option value="all" ${_screenerFilters.rating==='all'?'selected':''}>Tutti</option>
+                <option value="IG" ${_screenerFilters.rating==='IG'?'selected':''}>Investment Grade (IG)</option>
+                <option value="HY" ${_screenerFilters.rating==='HY'?'selected':''}>High Yield (HY)</option>
+                <option value="NR" ${_screenerFilters.rating==='NR'?'selected':''}>Non Rated (NR)</option>
+              </select>
+            </div>
+            <div style="margin-bottom:12px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:6px">Categoria / Monitor</div>
+              <div style="max-height:200px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px">
+                ${monCheckboxes}
+              </div>
+            </div>
+            <button onclick="_screenerReset()" style="width:100%;padding:7px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;font-size:12px;margin-top:4px">✕ Reset filtri</button>
+          </div>
+          <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
+            <div id="screenerResults" style="flex:1;overflow-y:auto">
+              <div style="padding:40px;text-align:center;color:var(--text2)">Imposta i filtri per vedere i risultati</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    _runScreenerUI();
+  }
+
+  function _screenerMonitorChange(cb) {
+    const val = cb.value;
+    if (cb.checked) { if (!_screenerFilters.monitors.includes(val)) _screenerFilters.monitors.push(val); }
+    else { _screenerFilters.monitors = _screenerFilters.monitors.filter(m=>m!==val); }
+    _runScreenerUI();
+  }
+
+  function _screenerReset() {
+    _screenerFilters = { yldMin:'', yldMax:'', scadMin:'', scadMax:'', durMin:'', durMax:'', cedMin:'', cedMax:'', tipo:'all', rating:'all', monitors:[] };
+    const overlay = document.getElementById('screenerOverlay');
+    if (overlay) { overlay.remove(); openScreener(); }
+  }
+
+  function _saveScreener() {
+    const name = prompt('Nome per questa ricerca:');
+    if (!name) return;
+    _savedScreeners.push({ name, filters: {..._screenerFilters, monitors:[..._screenerFilters.monitors]} });
+    localStorage.setItem('savedScreeners', JSON.stringify(_savedScreeners));
+    showToast('Ricerca salvata: ' + name);
+  }
+
+  function _loadScreener(idx) {
+    if (idx === '' || idx === undefined) return;
+    const s = _savedScreeners[parseInt(idx)];
+    if (!s) return;
+    _screenerFilters = {...s.filters, monitors:[...(s.filters.monitors||[])]};
+    const overlay = document.getElementById('screenerOverlay');
+    if (overlay) { overlay.remove(); openScreener(); }
+  }
+
+  function runScreener() {
+    const f = _screenerFilters;
+    const pf = s => parseFloat((s||'').replace(',','.'));
+    const pi = s => parseInt((s||'').trim());
+    let results = [];
+    allBonds.forEach(b => {
+      if (f.tipo === 'etf') return;
+      const y = b.yield;
+      const scadYear = b.scadenza ? new Date(b.scadenza).getFullYear() : null;
+      if (f.yldMin && (y == null || y < pf(f.yldMin))) return;
+      if (f.yldMax && (y == null || y > pf(f.yldMax))) return;
+      if (f.scadMin && (!scadYear || scadYear < pi(f.scadMin))) return;
+      if (f.scadMax && (!scadYear || scadYear > pi(f.scadMax))) return;
+      if (f.cedMin && (b.cedola||0) < pf(f.cedMin)) return;
+      if (f.cedMax && (b.cedola||0) > pf(f.cedMax)) return;
+      if (f.durMin && (b.duration||0) < pf(f.durMin)) return;
+      if (f.durMax && (b.duration||0) > pf(f.durMax)) return;
+      if (f.rating !== 'all' && _ratingGroup(b) !== f.rating) return;
+      if (f.monitors.length && !f.monitors.includes(b.monitor)) return;
+      results.push({...b, _src:'bond', desc:b.descrizione, tipo:b.tipo||'Bond', monitor:b.monitor});
+    });
+    allETFs.forEach(e => {
+      if (f.tipo === 'bond') return;
+      const y = e.yld ?? e.ytm;
+      if (f.yldMin && (y == null || y < pf(f.yldMin))) return;
+      if (f.yldMax && (y == null || y > pf(f.yldMax))) return;
+      if (f.durMin && (e.dur||0) < pf(f.durMin)) return;
+      if (f.durMax && (e.dur||0) > pf(f.durMax)) return;
+      results.push({...e, yield:y, tipo:'ETF', desc:e.name, scadenza:null, prezzo:e.price||null, monitor:e.cat, _src:'etf'});
+    });
+    results.sort((a,b) => (b.yield||0)-(a.yield||0));
+    return results;
+  }
+
+  function _runScreenerUI() {
+    const results = runScreener();
+    const countEl = document.getElementById('screenerCount');
+    if (countEl) countEl.textContent = results.length + ' risultati';
+    const el = document.getElementById('screenerResults');
+    if (!el) return;
+    if (!results.length) { el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text2);">Nessun risultato</div>'; return; }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead style="position:sticky;top:0;z-index:2"><tr style="background:var(--bg3)">
+        <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">ISIN</th>
+        <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Nome</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Tipo</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Yield%</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Scadenza</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Prezzo</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Monitor</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)"></th>
+      </tr></thead>
+      <tbody>
+        ${results.slice(0,200).map(b => `
+          <tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+            <td style="padding:7px 10px;font-family:monospace;font-size:11px;color:var(--teal)">${escHtml(b.isin)}</td>
+            <td style="padding:7px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(b.desc||'')}">${escHtml(b.desc||'—')}</td>
+            <td style="padding:7px 10px"><span style="padding:1px 5px;border-radius:4px;font-size:10px;font-weight:700;background:${b._src==='etf'?'rgba(59,130,246,.15)':'rgba(34,197,94,.15)'};color:${b._src==='etf'?'var(--blue)':'var(--green)'}">${escHtml(b.tipo||'—')}</span></td>
+            <td style="padding:7px 10px;text-align:right;font-weight:700;color:${(b.yield||0)>=5?'var(--green)':(b.yield||0)>=3?'var(--amber)':'var(--text)'}">${b.yield!=null?b.yield.toFixed(2)+'%':'—'}</td>
+            <td style="padding:7px 10px;color:var(--text2);font-size:11px">${b.scadenza||'—'}</td>
+            <td style="padding:7px 10px;text-align:right">${b.prezzo!=null?b.prezzo.toFixed(2):'—'}</td>
+            <td style="padding:7px 10px;font-size:11px;color:var(--text2)">${escHtml(b.monitor||'—')}</td>
+            <td style="padding:7px 10px"><button onclick="addToPortfolio({isin:${JSON.stringify(b.isin)},descrizione:${JSON.stringify(b.desc||'')},tipo:${JSON.stringify(b.tipo||'')},yield:${b.yield},prezzo:${b.prezzo},scadenza:${JSON.stringify(b.scadenza||null)},monitor:${JSON.stringify(b.monitor||'')}})" style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer;white-space:nowrap">+ Port.</button></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  function screenerExportExcel() {
+    const results = runScreener();
+    if (!results.length) { showToast('Nessun risultato da esportare', 'error'); return; }
+    const headers = ['ISIN','Nome','Tipo','Yield%','Scadenza','Prezzo','Monitor'];
+    const rows = results.map(b => [b.isin, b.desc||'', b.tipo||'', b.yield!=null?b.yield.toFixed(2):'', b.scadenza||'', b.prezzo!=null?b.prezzo.toFixed(2):'', b.monitor||'']);
+    const csv = [headers.join(','), ...rows.map(r => r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+    const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='screener_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FEATURE 6 — MACRO EVENTS CALENDAR
+  // ══════════════════════════════════════════════════════════════════════════
+  async function renderMacroCalendar() {
+    const el = document.getElementById('macroCalendar');
+    if (!el) return;
+    try {
+      const r = await fetch('/api/calendar');
+      const events = r.ok ? await r.json() : [];
+      if (!events.length) { el.innerHTML = '<div style="color:var(--text2);font-size:12px">Nessun evento prossimo</div>'; return; }
+      const byMonth = {};
+      events.forEach(e => {
+        const m = e.date.slice(0,7);
+        if (!byMonth[m]) byMonth[m] = [];
+        byMonth[m].push(e);
+      });
+      const monthNames = ['','Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+      el.innerHTML = Object.entries(byMonth).map(([ym, evts]) => {
+        const [y, m] = ym.split('-');
+        return `<div style="margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;margin-bottom:6px">${monthNames[+m]} ${y}</div>
+          ${evts.map(ev => {
+            const typeColors = {ecb:'#3b82f6',fed:'#22c55e',asta:'#f59e0b',cpi:'#a855f7',custom:'#6b7280'};
+            const col = ev.color || typeColors[ev.type] || '#6b7280';
+            const dNum = ev.date.slice(8,10);
+            const isCustom = ev.id && ev.id.startsWith('evt_');
+            return `<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+              <div style="min-width:24px;height:24px;border-radius:6px;background:${col}22;border:1px solid ${col}44;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${col}">${dNum}</div>
+              <div style="flex:1">
+                <div style="font-size:12px;font-weight:600;color:var(--text)">${escHtml(ev.title)}</div>
+                <div style="font-size:10px;color:var(--text2)">${escHtml(ev.desc||'')}</div>
+              </div>
+              ${isCustom ? `<button onclick="deleteCalendarEvent('${ev.id}')" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.2);font-size:10px">✕</button>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+      }).join('') + `<button onclick="addCalendarEvent()" style="width:100%;margin-top:8px;padding:6px;font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer">+ Aggiungi evento</button>`;
+    } catch(e) {
+      el.innerHTML = '<div style="color:var(--text2);font-size:12px">Errore caricamento calendario</div>';
+    }
+  }
+
+  async function addCalendarEvent() {
+    const date = prompt('Data (YYYY-MM-DD):');
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { if (date !== null) showToast('Formato data non valido (YYYY-MM-DD)', 'error'); return; }
+    const title = prompt('Titolo:');
+    if (!title) return;
+    const desc = prompt('Descrizione (opzionale):') || '';
+    const typeOpt = prompt('Tipo (asta/cpi/fed/custom):', 'custom') || 'custom';
+    await fetch('/api/calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({date, title, desc, type: typeOpt}) });
+    renderMacroCalendar();
+    showToast('Evento aggiunto');
+  }
+
+  async function deleteCalendarEvent(id) {
+    if (!confirm('Eliminare questo evento?')) return;
+    await fetch('/api/calendar/' + id, { method:'DELETE' });
+    renderMacroCalendar();
+  }
+
 </script>
+
+<!-- GLOBAL SEARCH OVERLAY (Feature 10) -->
+<div id="globalSearchOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;align-items:flex-start;justify-content:center;padding-top:80px">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:min(620px,95vw);max-height:70vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)">
+      <span style="font-size:16px">🔍</span>
+      <input id="globalSearchInput" type="text" placeholder="Cerca bond, ETF, cliente, template…" autocomplete="off"
+        oninput="runGlobalSearch(this.value)"
+        style="flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--text)" />
+      <kbd style="font-size:10px;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2)">ESC</kbd>
+    </div>
+    <div id="globalSearchResults" style="overflow-y:auto;max-height:calc(70vh - 60px);padding:8px"></div>
+  </div>
+</div>
 
 <!-- PORTFOLIO TEMPLATE MODAL -->
 <div class="tmpl-overlay" id="tmplOverlay" onclick="if(event.target===this)closeTmpl()">

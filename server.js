@@ -1529,6 +1529,43 @@ app.get('/api/etf/:isin', async (req, res) => {
   res.json(detail);
 });
 
+// ─── CALENDAR (Feature 6) ────────────────────────────────────────────────────
+
+// ECB 2025-2026 Governing Council meeting dates
+const ECB_MEETINGS = [
+  '2025-04-17','2025-06-05','2025-07-24','2025-09-11','2025-10-30','2025-12-18',
+  '2026-01-29','2026-03-12','2026-04-30','2026-06-18','2026-07-23','2026-09-17','2026-10-29','2026-12-17'
+].map(d => ({ date: d, type:'ecb', title:'Riunione BCE', desc:'Governing Council — decisione tassi', color:'#3b82f6' }));
+
+const CALENDAR_FILE = path.join(DATA_DIR, 'calendar-events.json');
+function loadCalendarEvents() {
+  let custom = [];
+  try { if(fs.existsSync(CALENDAR_FILE)) custom = JSON.parse(fs.readFileSync(CALENDAR_FILE,'utf8')); } catch(e){}
+  return [...ECB_MEETINGS, ...custom].sort((a,b) => a.date.localeCompare(b.date));
+}
+
+app.get('/api/calendar', (req, res) => {
+  const today = new Date().toISOString().slice(0,10);
+  const events = loadCalendarEvents().filter(e => e.date >= today);
+  res.json(events.slice(0, 30));
+});
+
+app.post('/api/calendar', (req, res) => {
+  let custom = [];
+  try { if(fs.existsSync(CALENDAR_FILE)) custom = JSON.parse(fs.readFileSync(CALENDAR_FILE,'utf8')); } catch(e){}
+  custom.push({ ...req.body, id: 'evt_' + Date.now() });
+  try { fs.mkdirSync(DATA_DIR,{recursive:true}); fs.writeFileSync(CALENDAR_FILE, JSON.stringify(custom,null,2)); } catch(e){}
+  res.json({ok:true});
+});
+
+app.delete('/api/calendar/:id', (req, res) => {
+  let custom = [];
+  try { if(fs.existsSync(CALENDAR_FILE)) custom = JSON.parse(fs.readFileSync(CALENDAR_FILE,'utf8')); } catch(e){}
+  custom = custom.filter(e => e.id !== req.params.id);
+  try { fs.writeFileSync(CALENDAR_FILE, JSON.stringify(custom,null,2)); } catch(e){}
+  res.json({ok:true});
+});
+
 // ─── MACRO ────────────────────────────────────────────────────────────────────
 
 let macroCache = null, macroCacheTime = 0;
