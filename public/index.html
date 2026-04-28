@@ -664,6 +664,15 @@
     .ab-grp-arrow.collapsed{transform:rotate(-90deg);}
     .ab-grp-body{overflow:hidden;}
     .ab-grp-body.collapsed{display:none;}
+    /* browser filter row */
+    .ab-filters{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:6px;}
+    .ab-filter-num{width:58px;padding:5px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;text-align:center;box-sizing:border-box;}
+    .ab-filter-num:focus{outline:none;border-color:var(--blue);}
+    .ab-filter-num::placeholder{color:var(--text2);font-size:10px;}
+    .ab-filter-lbl{font-size:9px;color:var(--text2);white-space:nowrap;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+    .ab-filter-sep{color:var(--text2);font-size:10px;}
+    .ab-filter-reset{padding:4px 8px;font-size:9px;background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--text2);cursor:pointer;margin-left:auto;}
+    .ab-filter-reset:hover{border-color:#ef4444;color:#ef4444;}
 
     /* CALCULATOR MODAL */
     .calc-modal {
@@ -4692,11 +4701,29 @@
         // Pane: bonds browser
         +'<div class="ab-pane" id="abpane-bonds">'
           +'<input class="ab-filter" placeholder="Filtra per nome, paese, ISIN..." oninput="renderBondBrowser(this.value)" id="bondBrowserFilter">'
+          +'<div class="ab-filters">'
+            +'<span class="ab-filter-lbl">Yield</span>'
+            +'<input class="ab-filter-num" type="number" placeholder="min%" id="bondYldMin" step="0.1" min="0" oninput="renderBondBrowser(document.getElementById(\'bondBrowserFilter\').value)">'
+            +'<span class="ab-filter-sep">–</span>'
+            +'<input class="ab-filter-num" type="number" placeholder="max%" id="bondYldMax" step="0.1" min="0" oninput="renderBondBrowser(document.getElementById(\'bondBrowserFilter\').value)">'
+            +'<span class="ab-filter-lbl" style="margin-left:6px">Scadenza</span>'
+            +'<input class="ab-filter-num" type="number" placeholder="dal" id="bondScadMin" step="1" min="2024" max="2070" oninput="renderBondBrowser(document.getElementById(\'bondBrowserFilter\').value)">'
+            +'<span class="ab-filter-sep">–</span>'
+            +'<input class="ab-filter-num" type="number" placeholder="al" id="bondScadMax" step="1" min="2024" max="2070" oninput="renderBondBrowser(document.getElementById(\'bondBrowserFilter\').value)">'
+            +'<button class="ab-filter-reset" onclick="resetBondFilters()">✕ Reset</button>'
+          +'</div>'
           +'<div class="ab-scroll" id="bondBrowserScroll"><div class="tmpl-search-empty">Caricamento…</div></div>'
         +'</div>'
         // Pane: ETFs browser
         +'<div class="ab-pane" id="abpane-etfs">'
           +'<input class="ab-filter" placeholder="Filtra per nome, categoria, ticker..." oninput="renderEtfBrowser(this.value)" id="etfBrowserFilter">'
+          +'<div class="ab-filters">'
+            +'<span class="ab-filter-lbl">Yield</span>'
+            +'<input class="ab-filter-num" type="number" placeholder="min%" id="etfYldMin" step="0.1" min="0" oninput="renderEtfBrowser(document.getElementById(\'etfBrowserFilter\').value)">'
+            +'<span class="ab-filter-sep">–</span>'
+            +'<input class="ab-filter-num" type="number" placeholder="max%" id="etfYldMax" step="0.1" min="0" oninput="renderEtfBrowser(document.getElementById(\'etfBrowserFilter\').value)">'
+            +'<button class="ab-filter-reset" onclick="resetEtfFilters()">✕ Reset</button>'
+          +'</div>'
           +'<div class="ab-scroll" id="etfBrowserScroll"><div class="tmpl-search-empty">Caricamento…</div></div>'
         +'</div>'
       +'</div></div>';
@@ -4854,26 +4881,41 @@
     if (arrow) arrow.classList.toggle('collapsed', col);
   }
 
+  // ── Reset bond browser filters ────────────────────────────────────────────
+  function resetBondFilters() {
+    ['bondYldMin','bondYldMax','bondScadMin','bondScadMax'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    renderBondBrowser(document.getElementById('bondBrowserFilter')?.value||'');
+  }
+
   // ── Render bond browser — grouped by category ─────────────────────────────
   function renderBondBrowser(filterText) {
     const el = document.getElementById('bondBrowserScroll');
     if (!el) return;
     const q = (filterText||'').toLowerCase().trim();
     const defaultNom = _allocDefaultNom();
+
+    const yldMin  = parseFloat(document.getElementById('bondYldMin')?.value);
+    const yldMax  = parseFloat(document.getElementById('bondYldMax')?.value);
+    const scadMin = parseInt(document.getElementById('bondScadMin')?.value);
+    const scadMax = parseInt(document.getElementById('bondScadMax')?.value);
+
+    const matchBond = (b, mon) =>
+      b.tipo !== 'ETF' && b.isin && b.monitor === mon &&
+      (!q || (b.isin||'').toLowerCase().includes(q) || (b.descrizione||'').toLowerCase().includes(q) ||
+             (b.emittente||'').toLowerCase().includes(q) || (b.paese||'').toLowerCase().includes(q)) &&
+      (isNaN(yldMin)  || (b.yield != null && b.yield >= yldMin)) &&
+      (isNaN(yldMax)  || (b.yield != null && b.yield <= yldMax)) &&
+      (isNaN(scadMin) || (b.scadenza && new Date(b.scadenza).getFullYear() >= scadMin)) &&
+      (isNaN(scadMax) || (b.scadenza && new Date(b.scadenza).getFullYear() <= scadMax));
+
     let html = '', hasAny = false;
 
     BOND_BROWSER_CATS.forEach((cat, ci) => {
       // Gather total count across all monitors for the group header
       const totalInCat = cat.monitors.reduce((sum, mon) =>
-        sum + allBonds.filter(b =>
-          b.tipo !== 'ETF' && b.isin && b.monitor === mon && (
-            !q ||
-            (b.isin||'').toLowerCase().includes(q) ||
-            (b.descrizione||'').toLowerCase().includes(q) ||
-            (b.emittente||'').toLowerCase().includes(q) ||
-            (b.paese||'').toLowerCase().includes(q)
-          )
-        ).length, 0);
+        sum + allBonds.filter(b => matchBond(b, mon)).length, 0);
 
       if (!totalInCat) return;
       hasAny = true;
@@ -4887,15 +4929,8 @@
 
       let firstSub = true;
       cat.monitors.forEach(mon => {
-        const bonds = allBonds.filter(b =>
-          b.tipo !== 'ETF' && b.isin && b.monitor === mon && (
-            !q ||
-            (b.isin||'').toLowerCase().includes(q) ||
-            (b.descrizione||'').toLowerCase().includes(q) ||
-            (b.emittente||'').toLowerCase().includes(q) ||
-            (b.paese||'').toLowerCase().includes(q)
-          )
-        ).sort((a,b) => (b.yield||0)-(a.yield||0)).slice(0, 30);
+        const bonds = allBonds.filter(b => matchBond(b, mon))
+          .sort((a,b) => (b.yield||0)-(a.yield||0)).slice(0, 30);
         if (!bonds.length) return;
 
         html += '<div style="padding:5px 8px 3px;font-size:9px;font-weight:700;color:'+cat.color
@@ -4960,24 +4995,38 @@
   }
 
   // ── Render ETF browser — grouped by ETF_GROUPS ────────────────────────────
+  // ── Reset ETF browser filters ─────────────────────────────────────────────
+  function resetEtfFilters() {
+    ['etfYldMin','etfYldMax'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    renderEtfBrowser(document.getElementById('etfBrowserFilter')?.value||'');
+  }
+
   function renderEtfBrowser(filterText) {
     const el = document.getElementById('etfBrowserScroll');
     if (!el) return;
     if (!etfLoaded) { el.innerHTML = '<div class="tmpl-search-empty">⏳ ETF in caricamento…</div>'; return; }
     const q = (filterText||'').toLowerCase().trim();
     const defaultNom = _allocDefaultNom();
+
+    const yldMin = parseFloat(document.getElementById('etfYldMin')?.value);
+    const yldMax = parseFloat(document.getElementById('etfYldMax')?.value);
+
     let html = '', hasAny = false;
 
     ETF_GROUPS.forEach((g, gi) => {
-      const etfs = allETFs.filter(e =>
-        g.cats.includes(e.cat) && (
-          !q ||
-          (e.ticker||'').toLowerCase().includes(q) ||
-          (e.name||'').toLowerCase().includes(q)   ||
-          (e.isin||'').toLowerCase().includes(q)   ||
-          (e.cat||'').toLowerCase().includes(q)
-        )
-      );
+      const etfs = allETFs.filter(e => {
+        const yv = e.yld != null ? e.yld : (e.acc && e.ytm != null ? e.ytm : null);
+        return g.cats.includes(e.cat) &&
+          (!q ||
+            (e.ticker||'').toLowerCase().includes(q) ||
+            (e.name||'').toLowerCase().includes(q)   ||
+            (e.isin||'').toLowerCase().includes(q)   ||
+            (e.cat||'').toLowerCase().includes(q)) &&
+          (isNaN(yldMin) || (yv != null && yv >= yldMin)) &&
+          (isNaN(yldMax) || (yv != null && yv <= yldMax));
+      });
       if (!etfs.length) return;
       hasAny = true;
       const grpId = 'eg'+gi;
