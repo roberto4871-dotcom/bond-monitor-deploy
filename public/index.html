@@ -1035,6 +1035,7 @@
           </div>
         </div>
         <div class="port-header-actions">
+          <button class="port-btn-secondary" onclick="savePortfolioAsTemplate()" id="btnSavePortTmpl" style="display:none" title="Salva il portafoglio corrente come template riutilizzabile">💾 Salva come template</button>
           <button class="port-btn-secondary" onclick="clearPortfolio()">🗑 Svuota</button>
         </div>
       </div>
@@ -4041,6 +4042,8 @@
     document.getElementById('portEmpty').style.display     = isEmpty ? 'flex' : 'none';
     document.getElementById('portTableWrap').style.display = isEmpty ? 'none'  : '';
     document.getElementById('portKpiBar').style.display    = isEmpty ? 'none'  : '';
+    const btnSave = document.getElementById('btnSavePortTmpl');
+    if (btnSave) btnSave.style.display = isEmpty ? 'none' : '';
     if (isEmpty) {
       document.getElementById('portfolioSummary').innerHTML = '';
       return;
@@ -4948,8 +4951,31 @@
   }
 
   function openTemplate(key) {
-    currentTemplate = _allTemplates().find(t => t.key === key);
-    if (!currentTemplate) return;
+    const t = _allTemplates().find(t => t.key === key);
+    if (!t) return;
+
+    // Template di tipo "portfolio": ricarica direttamente le posizioni nel portafoglio
+    if (t._type === 'portfolio' && t._portfolioPositions) {
+      const label = t.name;
+      if (!confirm(`Caricare il template "${label}" nel portafoglio?\nLe posizioni attuali verranno sostituite.`)) return;
+      portfolio = {};
+      const positions = t._portfolioPositions;
+      Object.entries(positions).forEach(([isin, nominale]) => {
+        let bond = allBonds.find(b => b.isin === isin);
+        if (!bond) {
+          const etf = allETFs.find(e => e.isin === isin);
+          if (etf) bond = { ...etf, tipo: 'ETF' };
+        }
+        if (bond) portfolio[isin] = { bond, nominale: +nominale };
+      });
+      savePortfolio();
+      renderPortfolio();
+      switchPanel('portfolio');
+      return;
+    }
+
+    // Template ETF standard: apre la modale
+    currentTemplate = t;
     tmplAmount = 10000;
     allocMode  = 'etf';
     const inp = document.getElementById('tmplAmountInput');
@@ -5096,6 +5122,63 @@
     } catch(e) { /* continua anche se offline */ }
     _customTemplates = _customTemplates.filter(t => t.key !== key);
     localStorage.setItem('customTemplates', JSON.stringify(_customTemplates));
+    _renderTemplateCards();
+  }
+
+  // ── Salva portafoglio manuale come template ───────────────────────────────
+  async function savePortfolioAsTemplate() {
+    const positions = Object.entries(portfolio);
+    if (!positions.length) { alert('Portafoglio vuoto'); return; }
+
+    const name = prompt('Nome del template:', 'Portafoglio ' + new Date().toLocaleDateString('it-IT'));
+    if (!name) return;
+
+    // Calcola totale nominale e yield medio ponderato
+    const totalNom = positions.reduce((s, [, p]) => s + (p.nominale || 0), 0);
+    let wYield = 0;
+    positions.forEach(([, p]) => {
+      const y = resolveYield(p.bond);
+      if (y) wYield += y * (p.nominale || 0);
+    });
+    const avgYield = totalNom > 0 ? wYield / totalNom : 0;
+
+    const custom = {
+      key:   'custom_' + Date.now(),
+      name,
+      icon:  '⭐',
+      badge: 'CUSTOM',
+      _isCustom:  true,
+      _type:      'portfolio',   // distingue dai template ETF
+      color:      '#d97706',
+      yieldRange: avgYield > 0 ? avgYield.toFixed(1) + '%' : '—',
+      durRange:   '—',
+      orizzonte:  '—',
+      riskLevel:  2,
+      desc: `${positions.length} posizioni · Nominale ${(totalNom / 1000).toFixed(0)}k€`,
+      // posizioni reali (isin → nominale)
+      _portfolioPositions: Object.fromEntries(positions.map(([isin, p]) => [isin, p.nominale])),
+      // componenti per la card di anteprima
+      components: positions.map(([isin, p]) => ({
+        label: p.bond.desc || p.bond.ticker || isin,
+        pct:   totalNom > 0 ? Math.round(p.nominale / totalNom * 100) : 0,
+      })),
+    };
+
+    try {
+      const r = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(custom)
+      });
+      if (!r.ok) throw new Error(await r.text());
+      _customTemplates.push(custom);
+      localStorage.setItem('customTemplates', JSON.stringify(_customTemplates));
+      alert('✅ Template "' + name + '" salvato!');
+    } catch(e) {
+      _customTemplates.push(custom);
+      localStorage.setItem('customTemplates', JSON.stringify(_customTemplates));
+      alert('⚠️ Salvato in locale (server non raggiungibile)');
+    }
     _renderTemplateCards();
   }
 
