@@ -568,6 +568,8 @@
     .tmpl-kpi-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);}
     .tmpl-kpi-val{font-size:14px;font-weight:700;color:var(--text);margin-top:4px;}
     .tmpl-comp-section{padding:16px 24px 0;}
+    .tmpl-rationale{margin:12px 24px 0;padding:12px 14px;background:rgba(59,130,246,.06);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;font-size:11px;color:var(--text2);line-height:1.65;}
+    .tmpl-rationale strong{color:var(--text);display:block;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;opacity:.7;}
     .tmpl-comp-sec-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px;}
     .tmpl-comp{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:13px 14px;margin-bottom:8px;border-left:3px solid var(--tc);}
     .tmpl-comp-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;}
@@ -1360,6 +1362,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script>
   // ─────────────────────────────────────────────
   // STATO
@@ -1865,43 +1868,469 @@
     URL.revokeObjectURL(url);
   }
 
-  // ── Portfolio Excel export ────────────────────────────────────────────────
-  function exportPortfolioXLSX() {
-    if (!window.XLSX) { alert('Libreria Excel non ancora caricata — riprova'); return; }
+  // ── Portfolio Excel export (ExcelJS — professional multi-sheet) ──────────
+  async function exportPortfolioXLSX() {
+    if (typeof ExcelJS === 'undefined') { alert('Libreria ExcelJS non ancora caricata — riprova tra un momento'); return; }
     const positions = Object.values(portfolio);
     if (!positions.length) { alert('Portafoglio vuoto'); return; }
-    const wb   = XLSX.utils.book_new();
+
+    // ── Color palette (ARGB with FF prefix) ──────────────────────────────────
+    const C = {
+      DARK_BLUE:   'FF1E3A5F',
+      MID_BLUE:    'FF1D4ED8',
+      LIGHT_BLUE:  'FFDBEAFE',
+      GREEN:       'FF15803D',
+      LIGHT_GREEN: 'FFDCFCE7',
+      AMBER:       'FFD97706',
+      LIGHT_AMBER: 'FFFEF3C7',
+      RED:         'FFDC2626',
+      LIGHT_RED:   'FFFEE2E2',
+      TEAL:        'FF0D9488',
+      LIGHT_TEAL:  'FFCCFBF1',
+      GRAY_LIGHT:  'FFF9FAFB',
+      WHITE:       'FFFFFFFF',
+      TEXT_DARK:   'FF1F2937',
+      TEXT_MID:    'FF6B7280',
+    };
+
     const jurl = isin => `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
     const burl = isin => `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
-    const hdr  = ['Tipo','ISIN','Descrizione','Emittente','Scadenza','Prezzo',
-                  'Yield %','Duration','Divisa','Nominale €','Val. Mercato €','Cedola/anno €','Link'];
-    const data = [hdr];
-    positions.forEach(pos => {
+
+    // ── Helper: apply header cell style ──────────────────────────────────────
+    function styleHdr(cell, bgArgb, fgArgb, sz) {
+      cell.fill   = { type:'pattern', pattern:'solid', fgColor:{ argb: bgArgb } };
+      cell.font   = { bold:true, color:{ argb: fgArgb||C.WHITE }, size: sz||11, name:'Calibri' };
+      cell.alignment = { horizontal:'center', vertical:'middle', wrapText:false };
+      cell.border = {
+        top:    { style:'thin', color:{ argb:'FFE5E7EB' } },
+        left:   { style:'thin', color:{ argb:'FFE5E7EB' } },
+        bottom: { style:'thin', color:{ argb:'FFE5E7EB' } },
+        right:  { style:'thin', color:{ argb:'FFE5E7EB' } },
+      };
+    }
+
+    function styleData(cell, bgArgb) {
+      if (bgArgb) cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: bgArgb } };
+      cell.font = { name:'Calibri', size:10, color:{ argb: C.TEXT_DARK } };
+      cell.alignment = { vertical:'middle' };
+      cell.border = {
+        top:    { style:'hair', color:{ argb:'FFE5E7EB' } },
+        left:   { style:'hair', color:{ argb:'FFE5E7EB' } },
+        bottom: { style:'hair', color:{ argb:'FFE5E7EB' } },
+        right:  { style:'hair', color:{ argb:'FFE5E7EB' } },
+      };
+    }
+
+    function sectionHdr(ws, row, label, col1, col2, bgArgb) {
+      const r = ws.getRow(row);
+      r.height = 22;
+      const c = ws.getCell(row, col1);
+      c.value = label;
+      styleHdr(c, bgArgb||C.MID_BLUE, C.WHITE, 10);
+      c.alignment = { horizontal:'left', vertical:'middle' };
+      if (col2 > col1) ws.mergeCells(row, col1, row, col2);
+    }
+
+    // ── Pre-compute portfolio metrics ─────────────────────────────────────────
+    let totalMV = 0, totalNom = 0, totalCed = 0;
+    const enriched = positions.map(pos => {
       const b   = pos.bond;
       const yv  = resolveYield(b);
       const mv  = pos.nominale * (b.prezzo || 100) / 100;
       const ced = pos.nominale * (yv || 0) / 100;
-      const scad = b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : '';
-      const link = b.tipo === 'ETF' ? jurl(b.isin) : burl(b.isin);
-      data.push([b.tipo||'Bond', b.isin, b.descrizione||'', b.emittente||'', scad,
+      totalMV  += mv;
+      totalNom += pos.nominale;
+      totalCed += ced;
+      return { pos, b, yv, mv, ced };
+    });
+    const avgYield = totalMV > 0
+      ? enriched.reduce((s,x) => s + (x.yv||0)*(x.mv/totalMV), 0)
+      : 0;
+    const avgDur = totalMV > 0
+      ? enriched.reduce((s,x) => s + (x.b.duration||0)*(x.mv/totalMV), 0)
+      : 0;
+    const nEtf  = enriched.filter(x => x.b.tipo === 'ETF').length;
+    const nBond = enriched.filter(x => x.b.tipo !== 'ETF').length;
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Bond Monitor';
+    wb.created = new Date();
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 1: 📊 Sommario
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws1 = wb.addWorksheet('📊 Sommario');
+    ws1.columns = [
+      { width:28 }, { width:18 }, { width:18 }, { width:18 }, { width:18 }, { width:18 },
+    ];
+
+    // Title bar (row 1)
+    ws1.mergeCells('A1:F1');
+    const titleCell = ws1.getCell('A1');
+    titleCell.value = `📊 Monitor Obbligazioni — Report Portafoglio  ·  ${new Date().toLocaleDateString('it-IT')}`;
+    styleHdr(titleCell, C.DARK_BLUE, C.WHITE, 14);
+    titleCell.alignment = { horizontal:'left', vertical:'middle' };
+    ws1.getRow(1).height = 40;
+
+    // Subtitle row 2
+    ws1.mergeCells('A2:F2');
+    const sub = ws1.getCell('A2');
+    sub.value = `${positions.length} posizioni  ·  Valore di mercato totale: ${totalMV.toLocaleString('it-IT',{style:'currency',currency:'EUR'})}`;
+    sub.fill   = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF2D4E7E' } };
+    sub.font   = { name:'Calibri', size:10, color:{ argb:C.WHITE }, italic:true };
+    sub.alignment = { horizontal:'left', vertical:'middle' };
+    ws1.getRow(2).height = 20;
+
+    // Blank row 3
+    ws1.getRow(3).height = 8;
+
+    // KPI headers row 4
+    const kpiLabels = ['Valore di Mercato','Nominale Totale','Yield Medio Pond.','Duration Media','Cedole/Anno','Posizioni'];
+    const kpiColors = [C.DARK_BLUE, C.MID_BLUE, C.GREEN, C.TEAL, C.AMBER, C.DARK_BLUE];
+    ws1.getRow(4).height = 24;
+    kpiLabels.forEach((lbl, ci) => {
+      const c = ws1.getCell(4, ci+1);
+      c.value = lbl;
+      styleHdr(c, kpiColors[ci], C.WHITE, 9);
+    });
+
+    // KPI values row 5
+    const kpiVals = [
+      totalMV.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+      totalNom.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+      avgYield.toFixed(2) + '%',
+      avgDur.toFixed(1) + ' anni',
+      totalCed.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+      `${positions.length} (${nEtf} ETF + ${nBond} Bond)`,
+    ];
+    ws1.getRow(5).height = 30;
+    kpiVals.forEach((val, ci) => {
+      const c = ws1.getCell(5, ci+1);
+      c.value = val;
+      c.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: C.GRAY_LIGHT } };
+      c.font  = { bold:true, name:'Calibri', size:12, color:{ argb: kpiColors[ci] } };
+      c.alignment = { horizontal:'center', vertical:'middle' };
+      c.border = {
+        top:    { style:'medium', color:{ argb: kpiColors[ci] } },
+        left:   { style:'thin',   color:{ argb:'FFE5E7EB' } },
+        bottom: { style:'thin',   color:{ argb:'FFE5E7EB' } },
+        right:  { style:'thin',   color:{ argb:'FFE5E7EB' } },
+      };
+    });
+
+    // Blank row 6
+    ws1.getRow(6).height = 12;
+
+    // ── Breakdown per Tipo (row 7+) ───────────────────────────────────────────
+    let curRow = 7;
+    sectionHdr(ws1, curRow, '▸ Breakdown per Tipo', 1, 4, C.MID_BLUE); curRow++;
+    ['Tipo','Posizioni','Val. Mercato','% Portafoglio'].forEach((h,ci) => {
+      const c = ws1.getCell(curRow, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+    });
+    ws1.getRow(curRow).height = 18; curRow++;
+
+    const byTipo = {};
+    enriched.forEach(({b, mv}) => {
+      const t = b.tipo === 'ETF' ? 'ETF' : 'Bond Governativo';
+      if (!byTipo[t]) byTipo[t] = { count:0, mv:0 };
+      byTipo[t].count++; byTipo[t].mv += mv;
+    });
+    Object.entries(byTipo).forEach(([tipo, d], ri) => {
+      const bg = ri%2===0 ? C.GRAY_LIGHT : C.WHITE;
+      const row = ws1.getRow(curRow); row.height = 18;
+      [[tipo],[d.count],[d.mv.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})],[(d.mv/totalMV*100).toFixed(1)+'%']].forEach((v,ci) => {
+        const c = ws1.getCell(curRow, ci+1);
+        c.value = v[0];
+        styleData(c, bg);
+        if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
+      });
+      curRow++;
+    });
+
+    curRow++;
+    // ── Breakdown per Paese ───────────────────────────────────────────────────
+    sectionHdr(ws1, curRow, '▸ Breakdown per Paese / Valuta', 1, 4, C.TEAL); curRow++;
+    ['Paese/Divisa','Posizioni','Val. Mercato','% Portafoglio'].forEach((h,ci) => {
+      const c = ws1.getCell(curRow, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+    });
+    ws1.getRow(curRow).height = 18; curRow++;
+
+    const byPaese = {};
+    enriched.forEach(({b, mv}) => {
+      const key = b.divisa ? `${b.paese||'—'} (${b.divisa})` : b.paese||'—';
+      if (!byPaese[key]) byPaese[key] = { count:0, mv:0 };
+      byPaese[key].count++; byPaese[key].mv += mv;
+    });
+    Object.entries(byPaese).sort((a,b) => b[1].mv-a[1].mv).forEach(([paese, d], ri) => {
+      const bg = ri%2===0 ? C.GRAY_LIGHT : C.WHITE;
+      ws1.getRow(curRow).height = 17;
+      [[paese],[d.count],[d.mv.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})],[(d.mv/totalMV*100).toFixed(1)+'%']].forEach((v,ci) => {
+        const c = ws1.getCell(curRow, ci+1);
+        c.value = v[0];
+        styleData(c, bg);
+        if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
+      });
+      curRow++;
+    });
+
+    curRow++;
+    // ── Scenario Analysis ─────────────────────────────────────────────────────
+    sectionHdr(ws1, curRow, '▸ Analisi di Scenario (variazione tassi)', 1, 6, C.AMBER); curRow++;
+    ['Scenario','Δ Tassi','Δ Prezzo Est.','P&L Stimato','Val. Stimato','Note'].forEach((h,ci) => {
+      const c = ws1.getCell(curRow, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+    });
+    ws1.getRow(curRow).height = 18; curRow++;
+
+    const scenarios = [
+      ['Bull — Taglio forte', -1.5, avgDur*1.5, C.LIGHT_GREEN, 'Taglio FED/BCE >150bps'],
+      ['Bull — Taglio moderato', -0.75, avgDur*0.75, C.LIGHT_TEAL, 'Taglio 50–75bps'],
+      ['Base — Stabile', 0, 0, C.WHITE, 'Tassi invariati'],
+      ['Bear — Rialzo moderato', +0.5, -avgDur*0.5, C.LIGHT_AMBER, 'Rialzo 50bps'],
+      ['Bear — Rialzo forte', +1.0, -avgDur*1.0, C.LIGHT_RED, 'Rialzo >100bps'],
+    ];
+    scenarios.forEach(([label, deltaRate, deltaPct, bg, note]) => {
+      const pnl = totalMV * deltaPct / 100;
+      const estVal = totalMV + pnl;
+      ws1.getRow(curRow).height = 18;
+      [label, (deltaRate>=0?'+':'')+deltaRate.toFixed(2)+'%', (deltaPct>=0?'+':'')+deltaPct.toFixed(1)+'%',
+       (pnl>=0?'+':'')+pnl.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+       estVal.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}), note
+      ].forEach((v,ci) => {
+        const c = ws1.getCell(curRow, ci+1);
+        c.value = v;
+        styleData(c, bg);
+        if (ci===3) c.font = { bold:true, name:'Calibri', size:10, color:{ argb: pnl>=0 ? C.GREEN : C.RED } };
+        if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
+      });
+      curRow++;
+    });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 2: 📋 Posizioni
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws2 = wb.addWorksheet('📋 Posizioni');
+    ws2.columns = [
+      { width:8  }, // Tipo
+      { width:16 }, // ISIN
+      { width:40 }, // Descrizione
+      { width:18 }, // Emittente
+      { width:11 }, // Scadenza
+      { width:9  }, // Prezzo
+      { width:8  }, // Yield %
+      { width:9  }, // Duration
+      { width:7  }, // Divisa
+      { width:13 }, // Nominale
+      { width:14 }, // Val. Mercato
+      { width:13 }, // Cedola/anno
+      { width:15 }, // Link
+    ];
+
+    // Title
+    ws2.mergeCells('A1:M1');
+    const t2 = ws2.getCell('A1');
+    t2.value = `📋 Posizioni Portafoglio  ·  ${positions.length} titoli  ·  ${new Date().toLocaleDateString('it-IT')}`;
+    styleHdr(t2, C.DARK_BLUE, C.WHITE, 13);
+    t2.alignment = { horizontal:'left', vertical:'middle' };
+    ws2.getRow(1).height = 36;
+
+    // Header row 2
+    const posHdrs = ['Tipo','ISIN','Descrizione','Emittente','Scadenza','Prezzo','Yield %','Duration','Divisa','Nominale €','Val. Mercato €','Cedola/anno €','Link'];
+    ws2.getRow(2).height = 22;
+    posHdrs.forEach((h,ci) => {
+      const c = ws2.getCell(2, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+    });
+    ws2.views = [{ state:'frozen', ySplit:2 }];
+
+    // Data rows
+    enriched.forEach(({pos, b, yv, mv, ced}, ri) => {
+      const isEtf = b.tipo === 'ETF';
+      const rowBg = isEtf ? C.LIGHT_BLUE : C.LIGHT_GREEN;
+      const scad  = b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : 'Perpetuo';
+      const linkUrl = isEtf ? jurl(b.isin) : burl(b.isin);
+      const linkLabel = isEtf ? 'JustETF ↗' : 'Borsa IT ↗';
+      const rowIdx = ri + 3;
+      ws2.getRow(rowIdx).height = 18;
+
+      const vals = [
+        b.tipo||'Bond',
+        b.isin||'',
+        b.descrizione||'',
+        b.emittente||'',
+        scad,
         b.prezzo != null ? b.prezzo : '',
         yv       != null ? yv       : '',
         b.duration != null ? b.duration : '',
         b.divisa||'EUR',
-        pos.nominale, +mv.toFixed(2), +ced.toFixed(2), link]);
+        pos.nominale,
+        +mv.toFixed(2),
+        +ced.toFixed(2),
+        null, // link handled separately
+      ];
+      vals.forEach((v, ci) => {
+        const c = ws2.getCell(rowIdx, ci+1);
+        styleData(c, rowBg);
+        if (ci === 6 && yv != null) {
+          // Yield color coding
+          c.value = v;
+          c.font = { bold:true, name:'Calibri', size:10,
+            color:{ argb: yv >= 6 ? C.RED : yv >= 4 ? C.AMBER : C.GREEN } };
+          c.alignment = { horizontal:'right', vertical:'middle' };
+        } else if (ci >= 5 && v !== null) {
+          c.value = v;
+          c.alignment = { horizontal:'right', vertical:'middle' };
+        } else if (v !== null) {
+          c.value = v;
+        }
+      });
+      // Link cell
+      const lc = ws2.getCell(rowIdx, 13);
+      lc.value = { text: linkLabel, hyperlink: linkUrl };
+      lc.font  = { name:'Calibri', size:10, color:{ argb: C.MID_BLUE }, underline:true };
+      styleData(lc, rowBg);
+      lc.alignment = { horizontal:'center', vertical:'middle' };
     });
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    positions.forEach((pos, ri) => {
-      const cell = XLSX.utils.encode_cell({ r: ri+1, c: 12 });
-      const b = pos.bond;
-      const url = b.tipo === 'ETF' ? jurl(b.isin) : burl(b.isin);
-      const label = b.tipo === 'ETF' ? 'JustETF ↗' : 'Borsa Italiana ↗';
-      if (ws[cell]) { ws[cell].v = label; ws[cell].l = { Target: url }; }
+
+    // Totals row
+    const totRow = enriched.length + 3;
+    ws2.getRow(totRow).height = 22;
+    ['TOTALE','','','','','','','','',
+      totalNom, +totalMV.toFixed(2), +totalCed.toFixed(2), ''
+    ].forEach((v, ci) => {
+      const c = ws2.getCell(totRow, ci+1);
+      c.value = v;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 10);
+      if (ci >= 9) c.alignment = { horizontal:'right', vertical:'middle' };
     });
-    ws['!cols'] = [{wch:8},{wch:16},{wch:42},{wch:20},{wch:12},{wch:9},
-                   {wch:8},{wch:10},{wch:7},{wch:12},{wch:14},{wch:14},{wch:20}];
-    XLSX.utils.book_append_sheet(wb, ws, 'Portafoglio');
-    XLSX.writeFile(wb, `portafoglio_${new Date().toISOString().slice(0,10)}.xlsx`);
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SHEET 3: 📈 Analisi
+    // ══════════════════════════════════════════════════════════════════════════
+    const ws3 = wb.addWorksheet('📈 Analisi');
+    ws3.columns = [
+      { width:26 }, { width:16 }, { width:16 }, { width:16 }, { width:16 }, { width:16 },
+    ];
+
+    ws3.mergeCells('A1:F1');
+    const t3 = ws3.getCell('A1');
+    t3.value = '📈 Analisi del Portafoglio — Distribuzioni & Top Posizioni';
+    styleHdr(t3, C.DARK_BLUE, C.WHITE, 13);
+    t3.alignment = { horizontal:'left', vertical:'middle' };
+    ws3.getRow(1).height = 36;
+
+    let aRow = 3;
+
+    // ── Duration distribution ────────────────────────────────────────────────
+    sectionHdr(ws3, aRow, '▸ Distribuzione per Duration (anni)', 1, 4, C.MID_BLUE); aRow++;
+    ['Fascia Duration','Posizioni','Val. Mercato','% Port.'].forEach((h,ci) => {
+      const c = ws3.getCell(aRow, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+    });
+    ws3.getRow(aRow).height = 18; aRow++;
+
+    const durBuckets = [
+      ['0–2 anni',  0, 2],
+      ['2–5 anni',  2, 5],
+      ['5–10 anni', 5, 10],
+      ['10–15 anni',10, 15],
+      ['15+ anni',  15, Infinity],
+    ];
+    durBuckets.forEach(([label, lo, hi], ri) => {
+      const items = enriched.filter(x => {
+        const d = x.b.duration || 0;
+        return d >= lo && d < hi;
+      });
+      const bMV = items.reduce((s,x) => s+x.mv, 0);
+      const bg  = ri%2===0 ? C.GRAY_LIGHT : C.WHITE;
+      ws3.getRow(aRow).height = 17;
+      [label, items.length, bMV.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}), (totalMV>0?(bMV/totalMV*100).toFixed(1):0)+'%'].forEach((v,ci) => {
+        const c = ws3.getCell(aRow, ci+1);
+        c.value = v;
+        styleData(c, bg);
+        if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
+      });
+      aRow++;
+    });
+
+    aRow++;
+    // ── Yield bucket distribution ────────────────────────────────────────────
+    sectionHdr(ws3, aRow, '▸ Distribuzione per Fascia Yield', 1, 4, C.AMBER); aRow++;
+    ['Fascia Yield','Posizioni','Val. Mercato','% Port.'].forEach((h,ci) => {
+      const c = ws3.getCell(aRow, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+    });
+    ws3.getRow(aRow).height = 18; aRow++;
+
+    const yldBuckets = [
+      ['< 2%',    0,   2,   C.LIGHT_TEAL],
+      ['2–4%',    2,   4,   C.LIGHT_GREEN],
+      ['4–6%',    4,   6,   C.LIGHT_BLUE],
+      ['6–8%',    6,   8,   C.LIGHT_AMBER],
+      ['> 8%',    8,   Infinity, C.LIGHT_RED],
+    ];
+    yldBuckets.forEach(([label, lo, hi, bg]) => {
+      const items = enriched.filter(x => {
+        const y = x.yv || 0;
+        return y >= lo && y < hi;
+      });
+      const bMV = items.reduce((s,x) => s+x.mv, 0);
+      ws3.getRow(aRow).height = 17;
+      [label, items.length, bMV.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}), (totalMV>0?(bMV/totalMV*100).toFixed(1):0)+'%'].forEach((v,ci) => {
+        const c = ws3.getCell(aRow, ci+1);
+        c.value = v;
+        styleData(c, bg);
+        if (ci>0) c.alignment = { horizontal:'right', vertical:'middle' };
+      });
+      aRow++;
+    });
+
+    aRow++;
+    // ── Top 10 positions ─────────────────────────────────────────────────────
+    sectionHdr(ws3, aRow, '▸ Top 10 Posizioni per Valore di Mercato', 1, 5, C.GREEN); aRow++;
+    ['#','Descrizione','Tipo','Yield %','Val. Mercato','% Port.'].forEach((h,ci) => {
+      const c = ws3.getCell(aRow, ci+1);
+      c.value = h;
+      styleHdr(c, C.DARK_BLUE, C.WHITE, 9);
+    });
+    ws3.getRow(aRow).height = 18; aRow++;
+
+    enriched.slice().sort((a,b) => b.mv-a.mv).slice(0,10).forEach(({b, yv, mv}, ri) => {
+      const isEtf = b.tipo === 'ETF';
+      const bg = isEtf ? C.LIGHT_BLUE : C.LIGHT_GREEN;
+      ws3.getRow(aRow).height = 18;
+      [ri+1, b.descrizione||b.isin, b.tipo||'Bond', yv!=null?yv.toFixed(2)+'%':'—',
+       mv.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0}),
+       (mv/totalMV*100).toFixed(1)+'%'
+      ].forEach((v,ci) => {
+        const c = ws3.getCell(aRow, ci+1);
+        c.value = v;
+        styleData(c, bg);
+        if (ci===0) c.alignment = { horizontal:'center', vertical:'middle' };
+        if (ci>=3)  c.alignment = { horizontal:'right',  vertical:'middle' };
+      });
+      aRow++;
+    });
+
+    // ── Write & download ──────────────────────────────────────────────────────
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `portafoglio_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   // ── Bond Excel export (SheetJS) ──────────────────────────────────────────
@@ -3552,6 +3981,7 @@
     {
       key:'prudente', icon:'🛡️', name:'Prudente', badge:'EUR',
       desc:'Bassa volatilità · duration corta · capitale protetto',
+      rationale:'Strategia orientata alla protezione del capitale con duration contenuta entro i 4 anni. La prevalenza di titoli governativi EUR a breve scadenza minimizza la sensibilità ai tassi di interesse. Il componente corporate investment grade aggiunge spread limitato senza sacrificare la qualità creditizia. Adatto a investitori con orizzonte di 1–3 anni e bassa tolleranza alla volatilità.',
       currency:'EUR', yieldRange:'3–4%', durRange:'2–4', riskLevel:1, color:'#22c55e',
       components:[
         { label:'Gov. EUR 1–3Y', pct:35, desc:'Protezione capitale, liquidità alta, volatilità minima',
@@ -3571,6 +4001,7 @@
     {
       key:'bilanciato', icon:'⚖️', name:'Bilanciato', badge:'EUR',
       desc:'Rendimento / rischio equilibrato · duration media',
+      rationale:'Portafoglio che bilancia rendimento e rischio attraverso una duration media di 5–7 anni, ottimale nel ciclo attuale dei tassi. Il mix di governativi EUR, corporate IG e un\'esposizione controllata all\'high yield permette di catturare carry aggiuntivo senza eccessiva volatilità. La diversificazione per emittente e qualità creditizia riduce il rischio idiosincratico. Ideale per investitori con orizzonte 3–5 anni e tolleranza media al rischio.',
       currency:'EUR', yieldRange:'4–5%', durRange:'5–7', riskLevel:2, color:'#3b82f6',
       components:[
         { label:'Gov. EUR 5–10Y', pct:30, desc:'Nucleo governativo, duration media',
@@ -3591,6 +4022,7 @@
     {
       key:'rendimento', icon:'🚀', name:'Rendimento', badge:'EUR',
       desc:'Massimizzare flusso cedolare · rischio medio-alto',
+      rationale:'Strategia ad alto rendimento che privilegia il flusso cedolare massimo accettando un rischio di credito elevato. L\'esposizione ad AT1/CoCo e high yield europeo genera yield superiori al 6%, supportati da fondamentali bancari solidi nel ciclo post-normativo. La componente EM coperta in EUR aggiunge carry geografico diversificato. Adatto a investitori con tolleranza al rischio medio-alta e orizzonte almeno 3–5 anni.',
       currency:'EUR', yieldRange:'6–8%', durRange:'4–6', riskLevel:3, color:'#ef4444',
       components:[
         { label:'HY Corp EUR', pct:35, desc:'High yield eurozona, cedole elevate',
@@ -3608,6 +4040,7 @@
     {
       key:'dollaro', icon:'💵', name:'Dollaro', badge:'USD',
       desc:'Esposizione valutaria USD · Treasuries + Corporate',
+      rationale:'Portafoglio in dollari che sfrutta il ciclo della FED e il carry valutario USD/EUR. I Treasury a breve termine offrono rendimenti reali positivi con volatilità minima, mentre il tratto 7–10 anni cattura il premio a termine storico. La componente corporate IG aggiunge spread su emittenti di qualità dell\'economia americana. Ideale per chi cerca diversificazione valutaria verso il dollaro su orizzonte 2–4 anni.',
       currency:'USD', yieldRange:'4.5–6%', durRange:'4–8', riskLevel:2, color:'#6366f1',
       components:[
         { label:'Treasury 1–3Y', pct:30, desc:'T-Bills breve termine, alta qualità, basso rischio',
@@ -3625,6 +4058,7 @@
     {
       key:'emergenti', icon:'🌍', name:'Emergenti', badge:'EM',
       desc:'Mercati emergenti · Multi-valuta · Carry elevato',
+      rationale:'Portafoglio EM che cattura il carry geografico attraverso quattro assi: governativi USD (massima liquidità), governativi coperti EUR (protezione valutaria), corporate emergenti (spread aggiuntivo) e valute locali (diversificazione FX). Il carry complessivo di 5–7% remunera i rischi politici e di credito tipici degli emittenti emergenti. Adatto a investitori con orizzonte 4–6 anni e buona diversificazione nel portafoglio complessivo.',
       currency:'MULTI', yieldRange:'5–7%', durRange:'5–7', riskLevel:3, color:'#f59e0b',
       components:[
         { label:'EM Gov USD', pct:35, desc:'Governativi emergenti in dollari, massima liquidità',
@@ -3641,6 +4075,7 @@
     {
       key:'inflation', icon:'🔥', name:'Anti-Inflazione', badge:'INFL',
       desc:'Protezione reale · Inflation-linked EUR + USD',
+      rationale:'Strategia di protezione dal potere d\'acquisto tramite linker EUR (BTPi, OATi) e TIPS USA, strumenti che adeguano il capitale all\'inflazione realizzata. La componente TIPS aggiunge diversificazione verso il CPI americano, storicamente meno volatile di quello europeo. I linker globali con copertura EUR completano la diversificazione geografica. Indicata per investitori che temono un ritorno dell\'inflazione su orizzonti medio-lunghi (5+ anni).',
       currency:'EUR/USD', yieldRange:'CPI +1–2%', durRange:'6–9', riskLevel:2, color:'#f97316',
       components:[
         { label:'Inflation Linked EUR', pct:40, desc:'BTPi e linker eurozona, reindicizzati IPC EUR',
@@ -3660,6 +4095,7 @@
     {
       key:'income', icon:'⚡', name:'Income Max', badge:'HY',
       desc:'Massimo flusso cedolare · Rischio alto · Multi-asset',
+      rationale:'Portafoglio orientato al massimo reddito distribuito, combinando HY EUR, AT1/CoCo bancari, HY USA e governativi emergenti per generare un flusso cedolare superiore al 7%. La diversificazione multi-asset e multi-valuta mitiga parzialmente il rischio di credito concentrato. La duration corta (3–5 anni) riduce la sensibilità ai rialzi dei tassi. Destinato esclusivamente a investitori professionali con alta tolleranza alle perdite temporanee e orizzonte minimo 5 anni.',
       currency:'EUR', yieldRange:'7–10%', durRange:'3–5', riskLevel:4, color:'#a855f7',
       components:[
         { label:'HY Corp EUR', pct:30, desc:'High yield eurozona, cedole trimestrali/mensili',
@@ -3679,6 +4115,7 @@
     {
       key:'liquidita', icon:'🏖️', name:'Parcheggio', badge:'MM',
       desc:'Liquidità · Duration bassissima · Rischio minimo',
+      rationale:'Soluzione di parcheggio della liquidità con duration vicina allo zero e volatilità quasi nulla. I fondi monetari e i floating rate replicano il tasso overnight della BCE, catturando il rendimento senza rischio di tasso. I titoli governativi a breve scadenza aggiungono rendimento marginale con liquidità giornaliera. Indicato come riserva di liquidità operativa o parcheggio in attesa di opportunità di investimento.',
       currency:'EUR/USD', yieldRange:'2.5–3.5%', durRange:'0–1', riskLevel:1, color:'#2dd4bf',
       components:[
         { label:'Money Market EUR', pct:40, desc:'Tasso overnight reinvestito, volatilità quasi zero',
@@ -3697,6 +4134,7 @@
     {
       key:'btp-ladder', icon:'🇮🇹', name:'BTP Ladder', badge:'BTP',
       desc:'Solo titoli di stato italiani · Scadenze scaglionate',
+      rationale:'Ladder di soli BTP italiani che distribuisce le scadenze uniformemente da 0 a 15+ anni, generando un flusso cedolare regolare e reinvestimenti periodici. La struttura a scala riduce il rischio di reinvestimento concentrato e smorza la sensibilità ai movimenti dei tassi rispetto a un singolo titolo. Ogni tranche scade in periodi diversi, fornendo liquidità scaglionata. Ideale per investitori retail italiani che cercano rendimento sovereign EUR con cedole certe.',
       currency:'EUR', yieldRange:'3.5–4.5%', durRange:'2–12', riskLevel:1, color:'#22c55e',
       components:[
         { label:'BTP Breve (0–3 anni)', pct:25,
@@ -3720,6 +4158,7 @@
     {
       key:'eurozona-gov', icon:'🌍', name:'Eurozona Gov', badge:'GOV',
       desc:'Governativi eurozona diversificati · IT + DE + FR + ES',
+      rationale:'Portafoglio di governativi eurozona che combina il carry dei BTP italiani con la sicurezza dei Bund tedeschi AAA, la solidità delle OAT francesi e lo spread della periferia iberica. La diversificazione per paese riduce l\'esposizione al rischio sovrano specifico di un singolo emittente. Il mix IT/DE/FR/ES rispecchia i pesi del debito pubblico europeo, bilanciando rendimento e qualità. Adatto come portafoglio core EUR per investitori europei.',
       currency:'EUR', yieldRange:'3–4.5%', durRange:'4–9', riskLevel:1, color:'#3b82f6',
       components:[
         { label:'Italia — BTP', pct:35,
@@ -3744,6 +4183,7 @@
     {
       key:'ladder-globale', icon:'📅', name:'Ladder Scadenze', badge:'LAD',
       desc:'Scadenze uniformemente distribuite · 1–20 anni · Qualsiasi paese',
+      rationale:'Ladder globale multi-paese con scadenze distribuite da 1 a 20 anni, progettato per smorzare la volatilità totale del portafoglio attraverso la diversificazione temporale. Ogni anno una tranche scade e viene reinvestita ai tassi correnti, eliminando il rischio di dover vendere in perdita. La componente USD aggiunge diversificazione valutaria rispetto ai soli titoli EUR. Strategia robusta per investitori con orizzonte lungo che vogliono cedole annuali prevedibili.',
       currency:'EUR', yieldRange:'3.5–4.5%', durRange:'3–10', riskLevel:2, color:'#f59e0b',
       components:[
         { label:'Breve (0–3 anni)', pct:20,
@@ -3771,6 +4211,7 @@
     {
       key:'rendita-btp', icon:'🇮🇹', name:'Rendita BTP', badge:'BTP',
       desc:'Solo BTP italiani · Cedole scaglionate · Massimo rendimento EUR',
+      rationale:'Portafoglio puro di BTP per investitori che cercano il massimo rendimento sovereign EUR con cedole semestrali garantite dallo Stato italiano. La distribuzione su quattro tranche di duration (2–12 anni) genera un flusso cedolare distribuito nel corso dell\'anno, riducendo il rischio di concentrazione delle cedole. A differenza degli ETF, i BTP diretti eliminano il tracking error e le commissioni di gestione. Ideale per investitori retail italiani che puntano alla rendita.',
       currency:'EUR', yieldRange:'3.5–4.5%', durRange:'2–12', riskLevel:1, color:'#22c55e',
       bondFirst:true,
       components:[
@@ -3796,6 +4237,7 @@
     {
       key:'rendita-eurozona', icon:'🌍', name:'Rendita Eurozona', badge:'GOV',
       desc:'Governativi IT + DE + FR + ES · Cedole diversificate · Rischio paese ridotto',
+      rationale:'Rendita basata su titoli governativi fisici di quattro paesi eurozona (IT, DE, FR, ES) per ridurre la concentrazione sul singolo emittente italiano. I BTP forniscono il carry più elevato, mentre Bund e OAT aggiungono qualità creditizia AAA/AA che stabilizza il portafoglio nei periodi di stress. Le cedole distribuite su emittenti diversi generano flusso mensile/trimestrale più regolare. Strategia ottimale per chi vuole rendita EUR con diversificazione del rischio paese.',
       currency:'EUR', yieldRange:'3–4.5%', durRange:'4–9', riskLevel:1, color:'#3b82f6',
       bondFirst:true,
       components:[
@@ -3821,6 +4263,7 @@
     {
       key:'cedole-ladder', icon:'📅', name:'Cedole Ladder', badge:'LAD',
       desc:'Scadenze scaglionate · Flusso cedolare costante ogni anno · Multi-paese',
+      rationale:'Ladder di titoli governativi fisici a peso uguale (25% per tranche) per generare cedole distribuite uniformemente su 1–15 anni, indipendentemente dal paese emittente. La struttura equal-weight massimizza la diversificazione temporale e geografica minimizzando le scelte discrezionali. Ogni anno una quota del portafoglio scade e viene reinvestita, adattandosi ai tassi correnti senza dover vendere in perdita. Ideale per investitori che necessitano di flussi di cassa annuali prevedibili.',
       currency:'EUR', yieldRange:'3–4.5%', durRange:'2–12', riskLevel:1, color:'#f59e0b',
       bondFirst:true,
       components:[
@@ -3847,6 +4290,7 @@
     {
       key:'hy-eur-dist', icon:'💰', name:'Rendita HY EUR', badge:'DIST',
       desc:'Cedole elevate · ETF distributing · High Yield euro',
+      rationale:'Portafoglio di ETF distributing focalizzati sull\'high yield europeo, progettato per massimizzare le distribuzioni trimestrali/semestrali. Il nucleo HY EUR offre spread ampi su emittenti BB/B, mentre gli AT1/CoCo bancari aggiungono yield spesso superiore all\'8% con distribuzione semestrale. La componente short duration riduce la sensibilità ai tassi e i drawdown in caso di stress. Destinato a investitori esperti che accettano volatilità elevata in cambio di flusso cedolare superiore al 6%.',
       currency:'EUR', yieldRange:'6–9%', durRange:'3–5', riskLevel:4, color:'#f97316',
       components:[
         { label:'HY Corp EUR — Core', pct:40,
@@ -3953,6 +4397,8 @@
     const dots = [1,2,3,4,5].map(i=>'<span style="color:'+(i<=t.riskLevel?t.color:'rgba(255,255,255,.15)')+';font-size:15px">●</span>').join('');
     document.getElementById('tmplKpiRisk').innerHTML = dots;
     renderAllocView();
+    const rat = document.getElementById('tmplRationale');
+    if (rat) rat.textContent = t.rationale || '';
   }
 
   // ── Build pre-compiled "Solo ETF" allocation ─────────────────────────────
@@ -4472,6 +4918,7 @@
       </div>
     </div>
 
+    <div id="tmplRationale" class="tmpl-rationale"></div>
     <div class="tmpl-comp-section" id="tmplComponents"></div>
 
     <div class="tmpl-footer">
