@@ -1387,6 +1387,8 @@
   let activeCurrencies = new Set();
   let activeCountries = new Set();
   let countdownInterval = null;
+  let fetchFailCount = 0;        // consecutive fetch failures
+  const FETCH_ERR_THRESHOLD = 3; // show error only after this many consecutive failures
 
   // ─────────────────────────────────────────────
   // FETCH DATI
@@ -1422,9 +1424,20 @@
       updateStats();
 
     } catch (err) {
-      console.error('Errore fetch:', err);
-      updateStatusBadge(false, lastUpdate, true);
+      fetchFailCount++;
+      console.warn(`Fetch fallito (${fetchFailCount}):`, err.message);
+      if (fetchFailCount >= FETCH_ERR_THRESHOLD) {
+        updateStatusBadge(false, lastUpdate, true);   // show error after 3 failures
+      } else {
+        // transient error (deploy restart) — show soft warning, keep old data visible
+        const txt = document.getElementById('statusText');
+        if (txt) txt.textContent = 'Riconnessione…';
+        const dot = document.getElementById('statusDot');
+        if (dot) { dot.style.background = 'var(--amber)'; }
+      }
+      return;
     }
+    fetchFailCount = 0; // reset on success
   }
 
   async function manualRefresh() {
