@@ -439,6 +439,100 @@ app.delete('/api/templates/:key', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── CLIENTS ──────────────────────────────────────────────────────────────────
+const CLIENTS_FILE = path.join(DATA_DIR, 'clients.json');
+function loadClients() {
+  try { return JSON.parse(fs.readFileSync(CLIENTS_FILE, 'utf8')); } catch { return []; }
+}
+function saveClients(list) {
+  fs.writeFileSync(CLIENTS_FILE, JSON.stringify(list, null, 2));
+}
+
+app.get('/api/clients', (req, res) => {
+  res.json(loadClients());
+});
+
+app.post('/api/clients', (req, res) => {
+  const { id, name } = req.body || {};
+  if (!id || !name) return res.status(400).json({ error: 'id and name required' });
+  const list = loadClients();
+  if (!list.find(c => c.id === id)) list.push({ id, name });
+  saveClients(list);
+  res.json({ ok: true });
+});
+
+app.delete('/api/clients/:id', (req, res) => {
+  const list = loadClients().filter(c => c.id !== req.params.id);
+  saveClients(list);
+  res.json({ ok: true });
+});
+
+// ── PORTFOLIOS ───────────────────────────────────────────────────────────────
+function portfolioFile(clientId) {
+  return path.join(DATA_DIR, `portfolio_${clientId}.json`);
+}
+
+app.get('/api/portfolios/:clientId', (req, res) => {
+  const f = portfolioFile(req.params.clientId);
+  try { res.json(JSON.parse(fs.readFileSync(f, 'utf8'))); }
+  catch { res.json({}); }
+});
+
+app.post('/api/portfolios/:clientId', (req, res) => {
+  const f = portfolioFile(req.params.clientId);
+  fs.writeFileSync(f, JSON.stringify(req.body || {}, null, 2));
+  res.json({ ok: true });
+});
+
+// ── ALERTS ───────────────────────────────────────────────────────────────────
+const ALERTS_FILE = path.join(DATA_DIR, 'alerts.json');
+function loadAlerts() {
+  try { return JSON.parse(fs.readFileSync(ALERTS_FILE, 'utf8')); } catch { return []; }
+}
+function saveAlerts(list) {
+  fs.writeFileSync(ALERTS_FILE, JSON.stringify(list, null, 2));
+}
+
+app.get('/api/alerts', (req, res) => {
+  res.json(loadAlerts());
+});
+
+app.post('/api/alerts', (req, res) => {
+  const alert = req.body || {};
+  if (!alert.id) alert.id = Date.now().toString();
+  const list = loadAlerts();
+  const idx = list.findIndex(a => a.id === alert.id);
+  if (idx >= 0) list[idx] = alert; else list.push(alert);
+  saveAlerts(list);
+  res.json({ ok: true });
+});
+
+app.delete('/api/alerts/:id', (req, res) => {
+  const list = loadAlerts().filter(a => a.id !== req.params.id);
+  saveAlerts(list);
+  res.json({ ok: true });
+});
+
+// ── NOTES ────────────────────────────────────────────────────────────────────
+const NOTES_FILE = path.join(DATA_DIR, 'notes.json');
+function loadNotes() {
+  try { return JSON.parse(fs.readFileSync(NOTES_FILE, 'utf8')); } catch { return {}; }
+}
+function saveNotes(map) {
+  fs.writeFileSync(NOTES_FILE, JSON.stringify(map, null, 2));
+}
+
+app.get('/api/notes', (req, res) => {
+  res.json(loadNotes());
+});
+
+app.post('/api/notes/:isin', (req, res) => {
+  const map = loadNotes();
+  map[req.params.isin] = (req.body || {}).text || '';
+  saveNotes(map);
+  res.json({ ok: true });
+});
+
 // API: versione build — il client lo usa per rilevare deploy e ricaricare automaticamente
 app.get('/api/version', (req, res) => {
   res.json({ build: SERVER_BUILD });
