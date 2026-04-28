@@ -892,6 +892,7 @@
           <option value="999999">Tutti</option>
         </select>
         <button class="btn btn-secondary print-hide" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn btn-secondary print-hide" onclick="exportBondXLSX()" title="Esporta tabella filtrata in Excel con link Borsa Italiana">📊 Excel</button>
         <button class="btn btn-secondary print-hide" onclick="exportPDF()">🖨 PDF</button>
       </div>
     </div>
@@ -937,7 +938,10 @@
       <div class="panel-header" style="flex-direction:column;align-items:flex-start;gap:10px;">
         <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
           <span>🏦 ETF Bond — prezzi in tempo reale</span>
-          <button onclick="reloadETF()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;">↻ Aggiorna</button>
+          <div style="display:flex;gap:8px">
+            <button onclick="exportETFXLSX()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;" title="Esporta tabella ETF in Excel con link JustETF e Borsa Italiana">📊 Excel</button>
+            <button onclick="reloadETF()" style="font-size:12px;padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;">↻ Aggiorna</button>
+          </div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <input type="text" class="etf-search" id="etfSearch" placeholder="Cerca ticker / nome..." oninput="renderETF()">
@@ -1351,6 +1355,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
   // ─────────────────────────────────────────────
   // STATO
@@ -1854,6 +1859,89 @@
     a.download = `obbligazioni_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // ── Bond Excel export (SheetJS) ──────────────────────────────────────────
+  function exportBondXLSX() {
+    if (!window.XLSX) { alert('Libreria Excel non ancora caricata — riprova'); return; }
+    const bonds = filteredBonds.length ? filteredBonds : allBonds.filter(b => b.tipo !== 'ETF');
+    if (!bonds.length) { alert('Nessun titolo da esportare'); return; }
+    const date = new Date().toISOString().slice(0,10);
+    const wb   = XLSX.utils.book_new();
+    const burl = isin => `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
+    const hdr  = ['ISIN','Descrizione','Emittente','Paese','Tipo','Divisa',
+                  'Scadenza','Prezzo','Yield %','Duration','Z-Spread','Borsa Italiana'];
+    const data = [hdr];
+    bonds.forEach(b => {
+      const scad = b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : '';
+      data.push([b.isin, b.descrizione||'', b.emittente||'', b.paese||'', b.tipo||'',
+        b.divisa||'', scad,
+        b.prezzo   != null ? b.prezzo   : '',
+        b.yield    != null ? b.yield    : '',
+        b.duration != null ? b.duration : '',
+        b.zSpread  != null ? b.zSpread  : '',
+        burl(b.isin)]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    bonds.forEach((b, ri) => {
+      const cell = XLSX.utils.encode_cell({ r: ri+1, c: 11 });
+      if (ws[cell]) { ws[cell].v = 'Borsa Italiana ↗'; ws[cell].l = { Target: burl(b.isin) }; }
+    });
+    ws['!cols'] = [{wch:16},{wch:44},{wch:24},{wch:8},{wch:8},{wch:7},
+                   {wch:12},{wch:9},{wch:8},{wch:10},{wch:9},{wch:22}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Titoli');
+    XLSX.writeFile(wb, `bond_monitor_${date}.xlsx`);
+  }
+
+  // ── ETF Excel export (SheetJS) ────────────────────────────────────────────
+  function exportETFXLSX() {
+    if (!window.XLSX) { alert('Libreria Excel non ancora caricata — riprova'); return; }
+    if (!etfLoaded || !allETFs.length) { alert('Apri prima il pannello ETF per caricare i dati'); return; }
+    const date   = new Date().toISOString().slice(0,10);
+    const search = (document.getElementById('etfSearch')?.value||'').toLowerCase();
+    const etfs   = allETFs.filter(e => {
+      if (etfGroupFilter) {
+        const g = ETF_GROUPS.find(g => g.key === etfGroupFilter);
+        if (g && !g.cats.includes(e.cat)) return false;
+      }
+      if (search && !((e.ticker||'').toLowerCase().includes(search))
+                 && !e.name.toLowerCase().includes(search)
+                 && !e.isin.toLowerCase().includes(search)) return false;
+      return true;
+    });
+    if (!etfs.length) { alert('Nessun ETF corrisponde ai filtri correnti'); return; }
+    const wb   = XLSX.utils.book_new();
+    const jurl = isin => `https://www.justetf.com/en/etf-profile.html?isin=${isin}`;
+    const burl = isin => `https://www.borsaitaliana.it/borsa/search/scheda.html?code=${isin}`;
+    const hdr  = ['ISIN','Ticker','Nome','Categoria','Valuta',
+                  'Prezzo','Yield %','Var %','YTD %','Min 52W','Max 52W',
+                  'Duration','TER %','JustETF','Borsa Italiana'];
+    const data = [hdr];
+    etfs.forEach(e => {
+      const ytd = e.ytdReturn    != null ? +(e.ytdReturn*100).toFixed(2)    : '';
+      const chg = e.changePercent != null ? +(e.changePercent*100).toFixed(2) : '';
+      data.push([e.isin, e.ticker||'', e.name||'', e.cat||'', e.currency||'EUR',
+        e.price  != null ? e.price  : '',
+        e.yld    != null ? e.yld    : '',
+        chg, ytd,
+        e.low52w  != null ? e.low52w  : '',
+        e.high52w != null ? e.high52w : '',
+        e.dur     != null ? e.dur     : '',
+        e.ter     != null ? e.ter     : '',
+        jurl(e.isin), burl(e.isin)]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    etfs.forEach((e, ri) => {
+      const jc = XLSX.utils.encode_cell({ r: ri+1, c: 13 });
+      const bc = XLSX.utils.encode_cell({ r: ri+1, c: 14 });
+      if (ws[jc]) { ws[jc].v = 'JustETF ↗';        ws[jc].l = { Target: jurl(e.isin) }; }
+      if (ws[bc]) { ws[bc].v = 'Borsa Italiana ↗'; ws[bc].l = { Target: burl(e.isin) }; }
+    });
+    ws['!cols'] = [{wch:16},{wch:8},{wch:42},{wch:22},{wch:7},
+                   {wch:10},{wch:8},{wch:8},{wch:8},{wch:10},{wch:10},
+                   {wch:10},{wch:7},{wch:20},{wch:22}];
+    XLSX.utils.book_append_sheet(wb, ws, 'ETF');
+    XLSX.writeFile(wb, `etf_export_${date}.xlsx`);
   }
 
   // ─────────────────────────────────────────────
@@ -3432,9 +3520,11 @@
       components:[
         { label:'Gov. EUR 5–10Y', pct:30, desc:'Nucleo governativo, duration media',
           etfs:[{isin:'LU1287023003',ticker:'EM57',name:'Amundi Euro Gov Bond 5-7Y'},
-                {isin:'LU1287023185',ticker:'EM710',name:'Amundi Euro Gov Bond 7-10Y'}] },
+                {isin:'LU1287023185',ticker:'EM710',name:'Amundi Euro Gov Bond 7-10Y'}],
+          bonds:{paese:['IT','DE','FR','ES'],durMin:5,durMax:10} },
         { label:'Gov. EUR Blend', pct:20, desc:'Diversificazione sull\'intera curva EUR',
-          etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}] },
+          etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}],
+          bonds:{paese:['IT','DE','FR','ES'],durMin:3,durMax:12} },
         { label:'Corp. IG EUR', pct:30, desc:'Investment grade europeo, carry aggiuntivo',
           etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'},
                 {isin:'LU1829219127',ticker:'CRPE',name:'Amundi Euro Corp Bond'}] },
@@ -3500,14 +3590,16 @@
       components:[
         { label:'Inflation Linked EUR', pct:40, desc:'BTPi e linker eurozona, reindicizzati IPC EUR',
           etfs:[{isin:'IE00B0M62X26',ticker:'IBCI',name:'iShares Infl Linked EUR Gov'},
-                {isin:'LU1650491282',ticker:'EMI',name:'Amundi EUR Gov Infl Linked'}] },
+                {isin:'LU1650491282',ticker:'EMI',name:'Amundi EUR Gov Infl Linked'}],
+          bonds:{paese:['IT'],durMin:3} },
         { label:'TIPS USA', pct:30, desc:'Treasury Inflation-Protected Securities, CPI USA',
           etfs:[{isin:'IE00B1FZSC47',ticker:'ITPS',name:'iShares $ TIPS'},
                 {isin:'LU1390062831',ticker:'INFU',name:'Amundi US$ 10Y Infl Exp'}] },
         { label:'Inflation GLB Hedged', pct:20, desc:'Linker globali con copertura EUR, diversificazione CPI',
           etfs:[{isin:'LU0290357929',ticker:'XGIN',name:'Xtrackers Glob Infl Link EUR H'}] },
         { label:'Gov. EUR Blend', pct:10, desc:'Parte nominale per liquidità e stabilità',
-          etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}] },
+          etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}],
+          bonds:{paese:['IT','DE','FR'],durMin:2,durMax:7} },
       ]
     },
     {
@@ -3620,6 +3712,31 @@
           bonds:{paese:['IT','DE','FR','US'],durMin:12} },
       ]
     },
+    // ── HY EUR DISTRIBUTION ────────────────────────────────────────────────
+    {
+      key:'hy-eur-dist', icon:'💰', name:'Rendita HY EUR', badge:'DIST',
+      desc:'Cedole elevate · ETF distributing · High Yield euro',
+      currency:'EUR', yieldRange:'6–9%', durRange:'3–5', riskLevel:4, color:'#f97316',
+      components:[
+        { label:'HY Corp EUR — Core', pct:40,
+          desc:'Nucleo HY eurozona: cedole trimestrali/semestrali, emittenti BB/B, spread ampi rispetto all\'IG',
+          etfs:[{isin:'IE00B66F4759',ticker:'IHYG',  name:'iShares EUR HY Corp Bond (Dist)'},
+                {isin:'LU1681040496',ticker:'AHYE',  name:'Amundi Euro HY Liq Bond'},
+                {isin:'LU1812090543',ticker:'HY',    name:'Amundi EUR HY Corp Bond ESG'}] },
+        { label:'AT1 / Ibridi Bancari', pct:25,
+          desc:'Subordinati bancari Additional Tier 1: yield 7–9%, distribuzione semestrale, rischio bail-in',
+          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',  name:'Invesco AT1 Capital Bond ETF'},
+                {isin:'IE00BZ0XVF52',ticker:'CCBO', name:'WisdomTree AT1 CoCo Bond UCITS ETF'}] },
+        { label:'HY Short Duration', pct:20,
+          desc:'High yield breve scadenza: minor sensibilità ai tassi, cedole stabili, drawdown ridotto',
+          etfs:[{isin:'IE00BF8HV600',ticker:'STHE', name:'PIMCO US Short-Term HY EUR Hedged'},
+                {isin:'IE00B4PY7Y77',ticker:'IHYU', name:'iShares $ HY Corp Bond'}] },
+        { label:'EM Corp USD — Carry Extra', pct:15,
+          desc:'Corporate emergenti USD: spread aggiuntivo +100bps vs HY EUR, cedole elevate, rischio FX/EM',
+          etfs:[{isin:'IE00B6TLBW47',ticker:'EMCR', name:'iShares JPM $ EM Corporate Bond'},
+                {isin:'IE00B2NPKV68',ticker:'IEMB', name:'iShares JPM $ EM Bond UCITS ETF'}] },
+      ]
+    },
   ];
 
   let currentTemplate = null, tmplAmount = 10000;
@@ -3726,11 +3843,44 @@
   // ── Build pre-compiled "Mix ETF + Titoli" allocation ─────────────────────
   function buildMixedAlloc(t, amount) {
     const items = [];
-    (t.components||[]).forEach(c => {
+
+    // Robust bond lookup: try with paese, then without, then with relaxed duration
+    function tryBonds(criteria) {
+      if (!criteria) return [];
+      let bonds = getBondSuggestions(criteria);
+      // Fallback 1: drop paese filter (API may use different country codes)
+      if (!bonds.length && criteria.paese && criteria.paese.length) {
+        bonds = getBondSuggestions({ durMin: criteria.durMin, durMax: criteria.durMax });
+      }
+      // Fallback 2: completely relax duration too → pick any available bond
+      if (!bonds.length) {
+        bonds = getBondSuggestions({});
+      }
+      return bonds;
+    }
+
+    // For templates with NO bond criteria on any component, derive generic criteria
+    // from the template's duration range (only for EUR low/medium risk)
+    const hasBondComps = (t.components||[]).some(c => c.bonds);
+    let genericCriteria = null;
+    if (!hasBondComps && t.riskLevel <= 2) {
+      // Parse duration range "5–7" → durMin=3, durMax=10 (generous bounds)
+      const durParts = (t.durRange||'').split(/[–\-]/);
+      const durMin = durParts[0] ? Math.max(0, parseInt(durParts[0]) - 2) : 0;
+      const durMax = durParts[1] ? parseInt(durParts[1]) + 3 : 12;
+      genericCriteria = { durMin, durMax };
+    }
+
+    (t.components||[]).forEach((c, ci) => {
       const pct = c.pct;
       const e   = (c.etfs||[])[0];
-      if (c.bonds) {
-        const bonds = getBondSuggestions(c.bonds);
+
+      // Use explicit bond criteria or (for first 2 components) generic fallback
+      const bondCriteria = c.bonds
+        || (genericCriteria && ci < 2 ? genericCriteria : null);
+
+      if (bondCriteria) {
+        const bonds = tryBonds(bondCriteria);
         if (bonds.length > 0) {
           // Split ~55% ETF / 45% bond within this component
           const etfPct  = Math.max(5, Math.round(pct * 0.55));
@@ -3739,7 +3889,7 @@
           const bondNom = Math.max(1000, Math.round(amount * bondPct / 100 / 1000) * 1000);
           if (e) {
             items.push({
-              isin: e.isin, type:'etf', ticker:e.ticker, name:e.name,
+              isin:e.isin, type:'etf', ticker:e.ticker, name:e.name,
               pct:etfPct, label:c.label, nominale:etfNom,
               alts:(c.etfs||[]).slice(1).map(a=>({type:'etf',isin:a.isin,ticker:a.ticker,name:a.name})),
             });
@@ -3750,12 +3900,12 @@
             yield:b.yield, prezzo:b.prezzo, duration:b.duration,
             pct:bondPct, label:c.label, nominale:bondNom,
             alts:bonds.slice(1,4).map(bb=>({type:'bond',isin:bb.isin,name:bb.descrizione,paese:bb.paese,yield:bb.yield})),
-            bondCriteria:c.bonds,
+            bondCriteria,
           });
           return;
         }
       }
-      // No bonds or none available → full ETF for this component
+      // No bonds available: full ETF for this component
       if (!e) return;
       const nom = Math.max(1000, Math.round(amount * pct / 100 / 1000) * 1000);
       items.push({
