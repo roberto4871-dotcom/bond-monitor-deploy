@@ -1038,6 +1038,11 @@
         </div>
       </div>
       <div style="overflow-y:auto;flex:1;padding-top:4px;">
+        <div style="padding:16px 16px 0">
+          <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📊 Indicatori Mercato</div>
+          <div id="macroIndicatorsGrid"></div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0 0">
         <div class="macro-grid" id="macroGrid">
           <div style="text-align:center;padding:40px;color:var(--text2);grid-column:1/-1;">
             <div style="font-size:28px;margin-bottom:8px;">⏳</div>Caricamento dati macro...
@@ -1068,6 +1073,7 @@
         </div>
         <div class="port-header-actions">
           <button class="port-btn-secondary" onclick="savePortfolioAsTemplate()" id="btnSavePortTmpl" style="display:none" title="Salva il portafoglio corrente come template riutilizzabile">💾 Salva come template</button>
+          <button class="port-btn-secondary" onclick="openImportModal()" title="Importa portafoglio da file Excel o CSV (colonne: ISIN, Nominale)">📥 Importa</button>
           <button class="port-btn-secondary" onclick="showSensitivity()" title="Rate Sensitivity Analysis">📐 Sensitivity</button>
           <button class="port-btn-secondary" onclick="printPortfolioPDF()" title="Esporta PDF">📄 PDF</button>
           <button class="port-btn-secondary" onclick="saveSnapshot()" title="Salva snapshot per confronto">📸 Snapshot</button>
@@ -3176,7 +3182,7 @@
     if (panel === 'yieldcurve') renderYieldCurve();
     if (panel === 'ladder')     renderLadder();
     if (panel === 'etf')        loadETFPanel();
-    if (panel === 'macro')      { loadMacroPanel(); renderMacroCalendar(); }
+    if (panel === 'macro')      { loadMacroPanel(); renderMacroCalendar(); renderMacroIndicators(); }
     if (panel === 'portfolio')  renderPortfolio();
   }
 
@@ -3864,7 +3870,56 @@
     }
   }
 
-  function reloadMacro() { macroLoaded = false; document.getElementById('macroGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2);">⏳ Ricaricamento...</div>'; loadMacroPanel(); }
+  function reloadMacro() { macroLoaded = false; document.getElementById('macroGrid').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2);">⏳ Ricaricamento...</div>'; loadMacroPanel(); renderMacroIndicators(); }
+
+  async function renderMacroIndicators() {
+    const el = document.getElementById('macroIndicatorsGrid');
+    if (!el) return;
+    el.innerHTML = '<div style="color:var(--text2);font-size:11px;padding:8px">Caricamento indicatori...</div>';
+    try {
+      const r = await fetch('/api/macro-indicators');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const { indicators, updatedAt } = await r.json();
+      const indList = [
+        indicators.btp10y,
+        indicators.bund10y,
+        indicators.spread,
+        indicators.ecbRate,
+        indicators.us10y,
+        indicators.eurusd,
+        indicators.gold,
+        indicators.vix,
+      ].filter(Boolean);
+      if (!indList.length) { el.innerHTML = '<div style="color:var(--text2);font-size:11px">Nessun dato disponibile</div>'; return; }
+      const getColor = (key, val) => {
+        const v = parseFloat(val);
+        if (key === 'spread') return v > 200 ? 'var(--red)' : v > 150 ? 'var(--amber)' : 'var(--green)';
+        if (key === 'vix')    return v > 30  ? 'var(--red)' : v > 20  ? 'var(--amber)' : 'var(--green)';
+        if (key === 'btp10y') return v > 5   ? 'var(--red)' : v > 4   ? 'var(--amber)' : 'var(--green)';
+        if (key === 'ecbRate') return 'var(--text)';
+        return 'var(--text)';
+      };
+      const keys = ['btp10y','bund10y','spread','ecbRate','us10y','eurusd','gold','vix'];
+      el.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
+          ${indList.map((ind, i) => {
+            const key = keys[i] || '';
+            const col = getColor(key, ind.value);
+            const changeHtml = ind.change != null
+              ? `<span style="font-size:9px;color:${parseFloat(ind.change)>=0?'var(--green)':'var(--red)'};margin-left:4px">${parseFloat(ind.change)>=0?'▲':'▼'}${Math.abs(ind.change)}%</span>`
+              : (ind.isStale ? '<span style="font-size:9px;color:var(--text2)"> ~</span>' : '');
+            return `
+              <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+                <div style="font-size:9px;color:var(--text2);font-weight:600;text-transform:uppercase;margin-bottom:4px">${escHtml(ind.label)}</div>
+                <div style="font-size:18px;font-weight:700;color:${col}">${ind.unit==='$'?'$':''}${escHtml(String(ind.value))}${ind.unit&&ind.unit!=='$'?'<span style="font-size:12px;font-weight:400"> '+ind.unit+'</span>':''}${changeHtml}</div>
+              </div>`;
+          }).join('')}
+        </div>
+        <div style="font-size:9px;color:rgba(255,255,255,.2);margin-top:6px;text-align:right">Aggiornato: ${updatedAt ? new Date(updatedAt).toLocaleTimeString('it-IT') : '—'} · <button onclick="renderMacroIndicators()" style="background:none;border:none;color:rgba(255,255,255,.3);font-size:9px;cursor:pointer">↻ aggiorna</button></div>`;
+    } catch(e) {
+      el.innerHTML = '<div style="color:var(--text2);font-size:11px;padding:8px">Errore caricamento indicatori: ' + escHtml(e.message) + '</div>';
+    }
+  }
 
   function renderMacro(data) {
     if (data.lastUpdate) document.getElementById('macroLastUpdate').textContent = 'Aggiornato: ' + new Date(data.lastUpdate).toLocaleString('it-IT');
@@ -4073,6 +4128,176 @@
     delete portfolio[isin];
     savePortfolio();
     renderPortfolio();
+  }
+
+  // ── Import Portfolio from Excel/CSV ──────────────────────────────────────────
+
+  function parseCSVPortfolio(text) {
+    const lines = text.trim().split(/\r?\n/);
+    if (!lines.length) return [];
+    const sep = lines[0].includes(';') ? ';' : ',';
+    const headers = lines[0].split(sep).map(h => h.trim().replace(/["']/g,'').toLowerCase());
+    const isinIdx = headers.findIndex(h => h.includes('isin'));
+    const nomIdx  = headers.findIndex(h =>
+      h.includes('nominal') || h.includes('importo') || h.includes('amount') ||
+      h.includes('quantit') || h.includes('valore'));
+    if (isinIdx === -1) return null;
+    return lines.slice(1).map(line => {
+      const cols = line.split(sep).map(c => c.trim().replace(/["']/g,''));
+      const isin = cols[isinIdx]?.toUpperCase().trim();
+      const nom  = nomIdx >= 0 ? parseFloat(cols[nomIdx]?.replace(/[.,](?=\d{3})/g,'').replace(',','.')) : 10000;
+      if (!isin || isin.length !== 12) return null;
+      return { isin, nominale: isNaN(nom) ? 10000 : nom };
+    }).filter(Boolean);
+  }
+
+  async function parseExcelPortfolio(file) {
+    const buf = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const ws = wb.worksheets[0];
+    if (!ws) return null;
+    const rows = [];
+    ws.eachRow((row, ri) => rows.push({ ri, values: row.values }));
+    if (rows.length < 2) return null;
+    const headers = (rows[0].values || []).map(v => String(v||'').toLowerCase().trim());
+    const isinIdx = headers.findIndex(h => h.includes('isin'));
+    const nomIdx  = headers.findIndex(h =>
+      h.includes('nominal') || h.includes('importo') || h.includes('amount') ||
+      h.includes('quantit') || h.includes('valore'));
+    if (isinIdx === -1) return null;
+    return rows.slice(1).map(r => {
+      const vals = r.values || [];
+      const isin = String(vals[isinIdx] || '').toUpperCase().trim();
+      const nomRaw = vals[nomIdx];
+      const nom = typeof nomRaw === 'number' ? nomRaw : parseFloat(String(nomRaw||'').replace(/[.,](?=\d{3})/g,'').replace(',','.'));
+      if (!isin || isin.length !== 12) return null;
+      return { isin, nominale: isNaN(nom) ? 10000 : nom };
+    }).filter(Boolean);
+  }
+
+  function openImportModal() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.xlsx,.xls,.csv';
+    inp.onchange = async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      let parsed = null;
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        const text = await file.text();
+        parsed = parseCSVPortfolio(text);
+      } else {
+        parsed = await parseExcelPortfolio(file);
+      }
+      if (!parsed || !parsed.length) {
+        showToast('File non riconosciuto. Assicurati che ci sia una colonna ISIN.', 'error');
+        return;
+      }
+      showImportPreview(parsed);
+    };
+    inp.click();
+  }
+
+  function showImportPreview(rows) {
+    const resolved = rows.map(r => {
+      const bond = allBonds.find(b => b.isin === r.isin);
+      const etf  = !bond ? allETFs.find(e => e.isin === r.isin) : null;
+      const found = bond || etf;
+      return {
+        isin: r.isin,
+        nominale: r.nominale,
+        name: found ? (found.desc || found.descrizione || found.name || r.isin) : null,
+        bond: found ? (bond || { ...etf, tipo:'ETF' }) : null,
+        found: !!found
+      };
+    });
+    const total    = resolved.length;
+    const found    = resolved.filter(r => r.found).length;
+    const notFound = total - found;
+    window._importResolved = resolved;
+    const html = `
+    <div id="importOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(640px,96vw);max-height:85vh;overflow:hidden;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:16px;font-weight:700">📥 Importa Portafoglio</div>
+          <button onclick="document.getElementById('importOverlay').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:var(--text)">${total}</div>
+            <div style="font-size:10px;color:var(--text2)">Righe trovate</div>
+          </div>
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:var(--green)">${found}</div>
+            <div style="font-size:10px;color:var(--text2)">Titoli riconosciuti</div>
+          </div>
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:${notFound>0?'var(--amber)':'var(--text2)'}">${notFound}</div>
+            <div style="font-size:10px;color:var(--text2)">Non trovati</div>
+          </div>
+        </div>
+        <div style="flex:1;overflow-y:auto;margin-bottom:12px">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:var(--bg3)">
+              <th style="padding:8px;text-align:left">ISIN</th>
+              <th style="padding:8px;text-align:left">Nome</th>
+              <th style="padding:8px;text-align:right">Nominale</th>
+              <th style="padding:8px;text-align:center">Status</th>
+            </tr></thead>
+            <tbody>
+              ${resolved.map(r => `
+                <tr style="border-top:1px solid var(--border)">
+                  <td style="padding:7px 8px;font-size:11px;color:var(--text2)">${escHtml(r.isin)}</td>
+                  <td style="padding:7px 8px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.name||'')}">
+                    ${r.found ? escHtml(r.name||r.isin) : '<span style="color:var(--text2);font-style:italic">Non trovato</span>'}
+                  </td>
+                  <td style="padding:7px 8px;text-align:right">€${(r.nominale||0).toLocaleString('it-IT')}</td>
+                  <td style="padding:7px 8px;text-align:center">${r.found ? '✅' : '⚠️'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <div style="flex:1;font-size:11px;color:var(--text2);display:flex;align-items:center">
+            ${notFound > 0 ? `⚠️ ${notFound} titoli non trovati verranno ignorati` : '✅ Tutti i titoli riconosciuti'}
+          </div>
+          <button onclick="document.getElementById('importOverlay').remove()" style="padding:8px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);cursor:pointer;font-size:13px">Annulla</button>
+          ${found > 0 ? `
+          <button onclick="confirmImportMerge()" style="padding:8px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-size:13px">+ Aggiungi</button>
+          <button onclick="confirmImportDirect()" style="padding:8px 16px;background:#3b82f6;border:none;border-radius:8px;color:white;cursor:pointer;font-size:13px;font-weight:600">↺ Sostituisci</button>` : ''}
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:var(--text2);text-align:center">Il file deve avere le colonne ISIN e Nominale</div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  function confirmImportDirect() {
+    const resolved = window._importResolved || [];
+    portfolio = {};
+    resolved.filter(r => r.found && r.bond).forEach(r => {
+      portfolio[r.isin] = { bond: r.bond, nominale: r.nominale };
+    });
+    savePortfolio();
+    _savePortfolioToServer();
+    renderPortfolio();
+    document.getElementById('importOverlay')?.remove();
+    showToast('✅ Importati ' + resolved.filter(r=>r.found).length + ' titoli', 'success');
+    switchPanel('portfolio');
+  }
+
+  function confirmImportMerge() {
+    const resolved = window._importResolved || [];
+    resolved.filter(r => r.found && r.bond).forEach(r => {
+      portfolio[r.isin] = { bond: r.bond, nominale: r.nominale };
+    });
+    savePortfolio();
+    _savePortfolioToServer();
+    renderPortfolio();
+    document.getElementById('importOverlay')?.remove();
+    showToast('✅ Aggiunti ' + resolved.filter(r=>r.found).length + ' titoli al portafoglio', 'success');
+    switchPanel('portfolio');
   }
 
   function updateNominale(isin, val) {

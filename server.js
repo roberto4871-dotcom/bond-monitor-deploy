@@ -1661,6 +1661,96 @@ app.get('/api/macro', async (req, res) => {
   }
 });
 
+// ─── MACRO INDICATORS ────────────────────────────────────────────────────────
+
+let macroIndicatorsCache = null;
+let macroIndicatorsLastFetch = 0;
+const MACRO_TTL = 15 * 60 * 1000; // 15 min
+
+async function fetchMacroIndicators() {
+  const now = Date.now();
+  if (macroIndicatorsCache && (now - macroIndicatorsLastFetch) < MACRO_TTL) {
+    return macroIndicatorsCache;
+  }
+
+  const indicators = {};
+
+  // BTP 10Y and Bund 10Y from already-fetched bonds
+  const btp10 = getBondYield10Y('Italia');
+  const bund10 = getBondYield10Y('Germania');
+
+  if (btp10)  indicators.btp10y  = { value: btp10.value,  label: 'BTP 10Y',        unit: '%', desc: btp10.note  };
+  if (bund10) indicators.bund10y = { value: bund10.value, label: 'Bund 10Y',       unit: '%', desc: bund10.note };
+  if (btp10 && bund10) indicators.spread = { value: Math.round((btp10.value - bund10.value) * 100), label: 'Spread BTP/Bund', unit: 'bps' };
+
+  // EUR/USD from Yahoo Finance
+  try {
+    const fx = await fetchYahooIndicator('EURUSD=X');
+    if (fx && fx.value) {
+      indicators.eurusd = { value: fx.value.toFixed(4), label: 'EUR/USD', unit: '', change: fx.changePercent != null ? fx.changePercent.toFixed(2) : null };
+    }
+  } catch(e) { console.error('[macro-ind] EUR/USD error:', e.message); }
+
+  // Gold price (XAU/USD) from Yahoo Finance
+  try {
+    const gold = await fetchYahooIndicator('GC=F');
+    if (gold && gold.value) {
+      indicators.gold = { value: gold.value.toFixed(0), label: 'Oro (XAU/USD)', unit: '$', change: gold.changePercent != null ? gold.changePercent.toFixed(2) : null };
+    }
+  } catch(e) { console.error('[macro-ind] Gold error:', e.message); }
+
+  // ECB deposit rate — from ECB Data Portal
+  try {
+    const ecbUrl = 'https://data-api.ecb.europa.eu/service/data/FM/B.U2.EUR.4F.KR.DFR.LEV?format=jsondata&lastNObservations=1';
+    const resp = await axios.get(ecbUrl, { timeout: 8000 });
+    const dataset = resp.data?.dataSets?.[0];
+    const series = dataset ? Object.values(dataset.series || {})[0] : null;
+    const obs = series?.observations;
+    if (obs) {
+      const keys = Object.keys(obs);
+      const latest = obs[keys[keys.length - 1]];
+      if (latest && latest[0] != null) {
+        indicators.ecbRate = { value: latest[0].toFixed(2), label: 'Tasso BCE (Deposit)', unit: '%' };
+      }
+    }
+  } catch(e) {
+    console.error('[macro-ind] ECB rate error:', e.message);
+    indicators.ecbRate = { value: '2.25', label: 'Tasso BCE (Deposit)', unit: '%', isStale: true };
+  }
+  if (!indicators.ecbRate) {
+    indicators.ecbRate = { value: '2.25', label: 'Tasso BCE (Deposit)', unit: '%', isStale: true };
+  }
+
+  // US 10Y Treasury from Yahoo Finance
+  try {
+    const us10 = await fetchYahooIndicator('^TNX');
+    if (us10 && us10.value) {
+      indicators.us10y = { value: us10.value.toFixed(3), label: 'US Treasury 10Y', unit: '%', change: us10.changePercent != null ? us10.changePercent.toFixed(2) : null };
+    }
+  } catch(e) { console.error('[macro-ind] US10Y error:', e.message); }
+
+  // VIX from Yahoo Finance
+  try {
+    const vix = await fetchYahooIndicator('^VIX');
+    if (vix && vix.value) {
+      indicators.vix = { value: vix.value.toFixed(1), label: 'VIX', unit: '', change: vix.changePercent != null ? vix.changePercent.toFixed(2) : null };
+    }
+  } catch(e) { console.error('[macro-ind] VIX error:', e.message); }
+
+  macroIndicatorsCache = { indicators, updatedAt: new Date().toISOString() };
+  macroIndicatorsLastFetch = now;
+  return macroIndicatorsCache;
+}
+
+app.get('/api/macro-indicators', async (req, res) => {
+  try {
+    const data = await fetchMacroIndicators();
+    res.json(data);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Caricamento iniziale
 refreshData();
 
