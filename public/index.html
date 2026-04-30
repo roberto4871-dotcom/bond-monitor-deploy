@@ -1048,6 +1048,11 @@
           </div>
         </div>
 
+        <div id="yieldCurvePanel" style="margin-top:16px;padding:16px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;">📈 Curva BTP — rendimenti per scadenza</div>
+          <svg id="yieldCurveSvg" width="100%" viewBox="0 0 700 180" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+
         <div style="margin-top:16px;padding:12px 16px 4px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
           <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">📅 Prossimi eventi macro</div>
           <div id="macroCalendar" style="padding:0 0 8px"></div>
@@ -6385,54 +6390,80 @@
   function renderBtpYieldCurve() {
     const svg = document.getElementById('yieldCurveSvg');
     if (!svg) return;
-    const btps = allBonds.filter(b =>
-      b.paese && b.paese.toLowerCase().includes('ital') &&
-      resolveYield(b) !== null && b.scadenza
-    );
-    if (btps.length < 2) {
+
+    const today = new Date();
+
+    // Prendi solo BTP italiani con yield credibile (2%–8%) e scadenza futura
+    const pts = allBonds
+      .filter(b => b.paese && b.paese.toLowerCase().includes('ital') && b.scadenza)
+      .map(b => {
+        const y = resolveYield(b);
+        const x = (new Date(b.scadenza) - today) / (365.25 * 24 * 3600 * 1000);
+        return { x, y, label: b.descrizione || b.isin };
+      })
+      .filter(p => p.x > 0.25 && p.x <= 32 && p.y >= 1.5 && p.y <= 9)
+      .sort((a, b) => a.x - b.x);
+
+    if (pts.length < 3) {
       svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati non disponibili</text>';
       return;
     }
-    const today = new Date();
-    const pts = btps.map(b => ({
-      y: resolveYield(b),
-      x: (new Date(b.scadenza) - today) / (365.25 * 24 * 3600 * 1000)
-    })).filter(p => p.x > 0 && p.x < 35 && p.y > 0).sort((a, b) => a.x - b.x);
 
-    if (pts.length < 2) {
-      svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati insufficienti</text>';
-      return;
-    }
+    const W = 700, H = 180;
+    const PL = 44, PR = 16, PT = 14, PB = 28; // padding left/right/top/bottom
 
-    const W = 560, H = 160, PAD = 36;
-    const xMax = Math.max(...pts.map(p => p.x));
-    const yMin = Math.min(...pts.map(p => p.y));
-    const yMax = Math.max(...pts.map(p => p.y));
-    const xScale = x => PAD + (x / xMax) * (W - PAD * 2);
-    const yScale = y => H - PAD - ((y - yMin) / (Math.max(yMax - yMin, 0.1))) * (H - PAD * 2);
+    const xMin = 0, xMax = Math.ceil(Math.max(...pts.map(p => p.x)) / 5) * 5;
+    const rawYMin = Math.min(...pts.map(p => p.y));
+    const rawYMax = Math.max(...pts.map(p => p.y));
+    const yPad = Math.max((rawYMax - rawYMin) * 0.15, 0.2);
+    const yMin = Math.max(0, rawYMin - yPad);
+    const yMax = rawYMax + yPad;
 
-    const polyline = pts.map(p => `${xScale(p.x).toFixed(1)},${yScale(p.y).toFixed(1)}`).join(' ');
-    const area = `${xScale(pts[0].x)},${H - PAD} ` + polyline + ` ${xScale(pts[pts.length-1].x)},${H - PAD}`;
+    const sx = x => PL + (x - xMin) / (xMax - xMin) * (W - PL - PR);
+    const sy = y => PT + (1 - (y - yMin) / (yMax - yMin)) * (H - PT - PB);
 
-    const circles = pts.map(p =>
-      `<circle cx="${xScale(p.x).toFixed(1)}" cy="${yScale(p.y).toFixed(1)}" r="3" fill="var(--blue)" opacity=".8">
-         <title>${p.x.toFixed(1)}y: ${p.y.toFixed(2)}%</title></circle>`
+    // Griglia orizzontale
+    const yTicks = [];
+    const step = (yMax - yMin) > 2 ? 0.5 : 0.25;
+    for (let t = Math.ceil(yMin / step) * step; t <= yMax; t = +(t + step).toFixed(2)) yTicks.push(t);
+
+    // Griglia verticale (anni)
+    const xTicks = [1, 2, 3, 5, 7, 10, 15, 20, 30].filter(t => t <= xMax);
+
+    const gridH = yTicks.map(t =>
+      `<line x1="${PL}" y1="${sy(t).toFixed(1)}" x2="${W - PR}" y2="${sy(t).toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+       <text x="${PL - 5}" y="${(sy(t) + 4).toFixed(1)}" font-size="9" fill="#6b7280" text-anchor="end">${t.toFixed(2)}%</text>`
     ).join('');
 
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const gridV = xTicks.map(t =>
+      `<line x1="${sx(t).toFixed(1)}" y1="${PT}" x2="${sx(t).toFixed(1)}" y2="${H - PB}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+       <text x="${sx(t).toFixed(1)}" y="${H - PB + 14}" font-size="9" fill="#6b7280" text-anchor="middle">${t}y</text>`
+    ).join('');
+
+    const polyline = pts.map(p => `${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
+    const areaPath = `${sx(pts[0].x).toFixed(1)},${H - PB} ${polyline} ${sx(pts[pts.length-1].x).toFixed(1)},${H - PB}`;
+
+    // Solo i punti chiave visibili (1Y, 2Y, 5Y, 10Y, 15Y, 20Y, 30Y) — non tutti per non affollare
+    const keyYears = [1, 2, 3, 5, 7, 10, 15, 20, 30];
+    const keyDots = keyYears.map(yr => {
+      const near = pts.reduce((best, p) => Math.abs(p.x - yr) < Math.abs(best.x - yr) ? p : best, pts[0]);
+      if (Math.abs(near.x - yr) > 1) return '';
+      return `<circle cx="${sx(near.x).toFixed(1)}" cy="${sy(near.y).toFixed(1)}" r="4" fill="#3b82f6" stroke="#1e3a5f" stroke-width="1.5">
+        <title>${yr}Y: ${near.y.toFixed(2)}%</title></circle>
+        <text x="${sx(near.x).toFixed(1)}" y="${(sy(near.y) - 8).toFixed(1)}" font-size="8.5" fill="#93c5fd" text-anchor="middle">${near.y.toFixed(2)}%</text>`;
+    }).join('');
+
     svg.innerHTML = `
-      <defs><linearGradient id="ycGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--blue)" stop-opacity=".25"/>
-        <stop offset="100%" stop-color="var(--blue)" stop-opacity=".02"/>
-      </linearGradient></defs>
-      <polygon points="${area}" fill="url(#ycGrad)"/>
-      <polyline points="${polyline}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linejoin="round"/>
-      ${circles}
-      <text x="${PAD}" y="${H - 4}" font-size="9" fill="var(--text2)">0y</text>
-      <text x="${xScale(xMax / 2)}" y="${H - 4}" font-size="9" fill="var(--text2)" text-anchor="middle">${(xMax / 2).toFixed(0)}y</text>
-      <text x="${xScale(xMax)}" y="${H - 4}" font-size="9" fill="var(--text2)" text-anchor="end">${xMax.toFixed(0)}y</text>
-      <text x="${PAD - 2}" y="${yScale(yMin).toFixed(1)}" font-size="9" fill="var(--text2)" text-anchor="end">${yMin.toFixed(1)}%</text>
-      <text x="${PAD - 2}" y="${yScale(yMax).toFixed(1)}" font-size="9" fill="var(--text2)" text-anchor="end">${yMax.toFixed(1)}%</text>`;
+      <defs>
+        <linearGradient id="ycFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3b82f6" stop-opacity=".18"/>
+          <stop offset="100%" stop-color="#3b82f6" stop-opacity=".02"/>
+        </linearGradient>
+      </defs>
+      ${gridH}${gridV}
+      <polygon points="${areaPath}" fill="url(#ycFill)"/>
+      <polyline points="${polyline}" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${keyDots}`;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
