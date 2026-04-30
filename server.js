@@ -1612,7 +1612,23 @@ async function fetchYahooIndicator(symbol) {
   return null;
 }
 
-// Ricava yield ~10Y da bond già scrappati (BTP, Bund, ecc.)
+// Fetch rendimento 10Y da Stooq (dati benchmark ufficiali)
+// Tickers: 10ity.b = BTP 10Y Italia, 10dey.b = Bund 10Y Germania
+async function fetchGovYield10YStooq(sym) {
+  const url = `https://stooq.com/q/l/?s=${sym}&f=sd2t2ohlcv&h&e=csv`;
+  const resp = await axios.get(url, { timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+  const lines = resp.data.trim().split('\n');
+  if (lines.length < 2) throw new Error('no data');
+  const cols = lines[1].split(',');
+  // Format: Symbol,Date,Time,Open,High,Low,Close,Volume
+  const close = parseFloat(cols[6]);
+  if (isNaN(close) || close <= 0) throw new Error('invalid: ' + cols[6]);
+  // Sanity check: i rendimenti 10Y governativi devono stare tra 0 e 20%
+  if (close > 20) throw new Error('valore anomalo: ' + close);
+  return { value: +close.toFixed(3), date: cols[1] };
+}
+
+// Ricava yield ~10Y da bond già scrappati (BTP, Bund, ecc.) — fallback
 function getBondYield10Y(paese, targetYears = 10) {
   const today = new Date();
   const bonds = state.bonds.filter(b => b.paese === paese && b.yield !== null && b.scadenza);
@@ -1642,9 +1658,10 @@ app.get('/api/macro', async (req, res) => {
       fetchYahooIndicator('^TYX'),
     ]);
 
-    // BTP e Bund 10Y ricavati dai bond già scrappati (sempre disponibili)
-    const ita10y = getBondYield10Y('Italia');
-    const ger10y = getBondYield10Y('Germania');
+    // BTP e Bund 10Y — Stooq benchmark (nessun fallback su dati scrappati: meglio N/D che dato sbagliato)
+    let ita10y = null, ger10y = null;
+    try { const r = await fetchGovYield10YStooq('10ity.b'); ita10y = { value: r.value, date: r.date }; console.log(`[macro] BTP 10Y: ${r.value}%`); } catch(e) { console.error('[macro] BTP 10Y err:', e.message); }
+    try { const r = await fetchGovYield10YStooq('10dey.b'); ger10y = { value: r.value, date: r.date }; console.log(`[macro] Bund 10Y: ${r.value}%`); } catch(e) { console.error('[macro] Bund 10Y err:', e.message); }
 
     const spreadBtpBund = (ita10y?.value != null && ger10y?.value != null)
       ? { value: +((ita10y.value - ger10y.value) * 100).toFixed(0), date: ita10y.date }
@@ -1675,13 +1692,29 @@ async function fetchMacroIndicators() {
 
   const indicators = {};
 
-  // BTP 10Y and Bund 10Y from already-fetched bonds
-  const btp10 = getBondYield10Y('Italia');
-  const bund10 = getBondYield10Y('Germania');
+  // BTP 10Y e Bund 10Y — Stooq benchmark (fonte affidabile, nessun fallback su dati scrappati)
+  let btp10val = null, bund10val = null;
+  try {
+    const r = await fetchGovYield10YStooq('10ity.b');
+    btp10val = r.value;
+    indicators.btp10y = { value: btp10val, label: 'BTP 10Y', unit: '%', desc: `Stooq ${r.date}` };
+    console.log(`[macro-ind] BTP 10Y: ${btp10val}%`);
+  } catch(e) {
+    console.error('[macro-ind] BTP 10Y Stooq err:', e.message);
+    // Non mostra dati: meglio N/D che un dato sbagliato
+  }
 
-  if (btp10)  indicators.btp10y  = { value: btp10.value,  label: 'BTP 10Y',        unit: '%', desc: btp10.note  };
-  if (bund10) indicators.bund10y = { value: bund10.value, label: 'Bund 10Y',       unit: '%', desc: bund10.note };
-  if (btp10 && bund10) indicators.spread = { value: Math.round((btp10.value - bund10.value) * 100), label: 'Spread BTP/Bund', unit: 'bps' };
+  try {
+    const r = await fetchGovYield10YStooq('10dey.b');
+    bund10val = r.value;
+    indicators.bund10y = { value: bund10val, label: 'Bund 10Y', unit: '%', desc: `Stooq ${r.date}` };
+    console.log(`[macro-ind] Bund 10Y: ${bund10val}%`);
+  } catch(e) {
+    console.error('[macro-ind] Bund 10Y Stooq err:', e.message);
+  }
+
+  if (btp10val != null && bund10val != null)
+    indicators.spread = { value: Math.round((btp10val - bund10val) * 100), label: 'Spread BTP/Bund', unit: 'bps' };
 
   // EUR/USD from Yahoo Finance
   try {
