@@ -3887,9 +3887,7 @@
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const { indicators, updatedAt } = await r.json();
       const indList = [
-        indicators.btp10y,
         indicators.bund10y,
-        indicators.spread,
         indicators.ecbRate,
         indicators.us10y,
         indicators.eurusd,
@@ -3944,12 +3942,9 @@
       ${card('BCE — Deposit Rate', data.ecbRate, '%', rateColor(data.ecbRate?.value||0), 'Banca Centrale Europea')}
       ${card('Fed Funds (proxy 3M)', data.us3m, '%', rateColor(data.us3m?.value||0), 'US T-Bill 3M · ^IRX')}
       <div class="macro-section-title">📈 Rendimenti Governativi 10Y</div>
-      ${card('BTP 10Y — Italia', data.ita10y, '%', '', data.ita10y?.note || 'da monitor bond')}
-      ${card('Bund 10Y — Germania', data.ger10y, '%', '', data.ger10y?.note || 'da monitor bond')}
+      ${card('Bund 10Y — Germania', data.ger10y, '%', '', data.ger10y?.note || 'ECB YC AAA')}
       ${card('Treasury 10Y — USA', data.us10y, '%', '', '^TNX')}
       ${card('Treasury 30Y — USA', data.us30y, '%', '', '^TYX')}
-      <div class="macro-section-title">📊 Spread & Curve</div>
-      ${card('Spread BTP–Bund', data.spreadBtpBund, 'bps', spColor(data.spreadBtpBund?.value||0), 'BTP 10Y − Bund 10Y')}
       <div class="macro-section-title">💹 Inflazione</div>
       ${card('HICP — Area Euro', data.hicp, '%', inflColor(data.hicp?.value||0), 'ECB · variazione annua')}
     `;
@@ -6444,27 +6439,9 @@
   // FEATURE 5 — BTP/BUND SPREAD WIDGET
   // ══════════════════════════════════════════════════════════════════════════
   function updateSpreadWidget() {
+    // Spread BTP/Bund rimosso: dati non sufficientemente affidabili
     const el = document.getElementById('spreadWidget');
-    if (!el) return;
-    const btp10 = allBonds.find(b =>
-      b.paese && b.paese.toLowerCase().includes('ital') &&
-      b.scadenza && Math.abs((new Date(b.scadenza) - new Date()) / (365.25 * 24 * 3600 * 1000) - 10) < 1.5 &&
-      b.yield !== null
-    );
-    const bund10 = allBonds.find(b =>
-      b.paese && b.paese.toLowerCase().includes('germ') &&
-      b.scadenza && Math.abs((new Date(b.scadenza) - new Date()) / (365.25 * 24 * 3600 * 1000) - 10) < 1.5 &&
-      b.yield !== null
-    );
-    if (btp10 && bund10) {
-      const spread = ((btp10.yield - bund10.yield) * 100).toFixed(0);
-      const col = spread > 200 ? 'var(--red)' : spread > 120 ? 'var(--amber)' : 'var(--green)';
-      el.innerHTML = `<span title="Spread BTP-Bund 10Y" style="font-weight:700;color:${col}">BTP-Bund: ${spread}bp</span>
-        <span style="color:var(--text2)">|</span>
-        <span title="BTP 10Y yield">BTP ${btp10.yield.toFixed(2)}%</span>`;
-    } else {
-      el.innerHTML = '';
-    }
+    if (el) el.innerHTML = '';
   }
 
   // ══════════════════════════════════════════════════════════════════════════
