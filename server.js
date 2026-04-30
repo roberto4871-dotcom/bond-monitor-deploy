@@ -1628,21 +1628,27 @@ async function fetchGovYield10YStooq(sym) {
   return { value: +close.toFixed(3), date: cols[1] };
 }
 
-// Ricava yield ~10Y da bond già scrappati (BTP, Bund, ecc.) — fallback
-function getBondYield10Y(paese, targetYears = 10) {
+// Ricava yield ~10Y da bond scrappati usando la MEDIANA nel range 7-13 anni
+// Più robusto del singolo bond più vicino che può avere dati errati
+function getBondYield10Y(paese, targetYears = 10, rangeYears = 3) {
   const today = new Date();
-  const bonds = state.bonds.filter(b => b.paese === paese && b.yield !== null && b.scadenza);
-  if (!bonds.length) return null;
-  const withYears = bonds
+  const MIN_YIELD = 0.5, MAX_YIELD = 15; // sanity bounds per qualsiasi mercato
+  const bonds = state.bonds
+    .filter(b => b.paese === paese && b.yield !== null && b.scadenza)
     .map(b => ({ ...b, years: (new Date(b.scadenza) - today) / (365.25 * 24 * 3600 * 1000) }))
-    .filter(b => b.years > 0.5)
-    .sort((a, b) => Math.abs(a.years - targetYears) - Math.abs(b.years - targetYears));
-  if (!withYears.length) return null;
-  const best = withYears[0];
+    .filter(b => b.years >= targetYears - rangeYears && b.years <= targetYears + rangeYears)
+    .filter(b => b.yield >= MIN_YIELD && b.yield <= MAX_YIELD);
+
+  if (!bonds.length) return null;
+
+  // Mediana — immune a outlier singoli con dati sbagliati
+  const yields = bonds.map(b => b.yield).sort((a, b) => a - b);
+  const median  = yields[Math.floor(yields.length / 2)];
+
   return {
-    value: best.yield,
+    value: +median.toFixed(3),
     date:  state.lastUpdate ? state.lastUpdate.split('T')[0] : null,
-    note:  `${best.descrizione} (${best.years.toFixed(1)}Y)`,
+    note:  `Mediana ${yields.length} bond ${paese} ${targetYears - rangeYears}–${targetYears + rangeYears}Y`,
   };
 }
 
@@ -1658,10 +1664,21 @@ app.get('/api/macro', async (req, res) => {
       fetchYahooIndicator('^TYX'),
     ]);
 
-    // BTP e Bund 10Y — Stooq benchmark (nessun fallback su dati scrappati: meglio N/D che dato sbagliato)
-    let ita10y = null, ger10y = null;
-    try { const r = await fetchGovYield10YStooq('10ity.b'); ita10y = { value: r.value, date: r.date }; console.log(`[macro] BTP 10Y: ${r.value}%`); } catch(e) { console.error('[macro] BTP 10Y err:', e.message); }
-    try { const r = await fetchGovYield10YStooq('10dey.b'); ger10y = { value: r.value, date: r.date }; console.log(`[macro] Bund 10Y: ${r.value}%`); } catch(e) { console.error('[macro] Bund 10Y err:', e.message); }
+    // BTP 10Y — mediana bond scrappati 7-13Y (robusto su outlier)
+    // Bund 10Y — ECB Yield Curve AAA 10Y (fonte ufficiale)
+    const ita10yFB = getBondYield10Y('Italia');
+    let ita10y = ita10yFB ? { value: ita10yFB.value, date: ita10yFB.date, note: ita10yFB.note } : null;
+    if (ita10y) console.log(`[macro] BTP 10Y: ${ita10y.value}% (${ita10y.note})`);
+
+    let ger10y = null;
+    const ecbYCBund = await fetchECBSeries('YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y').catch(() => null);
+    if (ecbYCBund?.value != null) {
+      ger10y = { value: +ecbYCBund.value.toFixed(3), date: ecbYCBund.date, note: 'ECB YC AAA' };
+      console.log(`[macro] Bund 10Y: ${ger10y.value}% (ECB YC AAA)`);
+    } else {
+      const ger10yFB = getBondYield10Y('Germania');
+      if (ger10yFB) ger10y = { value: ger10yFB.value, date: ger10yFB.date, note: ger10yFB.note };
+    }
 
     const spreadBtpBund = (ita10y?.value != null && ger10y?.value != null)
       ? { value: +((ita10y.value - ger10y.value) * 100).toFixed(0), date: ita10y.date }
@@ -1692,25 +1709,28 @@ async function fetchMacroIndicators() {
 
   const indicators = {};
 
-  // BTP 10Y e Bund 10Y — Stooq benchmark (fonte affidabile, nessun fallback su dati scrappati)
+  // BTP 10Y — mediana bond scrappati nel range 7-13Y (più robusto di singolo bond)
   let btp10val = null, bund10val = null;
-  try {
-    const r = await fetchGovYield10YStooq('10ity.b');
-    btp10val = r.value;
-    indicators.btp10y = { value: btp10val, label: 'BTP 10Y', unit: '%', desc: `Stooq ${r.date}` };
-    console.log(`[macro-ind] BTP 10Y: ${btp10val}%`);
-  } catch(e) {
-    console.error('[macro-ind] BTP 10Y Stooq err:', e.message);
-    // Non mostra dati: meglio N/D che un dato sbagliato
+  const btp10 = getBondYield10Y('Italia');
+  if (btp10) {
+    btp10val = btp10.value;
+    indicators.btp10y = { value: btp10val, label: 'BTP 10Y', unit: '%', desc: btp10.note };
+    console.log(`[macro-ind] BTP 10Y: ${btp10val}% (${btp10.note})`);
   }
 
+  // Bund 10Y — ECB Yield Curve AAA 10Y (fonte ufficiale BCE)
   try {
-    const r = await fetchGovYield10YStooq('10dey.b');
-    bund10val = r.value;
-    indicators.bund10y = { value: bund10val, label: 'Bund 10Y', unit: '%', desc: `Stooq ${r.date}` };
-    console.log(`[macro-ind] Bund 10Y: ${bund10val}%`);
+    const ecbYC = await fetchECBSeries('YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y');
+    if (ecbYC && ecbYC.value != null) {
+      bund10val = +ecbYC.value.toFixed(3);
+      indicators.bund10y = { value: bund10val, label: 'Bund 10Y', unit: '%', desc: `ECB YC AAA ${ecbYC.date || ''}` };
+      console.log(`[macro-ind] Bund 10Y: ${bund10val}% (ECB YC AAA)`);
+    }
   } catch(e) {
-    console.error('[macro-ind] Bund 10Y Stooq err:', e.message);
+    console.error('[macro-ind] Bund 10Y ECB err:', e.message);
+    // Fallback: mediana bond scrappati Germania
+    const bund10 = getBondYield10Y('Germania');
+    if (bund10) { bund10val = bund10.value; indicators.bund10y = { value: bund10val, label: 'Bund 10Y', unit: '%', desc: bund10.note }; }
   }
 
   if (btp10val != null && bund10val != null)
