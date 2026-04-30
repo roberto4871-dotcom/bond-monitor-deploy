@@ -6395,7 +6395,7 @@
     if (!svg) return;
     const btps = allBonds.filter(b =>
       b.paese && b.paese.toLowerCase().includes('ital') &&
-      b.yield !== null && b.scadenza
+      resolveYield(b) !== null && b.scadenza
     );
     if (btps.length < 2) {
       svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati non disponibili</text>';
@@ -6403,9 +6403,9 @@
     }
     const today = new Date();
     const pts = btps.map(b => ({
-      y: b.yield,
+      y: resolveYield(b),
       x: (new Date(b.scadenza) - today) / (365.25 * 24 * 3600 * 1000)
-    })).filter(p => p.x > 0 && p.x < 35).sort((a, b) => a.x - b.x);
+    })).filter(p => p.x > 0 && p.x < 35 && p.y > 0).sort((a, b) => a.x - b.x);
 
     if (pts.length < 2) {
       svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati insufficienti</text>';

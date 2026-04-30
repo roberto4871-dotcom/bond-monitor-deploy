@@ -248,7 +248,7 @@ function parseTable($, monitorName) {
             else if (t.includes('volume') && !t.includes('rating') && t !== 'vr') colMap.volume = idx;
             else if (t === 'vr') colMap.vr = idx;
             else if (t.includes('tipo') || t.includes('calcolo')) colMap.tipoCalcolo = idx;
-            else if (t === 'yield') colMap.yield = idx;
+            else if (t === 'yield' || t.includes('rendimento') || t.includes('tasso') || t === 'rend.' || t === 'ytm') colMap.yield = idx;
             else if (t.includes('duration')) colMap.duration = idx;
             else if (t.includes('spread')) colMap.zSpread = idx;
           });
