@@ -959,6 +959,10 @@
             <option value="filtered">Filtrati</option>
             <option value="all">Tutti</option>
           </select>
+          <label style="font-size:12px;color:var(--text2);">Paese:</label>
+          <select id="ladderPaese" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+            <option value="">Tutti i paesi</option>
+          </select>
         </div>
       </div>
       <div class="ladder-canvas-wrap">
@@ -1074,11 +1078,7 @@
         <div class="port-header-actions">
           <button class="port-btn-secondary" onclick="savePortfolioAsTemplate()" id="btnSavePortTmpl" style="display:none" title="Salva il portafoglio corrente come template riutilizzabile">💾 Salva come template</button>
           <button class="port-btn-secondary" onclick="openImportModal()" title="Importa portafoglio da file Excel o CSV (colonne: ISIN, Nominale)">📥 Importa</button>
-          <button class="port-btn-secondary" onclick="showSensitivity()" title="Rate Sensitivity Analysis">📐 Sensitivity</button>
           <button class="port-btn-secondary" onclick="printPortfolioPDF()" title="Esporta PDF">📄 PDF</button>
-          <button class="port-btn-secondary" onclick="saveSnapshot()" title="Salva snapshot per confronto">📸 Snapshot</button>
-          <button class="port-btn-secondary" onclick="showComparison()" title="Confronta snapshot">📊 Confronto</button>
-          <button class="port-btn-secondary" onclick="showAlertsPanel()" title="Gestisci alert prezzi/yield">🔔 Alert</button>
           <button class="port-btn-secondary" onclick="clearPortfolio()">🗑 Svuota</button>
         </div>
       </div>
@@ -1480,6 +1480,7 @@
 
       if (changed) {
         populateFilters();
+        populateLadderPaesi();
         applyFilters();
       }
 
@@ -3202,10 +3203,21 @@
   // ─────────────────────────────────────────────
   let ladderChart = null;
 
+  function populateLadderPaesi() {
+    const sel = document.getElementById('ladderPaese');
+    if (!sel) return;
+    const current = sel.value;
+    const paesi = [...new Set(allBonds.map(b => b.paese).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">Tutti i paesi</option>' +
+      paesi.map(p => `<option value="${escHtml(p)}"${p === current ? ' selected' : ''}>${escHtml(p)}</option>`).join('');
+  }
+
   function renderLadder() {
     const mode  = document.getElementById('ladderMode').value;
     const scope = document.getElementById('ladderScope').value;
-    const bonds = (scope === 'all' ? allBonds : filteredBonds).filter(b => b.scadenza);
+    const paeseFilter = document.getElementById('ladderPaese')?.value || '';
+    let bonds = (scope === 'all' ? allBonds : filteredBonds).filter(b => b.scadenza);
+    if (paeseFilter) bonds = bonds.filter(b => b.paese === paeseFilter);
 
     // Raggruppa per anno
     const byYear = {};
