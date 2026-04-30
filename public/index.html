@@ -954,11 +954,6 @@
             <option value="count">N° titoli</option>
             <option value="yield">Yield medio %</option>
           </select>
-          <label style="font-size:12px;color:var(--text2);">Dati:</label>
-          <select id="ladderScope" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
-            <option value="filtered">Filtrati</option>
-            <option value="all">Tutti</option>
-          </select>
           <label style="font-size:12px;color:var(--text2);">Paese:</label>
           <select id="ladderPaese" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
             <option value="">Tutti i paesi</option>
@@ -3214,10 +3209,12 @@
 
   function renderLadder() {
     const mode  = document.getElementById('ladderMode').value;
-    const scope = document.getElementById('ladderScope').value;
     const paeseFilter = document.getElementById('ladderPaese')?.value || '';
-    let bonds = (scope === 'all' ? allBonds : filteredBonds).filter(b => b.scadenza);
-    if (paeseFilter) bonds = bonds.filter(b => b.paese === paeseFilter);
+    // Usa sempre filteredBonds così i chip paese della sidebar controllano il ladder
+    let bonds = (paeseFilter
+      ? allBonds.filter(b => b.paese === paeseFilter)
+      : filteredBonds
+    ).filter(b => b.scadenza);
 
     // Raggruppa per anno
     const byYear = {};
@@ -4013,11 +4010,9 @@
       renderTable();
       updateStats();
     }
-    // Aggiorna Maturity Ladder in tempo reale se è visibile e in modalità "Filtrati"
+    // Aggiorna Maturity Ladder in tempo reale se è visibile
     const ladderPanel = document.getElementById('panelLadder');
-    const ladderScope = document.getElementById('ladderScope');
-    if (ladderPanel && ladderPanel.style.display !== 'none' &&
-        ladderScope && ladderScope.value === 'filtered') {
+    if (ladderPanel && ladderPanel.style.display !== 'none') {
       renderLadder();
     }
   };
