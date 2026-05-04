@@ -1487,6 +1487,7 @@
       if (changed) {
         populateFilters();
         populateLadderPaesi();
+        _screenerPopulateMonitors();
         applyFilters();
       }
 
@@ -7487,100 +7488,34 @@
   let _savedScreeners = [];
   try { _savedScreeners = JSON.parse(localStorage.getItem('savedScreeners')||'[]'); } catch(e) { localStorage.removeItem('savedScreeners'); }
 
-  function openScreener() {
-    try {
-    const ex = document.getElementById('screenerOverlay');
-    if (ex) ex.remove();
+  // Popola i checkbox monitor nello screener statico (chiamata dopo caricamento dati)
+  function _screenerPopulateMonitors() {
+    const el = document.getElementById('scrMonitors');
+    if (!el) return;
     const monitors = [...new Set(allBonds.map(b=>b.monitor).filter(Boolean))].sort();
-    const monCheckboxes = monitors.map(m =>
-      `<label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;padding:2px 0">
+    if (!monitors.length) { el.innerHTML = '<span style="color:#8b949e;">—</span>'; return; }
+    el.innerHTML = monitors.map(m =>
+      `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:2px 0;color:#c9d1d9;">
         <input type="checkbox" value="${escHtml(m)}" ${_screenerFilters.monitors.includes(m)?'checked':''} onchange="_screenerMonitorChange(this)"> ${escHtml(m)}
       </label>`
     ).join('');
-    const savedOpts = _savedScreeners.map((s,i)=>`<option value="${i}">${escHtml(s.name)}</option>`).join('');
-    const html = `
-    <div id="screenerOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)document.getElementById('screenerOverlay').remove()">
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;width:min(98vw,1100px);height:min(95vh,820px);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.7)">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)">
-          <div style="font-size:16px;font-weight:700">🔍 Screener Avanzato</div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <span id="screenerCount" style="font-size:12px;color:var(--text2)"></span>
-            <button onclick="_saveScreener()" style="padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px">💾 Salva ricerca</button>
-            ${_savedScreeners.length ? `<select onchange="_loadScreener(this.value);this.value=''" style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);font-size:12px;cursor:pointer"><option value="">📋 Ricerche salvate...</option>${savedOpts}</select>` : ''}
-            <button onclick="screenerExportExcel()" style="padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px">📊 Esporta</button>
-            <button onclick="document.getElementById('screenerOverlay').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
-          </div>
-        </div>
-        <div style="display:flex;flex:1;overflow:hidden">
-          <div style="width:260px;min-width:260px;overflow-y:auto;padding:14px;border-right:1px solid var(--border);background:var(--bg3)">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);margin-bottom:10px;letter-spacing:.6px">Filtri</div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Tipo</div>
-              <select id="scrTipo" onchange="_screenerFilters.tipo=this.value;_runScreenerUI()" style="width:100%;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-                <option value="all" ${_screenerFilters.tipo==='all'?'selected':''}>Tutti</option>
-                <option value="bond" ${_screenerFilters.tipo==='bond'?'selected':''}>Solo Bond</option>
-                <option value="etf" ${_screenerFilters.tipo==='etf'?'selected':''}>Solo ETF</option>
-              </select>
-            </div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Yield % (min / max)</div>
-              <div style="display:flex;gap:5px">
-                <input type="text" inputmode="decimal" placeholder="Min" value="${_screenerFilters.yldMin}" oninput="_screenerFilters.yldMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-                <input type="text" inputmode="decimal" placeholder="Max" value="${_screenerFilters.yldMax}" oninput="_screenerFilters.yldMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-              </div>
-            </div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Scadenza anno (da / a)</div>
-              <div style="display:flex;gap:5px">
-                <input type="text" inputmode="numeric" placeholder="2025" value="${_screenerFilters.scadMin}" oninput="_screenerFilters.scadMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-                <input type="text" inputmode="numeric" placeholder="2040" value="${_screenerFilters.scadMax}" oninput="_screenerFilters.scadMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-              </div>
-            </div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Duration modificata (min / max)</div>
-              <div style="display:flex;gap:5px">
-                <input type="text" inputmode="decimal" placeholder="Min" value="${_screenerFilters.durMin}" oninput="_screenerFilters.durMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-                <input type="text" inputmode="decimal" placeholder="Max" value="${_screenerFilters.durMax}" oninput="_screenerFilters.durMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-              </div>
-            </div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Cedola % (min / max)</div>
-              <div style="display:flex;gap:5px">
-                <input type="text" inputmode="decimal" placeholder="Min" value="${_screenerFilters.cedMin}" oninput="_screenerFilters.cedMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-                <input type="text" inputmode="decimal" placeholder="Max" value="${_screenerFilters.cedMax}" oninput="_screenerFilters.cedMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-              </div>
-            </div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Rating</div>
-              <select id="scrRating" onchange="_screenerFilters.rating=this.value;_runScreenerUI()" style="width:100%;padding:6px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
-                <option value="all" ${_screenerFilters.rating==='all'?'selected':''}>Tutti</option>
-                <option value="IG" ${_screenerFilters.rating==='IG'?'selected':''}>Investment Grade (IG)</option>
-                <option value="HY" ${_screenerFilters.rating==='HY'?'selected':''}>High Yield (HY)</option>
-                <option value="NR" ${_screenerFilters.rating==='NR'?'selected':''}>Non Rated (NR)</option>
-              </select>
-            </div>
-            <div style="margin-bottom:12px">
-              <div style="font-size:11px;color:var(--text2);margin-bottom:6px">Categoria / Monitor</div>
-              <div style="max-height:200px;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px">
-                ${monCheckboxes}
-              </div>
-            </div>
-            <button onclick="_screenerReset()" style="width:100%;padding:7px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;font-size:12px;margin-top:4px">✕ Reset filtri</button>
-          </div>
-          <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
-            <div id="screenerResults" style="flex:1;overflow-y:auto">
-              <div style="padding:40px;text-align:center;color:var(--text2)">Caricamento...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  function openScreener() {
+    const ov = document.getElementById('screenerOverlay');
+    if (!ov) { showToast('Errore: overlay screener non trovato', 'error'); return; }
+    // Sincronizza i controlli con i filtri correnti
+    const scrTipo = document.getElementById('scrTipo');
+    const scrRating = document.getElementById('scrRating');
+    if (scrTipo)   scrTipo.value   = _screenerFilters.tipo;
+    if (scrRating) scrRating.value = _screenerFilters.rating;
+    ['YldMin','YldMax','ScadMin','ScadMax','CedMin','CedMax'].forEach(k => {
+      const el = document.getElementById('scr' + k);
+      if (el) el.value = _screenerFilters[k[0].toLowerCase() + k.slice(1).replace(/[A-Z]/g, c => c.toLowerCase()).replace('min','Min').replace('max','Max')] || '';
+    });
+    _screenerPopulateMonitors();
+    ov.style.display = 'flex';
     _runScreenerUI();
-    } catch(err) {
-      console.error('Screener error:', err);
-      showToast('Errore apertura Screener: ' + err.message, 'error');
-    }
   }
 
   function _screenerMonitorChange(cb) {
@@ -7592,25 +7527,16 @@
 
   function _screenerReset() {
     _screenerFilters = { yldMin:'', yldMax:'', scadMin:'', scadMax:'', durMin:'', durMax:'', cedMin:'', cedMax:'', tipo:'all', rating:'all', monitors:[] };
-    const overlay = document.getElementById('screenerOverlay');
-    if (overlay) { overlay.remove(); openScreener(); }
-  }
-
-  function _saveScreener() {
-    const name = prompt('Nome per questa ricerca:');
-    if (!name) return;
-    _savedScreeners.push({ name, filters: {..._screenerFilters, monitors:[..._screenerFilters.monitors]} });
-    localStorage.setItem('savedScreeners', JSON.stringify(_savedScreeners));
-    showToast('Ricerca salvata: ' + name);
-  }
-
-  function _loadScreener(idx) {
-    if (idx === '' || idx === undefined) return;
-    const s = _savedScreeners[parseInt(idx)];
-    if (!s) return;
-    _screenerFilters = {...s.filters, monitors:[...(s.filters.monitors||[])]};
-    const overlay = document.getElementById('screenerOverlay');
-    if (overlay) { overlay.remove(); openScreener(); }
+    // Reset input values
+    ['scrYldMin','scrYldMax','scrScadMin','scrScadMax','scrCedMin','scrCedMax'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    const scrTipo = document.getElementById('scrTipo');
+    const scrRating = document.getElementById('scrRating');
+    if (scrTipo) scrTipo.value = 'all';
+    if (scrRating) scrRating.value = 'all';
+    _screenerPopulateMonitors();
+    _runScreenerUI();
   }
 
   function runScreener() {
@@ -7649,35 +7575,41 @@
 
   function _runScreenerUI() {
     const results = runScreener();
-    const countEl = document.getElementById('screenerCount');
+    const countEl = document.getElementById('scrCount');
     if (countEl) countEl.textContent = results.length + ' risultati';
     const el = document.getElementById('screenerResults');
     if (!el) return;
-    if (!results.length) { el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text2);">Nessun risultato</div>'; return; }
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead style="position:sticky;top:0;z-index:2"><tr style="background:var(--bg3)">
-        <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">ISIN</th>
-        <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Nome</th>
-        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Tipo</th>
-        <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Yield%</th>
-        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Scadenza</th>
-        <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Prezzo</th>
-        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)">Monitor</th>
-        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border)"></th>
+    if (!results.length) {
+      el.innerHTML = '<div style="padding:40px;text-align:center;color:#8b949e;">Nessun risultato con i filtri impostati</div>';
+      return;
+    }
+    const rows = results.slice(0, 300).map(b => {
+      const yldColor = (b.yield||0) >= 5 ? '#22c55e' : (b.yield||0) >= 3 ? '#f59e0b' : '#c9d1d9';
+      const srcBg    = b._src === 'etf' ? 'rgba(59,130,246,.15)' : 'rgba(34,197,94,.15)';
+      const srcColor = b._src === 'etf' ? '#3b82f6' : '#22c55e';
+      return `<tr style="border-bottom:1px solid #21262d;" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background=''">
+        <td style="padding:7px 10px;font-family:monospace;font-size:11px;color:#58a6ff;">${escHtml(b.isin||'')}</td>
+        <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c9d1d9;" title="${escHtml(b.desc||'')}">${escHtml(b.desc||'—')}</td>
+        <td style="padding:7px 10px;"><span style="padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${srcBg};color:${srcColor};">${escHtml(b.tipo||'—')}</span></td>
+        <td style="padding:7px 10px;text-align:right;font-weight:700;color:${yldColor};">${b.yield != null ? b.yield.toFixed(2) + '%' : '—'}</td>
+        <td style="padding:7px 10px;color:#8b949e;font-size:11px;">${b.scadenza||'—'}</td>
+        <td style="padding:7px 10px;text-align:right;color:#c9d1d9;">${b.prezzo != null ? b.prezzo.toFixed(2) : '—'}</td>
+        <td style="padding:7px 10px;font-size:11px;color:#8b949e;">${escHtml(b.monitor||'—')}</td>
+        <td style="padding:7px 10px;"><button onclick="addToPortfolio({isin:${JSON.stringify(b.isin||'')},descrizione:${JSON.stringify(b.desc||'')},tipo:${JSON.stringify(b.tipo||'')},yield:${b.yield},prezzo:${b.prezzo},scadenza:${JSON.stringify(b.scadenza||null)},monitor:${JSON.stringify(b.monitor||'')}})" style="font-size:10px;padding:2px 7px;background:#21262d;border:1px solid #30363d;border-radius:4px;color:#8b949e;cursor:pointer;white-space:nowrap;">+ Port.</button></td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead style="position:sticky;top:0;z-index:2;"><tr style="background:#161b27;">
+        <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">ISIN</th>
+        <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Nome</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Tipo</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Yield%</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Scadenza</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Prezzo</th>
+        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Monitor</th>
+        <th style="padding:8px 10px;border-bottom:1px solid #30363d;"></th>
       </tr></thead>
-      <tbody>
-        ${results.slice(0,200).map(b => `
-          <tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-            <td style="padding:7px 10px;font-family:monospace;font-size:11px;color:var(--teal)">${escHtml(b.isin)}</td>
-            <td style="padding:7px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(b.desc||'')}">${escHtml(b.desc||'—')}</td>
-            <td style="padding:7px 10px"><span style="padding:1px 5px;border-radius:4px;font-size:10px;font-weight:700;background:${b._src==='etf'?'rgba(59,130,246,.15)':'rgba(34,197,94,.15)'};color:${b._src==='etf'?'var(--blue)':'var(--green)'}">${escHtml(b.tipo||'—')}</span></td>
-            <td style="padding:7px 10px;text-align:right;font-weight:700;color:${(b.yield||0)>=5?'var(--green)':(b.yield||0)>=3?'var(--amber)':'var(--text)'}">${b.yield!=null?b.yield.toFixed(2)+'%':'—'}</td>
-            <td style="padding:7px 10px;color:var(--text2);font-size:11px">${b.scadenza||'—'}</td>
-            <td style="padding:7px 10px;text-align:right">${b.prezzo!=null?b.prezzo.toFixed(2):'—'}</td>
-            <td style="padding:7px 10px;font-size:11px;color:var(--text2)">${escHtml(b.monitor||'—')}</td>
-            <td style="padding:7px 10px"><button onclick="addToPortfolio({isin:${JSON.stringify(b.isin)},descrizione:${JSON.stringify(b.desc||'')},tipo:${JSON.stringify(b.tipo||'')},yield:${b.yield},prezzo:${b.prezzo},scadenza:${JSON.stringify(b.scadenza||null)},monitor:${JSON.stringify(b.monitor||'')}})" style="font-size:10px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer;white-space:nowrap">+ Port.</button></td>
-          </tr>`).join('')}
-      </tbody>
+      <tbody>${rows}</tbody>
     </table>`;
   }
 
@@ -7848,5 +7780,91 @@
     </div>
   </div>
 </div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SCREENER OVERLAY — pre-costruito, visibilità gestita via JS
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div id="screenerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.87);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#1a1f2e;border:1px solid #30363d;border-radius:14px;display:flex;flex-direction:column;width:min(98vw,1100px);height:min(95vh,820px);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.7);">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #30363d;flex-shrink:0;">
+      <div style="font-size:16px;font-weight:700;color:#e6edf3;">🔍 Screener Avanzato</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="scrCount" style="font-size:12px;color:#8b949e;"></span>
+        <button onclick="screenerExportExcel()" style="padding:5px 12px;background:#21262d;border:1px solid #30363d;border-radius:7px;color:#8b949e;cursor:pointer;font-size:12px;">📊 Esporta CSV</button>
+        <button onclick="document.getElementById('screenerOverlay').style.display='none'" style="background:none;border:none;color:#8b949e;font-size:22px;cursor:pointer;line-height:1;">✕</button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div style="display:flex;flex:1;overflow:hidden;">
+
+      <!-- Filtri sidebar -->
+      <div style="width:240px;min-width:240px;overflow-y:auto;padding:14px;border-right:1px solid #30363d;background:#161b27;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;margin-bottom:12px;letter-spacing:.6px;">Filtri</div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Tipo</div>
+          <select id="scrTipo" onchange="_screenerFilters.tipo=this.value;_runScreenerUI()" style="width:100%;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
+            <option value="all">Tutti</option>
+            <option value="bond">Solo Bond</option>
+            <option value="etf">Solo ETF</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Yield % (min / max)</div>
+          <div style="display:flex;gap:5px;">
+            <input id="scrYldMin" type="text" inputmode="decimal" placeholder="Min" oninput="_screenerFilters.yldMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
+            <input id="scrYldMax" type="text" inputmode="decimal" placeholder="Max" oninput="_screenerFilters.yldMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Scadenza anno (da / a)</div>
+          <div style="display:flex;gap:5px;">
+            <input id="scrScadMin" type="text" inputmode="numeric" placeholder="2025" oninput="_screenerFilters.scadMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
+            <input id="scrScadMax" type="text" inputmode="numeric" placeholder="2040" oninput="_screenerFilters.scadMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Cedola % (min / max)</div>
+          <div style="display:flex;gap:5px;">
+            <input id="scrCedMin" type="text" inputmode="decimal" placeholder="Min" oninput="_screenerFilters.cedMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
+            <input id="scrCedMax" type="text" inputmode="decimal" placeholder="Max" oninput="_screenerFilters.cedMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Rating</div>
+          <select id="scrRating" onchange="_screenerFilters.rating=this.value;_runScreenerUI()" style="width:100%;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
+            <option value="all">Tutti</option>
+            <option value="IG">Investment Grade (IG)</option>
+            <option value="HY">High Yield (HY)</option>
+            <option value="NR">Non Rated (NR)</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#8b949e;margin-bottom:6px;">Categoria / Monitor</div>
+          <div id="scrMonitors" style="max-height:180px;overflow-y:auto;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:11px;color:#8b949e;">
+            — caricamento —
+          </div>
+        </div>
+
+        <button onclick="_screenerReset()" style="width:100%;padding:7px;background:transparent;border:1px solid #30363d;border-radius:6px;color:#8b949e;cursor:pointer;font-size:12px;margin-top:4px;">✕ Reset filtri</button>
+      </div>
+
+      <!-- Risultati -->
+      <div style="flex:1;overflow-y:auto;" id="screenerResults">
+        <div style="padding:40px;text-align:center;color:#8b949e;">Apertura in corso…</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
