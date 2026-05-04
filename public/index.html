@@ -8,17 +8,22 @@
   <script>
     (function () {
       var STORE_KEY = 'bond_build_v2';
-      fetch('/api/version').then(function (r) { return r.json(); }).then(function (data) {
-        var fresh = String(data.build);
-        var stored = sessionStorage.getItem(STORE_KEY);
-        if (stored && stored !== fresh) {
-          // Nuovo deploy rilevato — ricarica con URL univoco per bypassare la cache
-          sessionStorage.setItem(STORE_KEY, fresh);
-          window.location.replace(window.location.pathname + '?v=' + fresh);
-        } else {
-          sessionStorage.setItem(STORE_KEY, fresh);
-        }
-      }).catch(function () {});
+      function checkVersion() {
+        fetch('/api/version').then(function (r) { return r.json(); }).then(function (data) {
+          var fresh = String(data.build);
+          var stored = sessionStorage.getItem(STORE_KEY);
+          if (stored && stored !== fresh) {
+            // Nuovo deploy rilevato — ricarica con URL univoco per bypassare la cache
+            sessionStorage.setItem(STORE_KEY, fresh);
+            window.location.replace(window.location.pathname + '?v=' + fresh);
+          } else {
+            sessionStorage.setItem(STORE_KEY, fresh);
+          }
+        }).catch(function () {});
+      }
+      checkVersion();
+      // Ricontrolla ogni 2 minuti: se il server è stato aggiornato, la pagina si ricarica automaticamente
+      setInterval(checkVersion, 120000);
     })();
   </script>
   <style>
@@ -3182,7 +3187,7 @@
       document.getElementById('tab-' + t).classList.toggle('active', t === panel);
     });
     if (panel === 'yieldcurve') renderYieldCurve();
-    if (panel === 'ladder')     renderLadder();
+    if (panel === 'ladder')     { populateLadderPaesi(); renderLadder(); }
     if (panel === 'etf')        loadETFPanel();
     if (panel === 'macro')      { loadMacroPanel(); renderMacroCalendar(); renderMacroIndicators(); }
     if (panel === 'portfolio')  renderPortfolio();
@@ -7476,9 +7481,11 @@
     durMin:'', durMax:'', cedMin:'', cedMax:'',
     tipo:'all', rating:'all', monitors:[]
   };
-  let _savedScreeners = JSON.parse(localStorage.getItem('savedScreeners')||'[]');
+  let _savedScreeners = [];
+  try { _savedScreeners = JSON.parse(localStorage.getItem('savedScreeners')||'[]'); } catch(e) { localStorage.removeItem('savedScreeners'); }
 
   function openScreener() {
+    try {
     const ex = document.getElementById('screenerOverlay');
     if (ex) ex.remove();
     const monitors = [...new Set(allBonds.map(b=>b.monitor).filter(Boolean))].sort();
@@ -7567,6 +7574,10 @@
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
     _runScreenerUI();
+    } catch(err) {
+      console.error('Screener error:', err);
+      showToast('Errore apertura Screener: ' + err.message, 'error');
+    }
   }
 
   function _screenerMonitorChange(cb) {
