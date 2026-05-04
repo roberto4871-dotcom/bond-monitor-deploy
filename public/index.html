@@ -3279,31 +3279,34 @@
     const cur = new Date().getFullYear();
 
     const data1 = _buildByYear(bonds1, mode, sortedYears);
-    const colors1 = sortedYears.map(yr => _ladderColor1(yr, cur));
+    const isComparison = !!(paeseFilter2 && bonds2.length);
+
+    // In modalità confronto: colore piatto per paese (leggibile)
+    // In modalità singola: colori per orizzonte temporale
+    const colors1 = isComparison
+      ? sortedYears.map(() => 'rgba(59,130,246,0.75)')   // blu fisso
+      : sortedYears.map(yr => _ladderColor1(yr, cur));
 
     const datasets = [{
       label: paeseFilter || 'Tutti',
       data: data1,
       backgroundColor: colors1,
-      borderColor: colors1.map(c => c.replace('0.75','1').replace('0.45','0.65')),
+      borderColor: isComparison ? 'rgba(59,130,246,1)' : colors1.map(c => c.replace('0.75','1').replace('0.45','0.65')),
       borderWidth: 1,
       borderRadius: 4,
     }];
 
-    if (paeseFilter2 && bonds2.length) {
-      const data2   = _buildByYear(bonds2, mode, sortedYears);
-      const colors2 = sortedYears.map(yr => _ladderColor2(yr, cur));
+    if (isComparison) {
+      const data2 = _buildByYear(bonds2, mode, sortedYears);
       datasets.push({
         label: paeseFilter2,
         data: data2,
-        backgroundColor: colors2,
-        borderColor: colors2.map(c => c.replace('0.75','1').replace('0.45','0.65')),
+        backgroundColor: sortedYears.map(() => 'rgba(251,113,36,0.75)'),  // arancio fisso
+        borderColor: 'rgba(251,113,36,1)',
         borderWidth: 1,
         borderRadius: 4,
       });
     }
-
-    const isComparison = datasets.length > 1;
 
     const ctx = document.getElementById('ladderChart').getContext('2d');
     if (ladderChart) ladderChart.destroy();
