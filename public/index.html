@@ -958,6 +958,10 @@
           <select id="ladderPaese" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
             <option value="">Tutti i paesi</option>
           </select>
+          <label style="font-size:12px;color:var(--text2);">vs:</label>
+          <select id="ladderPaese2" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+            <option value="">— Nessun confronto —</option>
+          </select>
         </div>
       </div>
       <div class="ladder-canvas-wrap">
@@ -3201,24 +3205,36 @@
   let ladderChart = null;
 
   function populateLadderPaesi() {
-    const sel = document.getElementById('ladderPaese');
+    const sel  = document.getElementById('ladderPaese');
+    const sel2 = document.getElementById('ladderPaese2');
     if (!sel) return;
-    const current = sel.value;
+    const cur  = sel.value;
+    const cur2 = sel2 ? sel2.value : '';
     const paesi = [...new Set(allBonds.map(b => b.paese).filter(Boolean))].sort();
-    sel.innerHTML = '<option value="">Tutti i paesi</option>' +
-      paesi.map(p => `<option value="${escHtml(p)}"${p === current ? ' selected' : ''}>${escHtml(p)}</option>`).join('');
+    const opts  = paesi.map(p => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join('');
+    sel.innerHTML  = '<option value="">Tutti i paesi</option>' + opts;
+    sel.value      = cur;
+    if (sel2) {
+      sel2.innerHTML = '<option value="">— Nessun confronto —</option>' + opts;
+      sel2.value     = cur2;
+    }
   }
 
-  function renderLadder() {
-    const mode  = document.getElementById('ladderMode').value;
-    const paeseFilter = document.getElementById('ladderPaese')?.value || '';
-    // Usa sempre filteredBonds così i chip paese della sidebar controllano il ladder
-    let bonds = (paeseFilter
-      ? allBonds.filter(b => b.paese === paeseFilter)
-      : filteredBonds
-    ).filter(b => b.scadenza);
+  // Palette colori per paese 1 (per orizzonte temporale) e paese 2 (viola/arancio)
+  function _ladderColor1(yr, cur) {
+    if (yr < cur) return 'rgba(156,163,175,0.45)';
+    if (yr <= cur + 2) return 'rgba(251,191,36,0.75)';
+    if (yr <= cur + 5) return 'rgba(59,130,246,0.75)';
+    return 'rgba(34,197,94,0.75)';
+  }
+  function _ladderColor2(yr, cur) {
+    if (yr < cur) return 'rgba(120,100,150,0.45)';
+    if (yr <= cur + 2) return 'rgba(251,113,36,0.75)';
+    if (yr <= cur + 5) return 'rgba(168,85,247,0.75)';
+    return 'rgba(236,72,153,0.75)';
+  }
 
-    // Raggruppa per anno
+  function _buildByYear(bonds, mode, sortedYears) {
     const byYear = {};
     bonds.forEach(b => {
       const yr = new Date(b.scadenza).getFullYear();
@@ -3226,48 +3242,85 @@
       byYear[yr].count++;
       if (b.yield !== null) byYear[yr].yields.push(b.yield);
     });
-
-    const sortedYears = Object.keys(byYear).map(Number).sort((a,b) => a-b);
-    const labels = sortedYears.map(String);
-    const data = sortedYears.map(yr => {
+    return sortedYears.map(yr => {
+      if (!byYear[yr]) return 0;
       if (mode === 'count') return byYear[yr].count;
       const ys = byYear[yr].yields;
       return ys.length ? +(ys.reduce((s,v) => s+v,0) / ys.length).toFixed(2) : 0;
     });
+  }
 
-    const currentYear = new Date().getFullYear();
-    const colors = sortedYears.map(yr =>
-      yr < currentYear ? 'rgba(156,163,175,0.4)' :
-      yr <= currentYear + 2 ? 'rgba(251,191,36,0.7)' :
-      yr <= currentYear + 5 ? 'rgba(59,130,246,0.7)' :
-      'rgba(34,197,94,0.7)'
-    );
+  function renderLadder() {
+    const mode         = document.getElementById('ladderMode').value;
+    const paeseFilter  = document.getElementById('ladderPaese')?.value  || '';
+    const paeseFilter2 = document.getElementById('ladderPaese2')?.value || '';
+
+    // Dataset principale
+    let bonds1 = (paeseFilter
+      ? allBonds.filter(b => b.paese === paeseFilter)
+      : filteredBonds
+    ).filter(b => b.scadenza);
+
+    // Dataset confronto (solo se selezionato)
+    let bonds2 = paeseFilter2
+      ? allBonds.filter(b => b.paese === paeseFilter2 && b.scadenza)
+      : [];
+
+    // Unione anni per asse X
+    const years1 = bonds1.map(b => new Date(b.scadenza).getFullYear());
+    const years2 = bonds2.map(b => new Date(b.scadenza).getFullYear());
+    const sortedYears = [...new Set([...years1, ...years2])].sort((a,b) => a-b);
+    const labels = sortedYears.map(String);
+    const cur = new Date().getFullYear();
+
+    const data1 = _buildByYear(bonds1, mode, sortedYears);
+    const colors1 = sortedYears.map(yr => _ladderColor1(yr, cur));
+
+    const datasets = [{
+      label: paeseFilter || 'Tutti',
+      data: data1,
+      backgroundColor: colors1,
+      borderColor: colors1.map(c => c.replace('0.75','1').replace('0.45','0.65')),
+      borderWidth: 1,
+      borderRadius: 4,
+    }];
+
+    if (paeseFilter2 && bonds2.length) {
+      const data2   = _buildByYear(bonds2, mode, sortedYears);
+      const colors2 = sortedYears.map(yr => _ladderColor2(yr, cur));
+      datasets.push({
+        label: paeseFilter2,
+        data: data2,
+        backgroundColor: colors2,
+        borderColor: colors2.map(c => c.replace('0.75','1').replace('0.45','0.65')),
+        borderWidth: 1,
+        borderRadius: 4,
+      });
+    }
+
+    const isComparison = datasets.length > 1;
 
     const ctx = document.getElementById('ladderChart').getContext('2d');
     if (ladderChart) ladderChart.destroy();
     ladderChart = new Chart(ctx, {
       type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: mode === 'count' ? 'N° titoli' : 'Yield medio %',
-          data,
-          backgroundColor: colors,
-          borderColor: colors.map(c => c.replace('0.7','1').replace('0.4','0.6')),
-          borderWidth: 1,
-          borderRadius: 4,
-        }]
-      },
+      data: { labels, datasets },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
+          legend: {
+            display: isComparison,
+            labels: { color: '#8b949e', boxWidth: 12, padding: 14 }
+          },
           tooltip: {
             callbacks: {
               title: ctx => 'Anno ' + ctx[0].label,
-              label: ctx => mode === 'count'
-                ? ctx.parsed.y + ' titoli'
-                : 'Yield medio: ' + ctx.parsed.y.toFixed(2) + '%'
+              label: ctx => {
+                const paese = ctx.dataset.label;
+                return mode === 'count'
+                  ? `${paese}: ${ctx.parsed.y} titoli`
+                  : `${paese}: ${ctx.parsed.y.toFixed(2)}%`;
+              }
             }
           }
         },
@@ -3282,7 +3335,6 @@
         onClick: (evt, els) => {
           if (!els.length) return;
           const yr = sortedYears[els[0].index];
-          // Imposta filtro scadenza sull'anno cliccato
           const from = yr + '-01-01', to = yr + '-12-31';
           document.getElementById('filterMatFrom').value = from;
           document.getElementById('filterMatTo').value   = to;
@@ -7437,8 +7489,8 @@
     ).join('');
     const savedOpts = _savedScreeners.map((s,i)=>`<option value="${i}">${escHtml(s.name)}</option>`).join('');
     const html = `
-    <div id="screenerOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9998;display:flex;padding:0" onclick="if(event.target===this)document.getElementById('screenerOverlay').remove()">
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;margin:16px auto;display:flex;flex-direction:column;width:min(98vw,1100px);max-height:95vh;overflow:hidden">
+    <div id="screenerOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)document.getElementById('screenerOverlay').remove()">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;width:min(98vw,1100px);height:min(95vh,820px);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.7)">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)">
           <div style="font-size:16px;font-weight:700">🔍 Screener Avanzato</div>
           <div style="display:flex;gap:8px;align-items:center">
@@ -7507,7 +7559,7 @@
           </div>
           <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
             <div id="screenerResults" style="flex:1;overflow-y:auto">
-              <div style="padding:40px;text-align:center;color:var(--text2)">Imposta i filtri per vedere i risultati</div>
+              <div style="padding:40px;text-align:center;color:var(--text2)">Caricamento...</div>
             </div>
           </div>
         </div>
