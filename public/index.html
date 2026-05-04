@@ -921,7 +921,6 @@
           <option value="200">200 per pagina</option>
           <option value="999999">Tutti</option>
         </select>
-        <button class="btn btn-secondary print-hide" onclick="openScreener()" title="Screener avanzato multi-criterio">🔍 Screener</button>
         <button class="btn btn-secondary print-hide" onclick="openYTMCalculator()" title="Calcolatore YTM">🧮 Calc</button>
         <button class="btn btn-secondary print-hide" onclick="openChartComparison()" title="Confronta grafici">📈 Confronta</button>
         <button class="btn btn-secondary print-hide" onclick="exportCSV()">⬇ CSV</button>
@@ -1487,7 +1486,6 @@
       if (changed) {
         populateFilters();
         populateLadderPaesi();
-        _screenerPopulateMonitors();
         applyFilters();
       }
 
@@ -7478,154 +7476,6 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // FEATURE 4 — ADVANCED BOND SCREENER
-  // ══════════════════════════════════════════════════════════════════════════
-  let _screenerFilters = {
-    yldMin:'', yldMax:'', scadMin:'', scadMax:'',
-    durMin:'', durMax:'', cedMin:'', cedMax:'',
-    tipo:'all', rating:'all', monitors:[]
-  };
-  let _savedScreeners = [];
-  try { _savedScreeners = JSON.parse(localStorage.getItem('savedScreeners')||'[]'); } catch(e) { localStorage.removeItem('savedScreeners'); }
-
-  // Popola i checkbox monitor nello screener statico (chiamata dopo caricamento dati)
-  function _screenerPopulateMonitors() {
-    const el = document.getElementById('scrMonitors');
-    if (!el) return;
-    const monitors = [...new Set(allBonds.map(b=>b.monitor).filter(Boolean))].sort();
-    if (!monitors.length) { el.innerHTML = '<span style="color:#8b949e;">—</span>'; return; }
-    el.innerHTML = monitors.map(m =>
-      `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:2px 0;color:#c9d1d9;">
-        <input type="checkbox" value="${escHtml(m)}" ${_screenerFilters.monitors.includes(m)?'checked':''} onchange="_screenerMonitorChange(this)"> ${escHtml(m)}
-      </label>`
-    ).join('');
-  }
-
-  function openScreener() {
-    const ov = document.getElementById('screenerOverlay');
-    if (!ov) { showToast('Errore: overlay screener non trovato', 'error'); return; }
-    // Sincronizza i controlli con i filtri correnti
-    const scrTipo = document.getElementById('scrTipo');
-    const scrRating = document.getElementById('scrRating');
-    if (scrTipo)   scrTipo.value   = _screenerFilters.tipo;
-    if (scrRating) scrRating.value = _screenerFilters.rating;
-    ['YldMin','YldMax','ScadMin','ScadMax','CedMin','CedMax'].forEach(k => {
-      const el = document.getElementById('scr' + k);
-      if (el) el.value = _screenerFilters[k[0].toLowerCase() + k.slice(1).replace(/[A-Z]/g, c => c.toLowerCase()).replace('min','Min').replace('max','Max')] || '';
-    });
-    _screenerPopulateMonitors();
-    ov.style.display = 'flex';
-    _runScreenerUI();
-  }
-
-  function _screenerMonitorChange(cb) {
-    const val = cb.value;
-    if (cb.checked) { if (!_screenerFilters.monitors.includes(val)) _screenerFilters.monitors.push(val); }
-    else { _screenerFilters.monitors = _screenerFilters.monitors.filter(m=>m!==val); }
-    _runScreenerUI();
-  }
-
-  function _screenerReset() {
-    _screenerFilters = { yldMin:'', yldMax:'', scadMin:'', scadMax:'', durMin:'', durMax:'', cedMin:'', cedMax:'', tipo:'all', rating:'all', monitors:[] };
-    // Reset input values
-    ['scrYldMin','scrYldMax','scrScadMin','scrScadMax','scrCedMin','scrCedMax'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.value = '';
-    });
-    const scrTipo = document.getElementById('scrTipo');
-    const scrRating = document.getElementById('scrRating');
-    if (scrTipo) scrTipo.value = 'all';
-    if (scrRating) scrRating.value = 'all';
-    _screenerPopulateMonitors();
-    _runScreenerUI();
-  }
-
-  function runScreener() {
-    const f = _screenerFilters;
-    const pf = s => parseFloat((s||'').replace(',','.'));
-    const pi = s => parseInt((s||'').trim());
-    let results = [];
-    allBonds.forEach(b => {
-      if (f.tipo === 'etf') return;
-      const y = b.yield;
-      const scadYear = b.scadenza ? new Date(b.scadenza).getFullYear() : null;
-      if (f.yldMin && (y == null || y < pf(f.yldMin))) return;
-      if (f.yldMax && (y == null || y > pf(f.yldMax))) return;
-      if (f.scadMin && (!scadYear || scadYear < pi(f.scadMin))) return;
-      if (f.scadMax && (!scadYear || scadYear > pi(f.scadMax))) return;
-      if (f.cedMin && (b.cedola||0) < pf(f.cedMin)) return;
-      if (f.cedMax && (b.cedola||0) > pf(f.cedMax)) return;
-      if (f.durMin && (b.duration||0) < pf(f.durMin)) return;
-      if (f.durMax && (b.duration||0) > pf(f.durMax)) return;
-      if (f.rating !== 'all' && _ratingGroup(b) !== f.rating) return;
-      if (f.monitors.length && !f.monitors.includes(b.monitor)) return;
-      results.push({...b, _src:'bond', desc:b.descrizione, tipo:b.tipo||'Bond', monitor:b.monitor});
-    });
-    allETFs.forEach(e => {
-      if (f.tipo === 'bond') return;
-      const y = e.yld ?? e.ytm;
-      if (f.yldMin && (y == null || y < pf(f.yldMin))) return;
-      if (f.yldMax && (y == null || y > pf(f.yldMax))) return;
-      if (f.durMin && (e.dur||0) < pf(f.durMin)) return;
-      if (f.durMax && (e.dur||0) > pf(f.durMax)) return;
-      results.push({...e, yield:y, tipo:'ETF', desc:e.name, scadenza:null, prezzo:e.price||null, monitor:e.cat, _src:'etf'});
-    });
-    results.sort((a,b) => (b.yield||0)-(a.yield||0));
-    return results;
-  }
-
-  function _runScreenerUI() {
-    const results = runScreener();
-    const countEl = document.getElementById('scrCount');
-    if (countEl) countEl.textContent = results.length + ' risultati';
-    const el = document.getElementById('screenerResults');
-    if (!el) return;
-    if (!results.length) {
-      el.innerHTML = '<div style="padding:40px;text-align:center;color:#8b949e;">Nessun risultato con i filtri impostati</div>';
-      return;
-    }
-    const rows = results.slice(0, 300).map(b => {
-      const yldColor = (b.yield||0) >= 5 ? '#22c55e' : (b.yield||0) >= 3 ? '#f59e0b' : '#c9d1d9';
-      const srcBg    = b._src === 'etf' ? 'rgba(59,130,246,.15)' : 'rgba(34,197,94,.15)';
-      const srcColor = b._src === 'etf' ? '#3b82f6' : '#22c55e';
-      return `<tr style="border-bottom:1px solid #21262d;" onmouseover="this.style.background='#21262d'" onmouseout="this.style.background=''">
-        <td style="padding:7px 10px;font-family:monospace;font-size:11px;color:#58a6ff;">${escHtml(b.isin||'')}</td>
-        <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c9d1d9;" title="${escHtml(b.desc||'')}">${escHtml(b.desc||'—')}</td>
-        <td style="padding:7px 10px;"><span style="padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${srcBg};color:${srcColor};">${escHtml(b.tipo||'—')}</span></td>
-        <td style="padding:7px 10px;text-align:right;font-weight:700;color:${yldColor};">${b.yield != null ? b.yield.toFixed(2) + '%' : '—'}</td>
-        <td style="padding:7px 10px;color:#8b949e;font-size:11px;">${b.scadenza||'—'}</td>
-        <td style="padding:7px 10px;text-align:right;color:#c9d1d9;">${b.prezzo != null ? b.prezzo.toFixed(2) : '—'}</td>
-        <td style="padding:7px 10px;font-size:11px;color:#8b949e;">${escHtml(b.monitor||'—')}</td>
-        <td style="padding:7px 10px;"><button onclick="addToPortfolio({isin:${JSON.stringify(b.isin||'')},descrizione:${JSON.stringify(b.desc||'')},tipo:${JSON.stringify(b.tipo||'')},yield:${b.yield},prezzo:${b.prezzo},scadenza:${JSON.stringify(b.scadenza||null)},monitor:${JSON.stringify(b.monitor||'')}})" style="font-size:10px;padding:2px 7px;background:#21262d;border:1px solid #30363d;border-radius:4px;color:#8b949e;cursor:pointer;white-space:nowrap;">+ Port.</button></td>
-      </tr>`;
-    }).join('');
-    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-      <thead style="position:sticky;top:0;z-index:2;"><tr style="background:#161b27;">
-        <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">ISIN</th>
-        <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Nome</th>
-        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Tipo</th>
-        <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Yield%</th>
-        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Scadenza</th>
-        <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Prezzo</th>
-        <th style="padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;">Monitor</th>
-        <th style="padding:8px 10px;border-bottom:1px solid #30363d;"></th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  }
-
-  function screenerExportExcel() {
-    const results = runScreener();
-    if (!results.length) { showToast('Nessun risultato da esportare', 'error'); return; }
-    const headers = ['ISIN','Nome','Tipo','Yield%','Scadenza','Prezzo','Monitor'];
-    const rows = results.map(b => [b.isin, b.desc||'', b.tipo||'', b.yield!=null?b.yield.toFixed(2):'', b.scadenza||'', b.prezzo!=null?b.prezzo.toFixed(2):'', b.monitor||'']);
-    const csv = [headers.join(','), ...rows.map(r => r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
-    const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download='screener_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
   // FEATURE 6 — MACRO EVENTS CALENDAR
   // ══════════════════════════════════════════════════════════════════════════
   async function renderMacroCalendar() {
@@ -7781,90 +7631,6 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════════════
-     SCREENER OVERLAY — pre-costruito, visibilità gestita via JS
-     ══════════════════════════════════════════════════════════════════════════ -->
-<div id="screenerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.87);z-index:9999;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:#1a1f2e;border:1px solid #30363d;border-radius:14px;display:flex;flex-direction:column;width:min(98vw,1100px);height:min(95vh,820px);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.7);">
-
-    <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #30363d;flex-shrink:0;">
-      <div style="font-size:16px;font-weight:700;color:#e6edf3;">🔍 Screener Avanzato</div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span id="scrCount" style="font-size:12px;color:#8b949e;"></span>
-        <button onclick="screenerExportExcel()" style="padding:5px 12px;background:#21262d;border:1px solid #30363d;border-radius:7px;color:#8b949e;cursor:pointer;font-size:12px;">📊 Esporta CSV</button>
-        <button onclick="document.getElementById('screenerOverlay').style.display='none'" style="background:none;border:none;color:#8b949e;font-size:22px;cursor:pointer;line-height:1;">✕</button>
-      </div>
-    </div>
-
-    <!-- Body -->
-    <div style="display:flex;flex:1;overflow:hidden;">
-
-      <!-- Filtri sidebar -->
-      <div style="width:240px;min-width:240px;overflow-y:auto;padding:14px;border-right:1px solid #30363d;background:#161b27;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#8b949e;margin-bottom:12px;letter-spacing:.6px;">Filtri</div>
-
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Tipo</div>
-          <select id="scrTipo" onchange="_screenerFilters.tipo=this.value;_runScreenerUI()" style="width:100%;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
-            <option value="all">Tutti</option>
-            <option value="bond">Solo Bond</option>
-            <option value="etf">Solo ETF</option>
-          </select>
-        </div>
-
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Yield % (min / max)</div>
-          <div style="display:flex;gap:5px;">
-            <input id="scrYldMin" type="text" inputmode="decimal" placeholder="Min" oninput="_screenerFilters.yldMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
-            <input id="scrYldMax" type="text" inputmode="decimal" placeholder="Max" oninput="_screenerFilters.yldMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
-          </div>
-        </div>
-
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Scadenza anno (da / a)</div>
-          <div style="display:flex;gap:5px;">
-            <input id="scrScadMin" type="text" inputmode="numeric" placeholder="2025" oninput="_screenerFilters.scadMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
-            <input id="scrScadMax" type="text" inputmode="numeric" placeholder="2040" oninput="_screenerFilters.scadMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
-          </div>
-        </div>
-
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Cedola % (min / max)</div>
-          <div style="display:flex;gap:5px;">
-            <input id="scrCedMin" type="text" inputmode="decimal" placeholder="Min" oninput="_screenerFilters.cedMin=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
-            <input id="scrCedMax" type="text" inputmode="decimal" placeholder="Max" oninput="_screenerFilters.cedMax=this.value;_runScreenerUI()" style="flex:1;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
-          </div>
-        </div>
-
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px;color:#8b949e;margin-bottom:4px;">Rating</div>
-          <select id="scrRating" onchange="_screenerFilters.rating=this.value;_runScreenerUI()" style="width:100%;padding:6px;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;color:#e6edf3;font-size:12px;">
-            <option value="all">Tutti</option>
-            <option value="IG">Investment Grade (IG)</option>
-            <option value="HY">High Yield (HY)</option>
-            <option value="NR">Non Rated (NR)</option>
-          </select>
-        </div>
-
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px;color:#8b949e;margin-bottom:6px;">Categoria / Monitor</div>
-          <div id="scrMonitors" style="max-height:180px;overflow-y:auto;background:#1a1f2e;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:11px;color:#8b949e;">
-            — caricamento —
-          </div>
-        </div>
-
-        <button onclick="_screenerReset()" style="width:100%;padding:7px;background:transparent;border:1px solid #30363d;border-radius:6px;color:#8b949e;cursor:pointer;font-size:12px;margin-top:4px;">✕ Reset filtri</button>
-      </div>
-
-      <!-- Risultati -->
-      <div style="flex:1;overflow-y:auto;" id="screenerResults">
-        <div style="padding:40px;text-align:center;color:#8b949e;">Apertura in corso…</div>
-      </div>
-
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
