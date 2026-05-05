@@ -1074,6 +1074,10 @@ const ETF_LIST = [
   { isin:'LU1617164998', ticker:'HYS',    name:'Amundi EUR Short Term HY Corp ESG', cat:'HY Corp EUR',    ter:0.30, dur:1.5,  acc:false, ytm:5.0   },
   // ── Green Bond aggiuntivi ────────────────────────────────────────────────
   { isin:'IE00BMDBMN04', ticker:'GRON',   name:'iShares EUR Green Bond',         cat:'Green Bond',        ter:0.20, dur:6.0,  acc:false, ytm:3.2   },
+  // ── EM Local Currency — include esposizione TRY tra le valute EM ─────────
+  { isin:'IE00BDS67326', ticker:'EM1C',   name:'VanEck JPM EM Local Curr Bond',  cat:'EM Gov Local',      ter:0.30, dur:5.0,  acc:true,  ytm:5.8  },
+  { isin:'IE00B4613386', ticker:'SYBM',   name:'SPDR Bloomberg EM Local Bond',   cat:'EM Gov Local',      ter:0.55, dur:4.8,  acc:false, ytm:5.5   },
+  { isin:'IE00BFZPF546', ticker:'EMGA',   name:'iShares JPM EM Local Gov Acc',   cat:'EM Gov Local',      ter:0.50, dur:5.0,  acc:true,  ytm:5.5  },
 ];
 
 // Prezzi ETF caricati in background — risposta sempre immediata
