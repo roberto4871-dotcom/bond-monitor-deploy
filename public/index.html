@@ -1029,6 +1029,7 @@
           <select id="ladderPaese2" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
             <option value="">— Nessun confronto —</option>
           </select>
+          <button onclick="printLadderPDF()" style="padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:12px;cursor:pointer;" title="Esporta PDF">🖨 PDF</button>
         </div>
       </div>
       <div class="ladder-canvas-wrap">
@@ -4846,6 +4847,35 @@
     window.print();
   }
 
+  function printLadderPDF() {
+    const canvas = document.getElementById('ladderChart');
+    if (!canvas) return;
+    const imgData = canvas.toDataURL('image/png');
+    const paese1 = document.getElementById('ladderPaese')?.value || 'Tutti i paesi';
+    const paese2 = document.getElementById('ladderPaese2')?.value || '';
+    const modeEl = document.getElementById('ladderMode');
+    const modeText = modeEl ? (modeEl.value === 'yield' ? 'Yield medio %' : 'N° titoli') : '';
+    const dateStr = new Date().toLocaleDateString('it-IT');
+    const title = 'Maturity Ladder — ' + paese1 + (paese2 ? ' vs ' + paese2 : '');
+    const win = window.open('', '_blank');
+    if (!win) { alert('Popup bloccati. Sblocca i popup per questo sito e riprova.'); return; }
+    win.document.write('<!DOCTYPE html><html><head><title>' + title + '</title>'
+      + '<style>'
+      + 'body{margin:0;padding:24px;font-family:system-ui,sans-serif;background:#fff;color:#111;}'
+      + 'h2{font-size:17px;margin:0 0 4px 0;}'
+      + 'p{font-size:12px;color:#666;margin:0 0 16px 0;}'
+      + 'img{max-width:100%;border:1px solid #ddd;border-radius:6px;}'
+      + '@media print{body{padding:0;}img{width:100%;max-width:none;}}'
+      + '</style></head><body>'
+      + '<h2>' + title + '</h2>'
+      + '<p>' + modeText + (modeText ? ' · ' : '') + 'Data: ' + dateStr + '</p>'
+      + '<img src="' + imgData + '">'
+      + '</body></html>');
+    win.document.close();
+    win.focus();
+    setTimeout(function(){ win.print(); }, 500);
+  }
+
   // ─────────────────────────────────────────────
   // PORTFOLIO TEMPLATES
   // ─────────────────────────────────────────────
@@ -5677,6 +5707,81 @@
           desc:'BTP classici brevi come complemento liquido: liquidità immediata sul MOT',
           etfs:[{isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}],
           bonds:{monitor:['BTP - Italia'],durMax:3} },
+      ]
+    },
+    // ── AGGREGATE GLOBALE ──────────────────────────────────────────────────────
+    {
+      key:'aggregate-globale', icon:'🌐', name:'Aggregate Globale', badge:'AGG',
+      desc:'Mercato obbligazionario mondiale · EUR hedged · Massima diversificazione',
+      orizzonte:'3–7 anni',
+      rationale:'Portafoglio "core bond" che replica l\'intero mercato obbligazionario mondiale in un\'unica allocazione semplice. Il Global Aggregate EUR Hedged cattura governativi, corporate IG e EM di tutti i principali mercati con copertura valutaria. L\'EUR Aggregate puro aggiunge peso ai titoli di casa senza rischio cambio; l\'US Aggregate hedged porta l\'esposizione al mercato creditizio americano (BBB medio) che è 2-3 volte più ampio di quello europeo. La piccola quota EM aggiunge carry geografico. Strategia "lazy portfolio" ideale come nucleo obbligazionario passivo da affiancare a un portafoglio azionario.',
+      currency:'EUR', yieldRange:'3.5–4.5%', durRange:'5–7', riskLevel:2, color:'#0891b2',
+      components:[
+        { label:'Global Aggregate EUR Hedged', pct:40,
+          desc:'Replica dell\'intero mercato obbligazionario mondiale: gov + corp + EM, copertura cambio EUR',
+          etfs:[{isin:'IE00BDBRDM35',ticker:'AGGH',  name:'iShares Core Global Aggregate Bond EUR H'},
+                {isin:'IE00BG47KH54',ticker:'VAGE',  name:'Vanguard Global Aggregate Bond EUR H'}] },
+        { label:'EUR Aggregate', pct:30,
+          desc:'Obbligazioni EUR gov + corp in un unico ETF: diversificazione senza rischio cambio',
+          etfs:[{isin:'IE00B3DKXQ41',ticker:'IEAG',  name:'iShares EU Aggregate Bond'},
+                {isin:'LU2182388236',ticker:'EGRI',  name:'Amundi Euro Aggregate SRI'}] },
+        { label:'US Aggregate EUR Hedged', pct:20,
+          desc:'Mercato obbligazionario USA hedgiato in EUR: BBB medio, spread +80bps vs EUR gov',
+          etfs:[{isin:'IE00B3KQHM46',ticker:'SUAG',  name:'iShares Core $ Aggregate Bond EUR H'}] },
+        { label:'EM Blend', pct:10,
+          desc:'Quote mercati emergenti per extra carry geografico e diversificazione valutaria controllata',
+          etfs:[{isin:'IE00B2NPKV68',ticker:'IEMB',  name:'iShares JPM $ EM Bond'},
+                {isin:'LU0321462953',ticker:'XEMB',  name:'Xtrackers II EM Bond EUR H'}] },
+      ]
+    },
+    // ── OBBLIGAZIONI CONVERTIBILI ──────────────────────────────────────────────
+    {
+      key:'convertibili', icon:'🔀', name:'Obbligazioni Convertibili', badge:'CONV',
+      desc:'Convertibili · Partecipazione rialzo azionario · Floor obbligazionario',
+      orizzonte:'3–5 anni',
+      rationale:'Le obbligazioni convertibili (convertible bond) sono strumenti ibridi che pagano cedola come un\'obbligazione ma danno al possessore il diritto di convertire in azioni a un prezzo predeterminato. In mercati rialzisti catturano parte del rialzo azionario; in mercati ribassisti il "floor obbligazionario" limita le perdite. Storicamente mostrano un profilo asimmetrico: partecipazione al 60–70% del rialzo azionario con drawdown del 30–40% rispetto all\'equity. Ideali come complemento ibrido a un portafoglio misto bond-equity, particolarmente efficaci nelle fasi di ripresa economica con tassi stabili.',
+      currency:'EUR', yieldRange:'3–5% + upside azionario', durRange:'3–5', riskLevel:3, color:'#8b5cf6',
+      components:[
+        { label:'Convertibili Globali EUR Hedged', pct:45,
+          desc:'Convertibili globali coperti in EUR: emittenti investment grade e crossover, ottimo rapporto rischio/rendimento',
+          etfs:[{isin:'IE00BNH72088',ticker:'GCVB',  name:'SPDR Refinitiv Global Conv Bond EUR H'},
+                {isin:'LU0070372836',ticker:'LCGL',  name:'Lazard Convertible Global'}] },
+        { label:'Convertibili Europa', pct:35,
+          desc:'Convertibili europei: emittenti mid-large cap, settore tech e utilities, cedola fissa + opzione conversione',
+          etfs:[{isin:'IE00BNH72088',ticker:'GCVB',  name:'SPDR Refinitiv Global Conv Bond EUR H'},
+                {isin:'LU1275255799',ticker:'CONV',  name:'Amundi Global Convertible Bond'}] },
+        { label:'Corp IG EUR (buffer)', pct:20,
+          desc:'Corporate investment grade come ancora difensiva: riduce la volatilità in fasi di stress',
+          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',  name:'iShares Core EU Corp Bond'},
+                {isin:'LU1829219127',ticker:'CRPE',  name:'Amundi Euro Corp Bond'}] },
+      ]
+    },
+    // ── DURATION LUNGA ────────────────────────────────────────────────────────
+    {
+      key:'duration-lunga', icon:'⏳', name:'Duration Lunga', badge:'30Y',
+      desc:'Long bonds · Guadagno da ribasso tassi · Duration 12–20Y',
+      orizzonte:'5–10 anni',
+      rationale:'Portafoglio tattico costruito sulla parte lunga della curva dei tassi per massimizzare il guadagno in conto capitale in uno scenario di ribasso dei tassi. Ogni calo di 100bps sul tasso a 20 anni genera un gain di circa 15–20% sul prezzo delle obbligazioni lunghe. La strategia è offensiva: rinuncia alla protezione del capitale a breve termine in cambio dell\'esposizione massima alla sensibilità ai tassi. I governativi core (IT, DE, FR, US) a lunghissima scadenza offrono la duration più alta con rischio di credito minimo. Adatta a investitori che credono in un ciclo di ribasso dei tassi di 200–300bps su orizzonte 5–10 anni.',
+      currency:'EUR/USD', yieldRange:'3.5–4.5% + capital gain potenziale', durRange:'12–20', riskLevel:3, color:'#dc2626',
+      components:[
+        { label:'Gov EUR 15+ anni', pct:40,
+          desc:'Governativi eurozona a lunghissima scadenza: massima sensibilità ai tassi EUR, gain elevato in discesa BCE',
+          etfs:[{isin:'LU1287023268',ticker:'EM15',   name:'Amundi Euro Gov Bond 15+Y'},
+                {isin:'LU1650489385',ticker:'EM1015', name:'Amundi Euro Gov Bond 10-15Y'}],
+          bonds:{paese:['IT','DE','FR'],durMin:12} },
+        { label:'Treasury USA 20–30 anni', pct:30,
+          desc:'T-Bond americani 20-30Y: benchmark tasso risk-free USA, capital gain massimo in taglio FED',
+          etfs:[{isin:'IE00B44CND37',ticker:'IDTL',   name:'iShares $ Treasury 20+Y EUR H'},
+                {isin:'LU1407890620',ticker:'US10',   name:'Amundi Core US Treasury 10+Y'}] },
+        { label:'BTP Italia Lungo', pct:20,
+          desc:'BTP 15–30 anni: spread sovrano italiano + duration lunga, massimo carry + duration nell\'eurozona',
+          etfs:[{isin:'LU1287023268',ticker:'EM15',   name:'Amundi Euro Gov Bond 15+Y'}],
+          bonds:{paese:['IT'],durMin:12} },
+        { label:'Gov EUR 10–15 anni', pct:10,
+          desc:'Tratto 10-15Y come diversificazione sulla curva: minor volatilità rispetto al 30Y',
+          etfs:[{isin:'LU1650489385',ticker:'EM1015', name:'Amundi Euro Gov Bond 10-15Y'},
+                {isin:'LU1287023185',ticker:'EM710',  name:'Amundi Euro Gov Bond 7-10Y'}],
+          bonds:{paese:['IT','DE','FR'],durMin:8,durMax:15} },
       ]
     },
     // ── SHORT DURATION IG ──────────────────────────────────────────────────────
