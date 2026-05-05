@@ -1617,16 +1617,43 @@
   // ─────────────────────────────────────────────
   // POPOLA FILTRI
   // ─────────────────────────────────────────────
+  // Raggruppa monitor per sezione nel dropdown Categoria
+  const MONITOR_GROUPS = [
+    { label: '🏛 Governativi italiani',    names: ['BTP - Italia','BTP Futura / Valore / Più','BOT','BTP in USD'] },
+    { label: '🌍 Governativi europei',      names: ['Titoli di stato europei','Altri titoli di stato','Governativi extra-UE','Germania','Francia','Romania','Stati Uniti'] },
+    { label: '🌐 Sovranazionali',           names: ['Sovranazionali','Unione Europea','BEI / EIB'] },
+    { label: '♻ ESG / Rating',             names: ['ESG Green Bond','Titoli ad alto rating'] },
+    { label: '🏢 Bancari EUR',             names: ['Intesa Sanpaolo EUR','UniCredit EUR','Mediobanca EUR','Subordinati Tier2 EUR','Callable EUR'] },
+    { label: '⚡ Corporate EUR',            names: ['Corporate IT EUR','Telecom EUR','Oil & Energy EUR'] },
+    { label: '💵 Bancari multi-valuta',     names: ['Banche italiane','Banche europee','Banche europee non-IT','Banche USA','Corporate non-bancario','Automotive','Tecnologia'] },
+  ];
+
   function populateFilters() {
-    // Categorie
-    const monitors = [...new Set(allBonds.map(b => b.monitor))].sort();
+    // Categorie — dropdown con optgroup per sezione
+    const presentMonitors = new Set(allBonds.map(b => b.monitor));
     const sel = document.getElementById('filterMonitor');
     const prev = sel.value;
     sel.innerHTML = '<option value="">Tutte le categorie</option>';
-    monitors.forEach(m => {
+    let ungrouped = [...presentMonitors];
+    MONITOR_GROUPS.forEach(grp => {
+      const inGrp = grp.names.filter(n => presentMonitors.has(n));
+      if (inGrp.length === 0) return;
+      const og = document.createElement('optgroup');
+      og.label = grp.label;
+      inGrp.forEach(n => {
+        ungrouped = ungrouped.filter(u => u !== n);
+        const opt = document.createElement('option');
+        opt.value = n; opt.textContent = n;
+        if (n === prev) opt.selected = true;
+        og.appendChild(opt);
+      });
+      sel.appendChild(og);
+    });
+    // Eventuali monitor non mappati — aggiunti senza gruppo
+    ungrouped.sort().forEach(n => {
       const opt = document.createElement('option');
-      opt.value = m; opt.textContent = m;
-      if (m === prev) opt.selected = true;
+      opt.value = n; opt.textContent = n;
+      if (n === prev) opt.selected = true;
       sel.appendChild(opt);
     });
 
