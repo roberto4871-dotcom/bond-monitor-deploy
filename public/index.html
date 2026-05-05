@@ -7713,7 +7713,35 @@
   function openChartComparison() {
     const ex = document.getElementById('chartCompOverlay');
     if (ex) ex.remove();
-    const optList = [...allBonds.slice(0,200), ...allETFs].map(b=>`<option value="${escHtml(b.isin)}">${escHtml(b.isin)} — ${escHtml(b.descrizione||b.name||'')}</option>`).join('');
+    _compPeriod = '1Y'; _compMode = 'abs';
+    _chartCompareData = { a: null, b: null };
+    window._compIsinA = null; window._compIsinB = null;
+
+    const slotHTML = (slot, color) => {
+      const lbl = slot === 'A' ? '&#9632; Titolo A' : '&#9632; Titolo B';
+      return `<div style="position:relative">
+        <div style="font-size:11px;color:${color};font-weight:700;margin-bottom:6px">${lbl}</div>
+        <div id="compSel${slot}" style="display:none;padding:8px 10px;background:${color}18;border:1px solid ${color}55;border-radius:7px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div id="compSelName${slot}" style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+              <div id="compSelIsin${slot}" style="font-size:10px;color:var(--text2);font-family:monospace;margin-top:1px"></div>
+            </div>
+            <button onclick="clearCompSlot('${slot}')" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:15px;padding:0 2px;flex-shrink:0" title="Cambia">✕</button>
+          </div>
+        </div>
+        <div id="compSearchWrap${slot}">
+          <input id="compSearch${slot}" type="text" placeholder="Cerca nome, ISIN o ticker…"
+            oninput="_compFilter('${slot}',this.value)"
+            onfocus="_compFilter('${slot}',this.value)"
+            onkeydown="_compKeyNav(event,'${slot}')"
+            autocomplete="off"
+            style="width:100%;padding:8px 10px;background:var(--bg3);border:1px solid ${color}55;border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box;outline:none">
+          <div id="compDrop${slot}" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--bg2);border:1px solid var(--border);border-radius:8px;max-height:230px;overflow-y:auto;z-index:10001;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>
+        </div>
+      </div>`;
+    };
+
     const html = `
     <div id="chartCompOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;width:min(780px,97vw);max-height:90vh;overflow-y:auto">
@@ -7721,19 +7749,9 @@
           <div style="font-size:16px;font-weight:700">📈 Confronto Grafici</div>
           <button onclick="document.getElementById('chartCompOverlay').remove()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-          <div>
-            <div style="font-size:11px;color:#3b82f6;font-weight:700;margin-bottom:4px">■ Titolo A</div>
-            <input id="chartCompA" list="chartCompListA" type="text" placeholder="ISIN o nome…"
-              style="width:100%;padding:8px;background:var(--bg3);border:1px solid #3b82f650;border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box">
-            <datalist id="chartCompListA">${optList}</datalist>
-          </div>
-          <div>
-            <div style="font-size:11px;color:#f59e0b;font-weight:700;margin-bottom:4px">■ Titolo B</div>
-            <input id="chartCompB" list="chartCompListB" type="text" placeholder="ISIN o nome…"
-              style="width:100%;padding:8px;background:var(--bg3);border:1px solid #f59e0b50;border-radius:7px;color:var(--text);font-size:13px;box-sizing:border-box">
-            <datalist id="chartCompListB">${optList}</datalist>
-          </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          ${slotHTML('A','#3b82f6')}
+          ${slotHTML('B','#f59e0b')}
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
           <div style="display:flex;gap:4px;background:var(--bg3);border-radius:7px;padding:2px">
@@ -7743,7 +7761,7 @@
             <button onclick="_compMode='abs';renderCompChart()" id="ccModeAbs" style="padding:4px 10px;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;background:var(--bg2);color:var(--text)">Prezzo</button>
             <button onclick="_compMode='pct';renderCompChart()" id="ccModePct" style="padding:4px 10px;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;background:none;color:var(--text2)">Var %</button>
           </div>
-          <button onclick="loadComparisonCharts(_compPeriod)" style="padding:6px 14px;background:#3b82f620;border:1px solid #3b82f640;border-radius:7px;color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer">🔄 Confronta</button>
+          <button onclick="loadComparisonCharts(_compPeriod)" style="padding:6px 16px;background:#3b82f620;border:1px solid #3b82f640;border-radius:7px;color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer">🔄 Confronta</button>
         </div>
         <div id="compChartArea" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;min-height:220px;display:flex;align-items:center;justify-content:center">
           <div style="color:var(--text2);font-size:12px">Seleziona due titoli e clicca Confronta</div>
@@ -7752,8 +7770,107 @@
       </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
-    _compPeriod = '1Y'; _compMode = 'abs';
-    _chartCompareData = { a: null, b: null };
+    // Close dropdowns on outside click
+    setTimeout(() => {
+      document.addEventListener('mousedown', function _ccOutside(e) {
+        ['A','B'].forEach(s => {
+          const drop = document.getElementById('compDrop'+s);
+          const inp  = document.getElementById('compSearch'+s);
+          if (drop && inp && !drop.contains(e.target) && e.target !== inp) drop.style.display = 'none';
+        });
+        if (!document.getElementById('chartCompOverlay')) document.removeEventListener('mousedown', _ccOutside);
+      });
+    }, 80);
+  }
+
+  function _compFilter(slot, query) {
+    const drop = document.getElementById('compDrop' + slot);
+    if (!drop) return;
+    const q = (query || '').trim().toLowerCase();
+    const bonds = (allBonds || []).map(b => ({
+      isin: b.isin,
+      name: b.descrizione || b.isin,
+      sub:  [b.paese, b.valuta, b.scadenza ? b.scadenza.slice(0,10) : ''].filter(Boolean).join(' · '),
+      type: 'GOV'
+    }));
+    const etfs = (allETFs || []).map(e => ({
+      isin: e.isin,
+      name: e.name || e.isin,
+      sub:  [e.ticker, e.cat].filter(Boolean).join(' · '),
+      type: 'ETF'
+    }));
+    const all = [...bonds, ...etfs];
+    const res = q.length < 1
+      ? all.slice(0, 40)
+      : all.filter(x =>
+          x.isin.toLowerCase().includes(q) ||
+          x.name.toLowerCase().includes(q) ||
+          x.sub.toLowerCase().includes(q)
+        ).slice(0, 60);
+    if (!res.length) {
+      drop.innerHTML = '<div style="padding:10px 12px;color:var(--text2);font-size:12px;text-align:center">Nessun risultato</div>';
+      drop.style.display = 'block'; return;
+    }
+    drop.innerHTML = res.map(item => {
+      const isETF = item.type === 'ETF';
+      const badge = isETF
+        ? `<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(99,102,241,.25);color:#818cf8;flex-shrink:0;white-space:nowrap">ETF</span>`
+        : `<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(34,197,94,.15);color:#4ade80;flex-shrink:0;white-space:nowrap">GOV</span>`;
+      const safeIsin = item.isin.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const safeName = item.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<div onclick="_compSelect('${slot}','${safeIsin}','${safeName}')"
+        style="padding:7px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:8px"
+        onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        ${badge}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(item.name)}</div>
+          <div style="font-size:10px;color:var(--text2);font-family:monospace">${escHtml(item.isin)}${item.sub ? ' · '+escHtml(item.sub) : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+    drop.style.display = 'block';
+  }
+
+  function _compSelect(slot, isin, name) {
+    const selDiv  = document.getElementById('compSel' + slot);
+    const selName = document.getElementById('compSelName' + slot);
+    const selIsin = document.getElementById('compSelIsin' + slot);
+    const wrap    = document.getElementById('compSearchWrap' + slot);
+    const drop    = document.getElementById('compDrop' + slot);
+    if (selName) selName.textContent = name;
+    if (selIsin) selIsin.textContent = isin;
+    if (selDiv)  selDiv.style.display  = 'block';
+    if (wrap)    wrap.style.display    = 'none';
+    if (drop)    drop.style.display    = 'none';
+    window['_compIsin' + slot] = isin;
+    // Auto-compare if both selected
+    if (window._compIsinA && window._compIsinB) loadComparisonCharts(_compPeriod);
+  }
+
+  function clearCompSlot(slot) {
+    const selDiv = document.getElementById('compSel' + slot);
+    const wrap   = document.getElementById('compSearchWrap' + slot);
+    const inp    = document.getElementById('compSearch' + slot);
+    if (selDiv) selDiv.style.display = 'none';
+    if (wrap)   wrap.style.display   = 'block';
+    if (inp)    { inp.value = ''; setTimeout(() => inp.focus(), 50); }
+    window['_compIsin' + slot] = null;
+  }
+
+  function _compKeyNav(e, slot) {
+    const drop = document.getElementById('compDrop' + slot);
+    if (!drop || drop.style.display === 'none') return;
+    const items  = [...drop.querySelectorAll('div[onclick]')];
+    let active   = drop.querySelector('.cc-active');
+    const setActive = el => {
+      if (active) { active.classList.remove('cc-active'); active.style.background = ''; }
+      if (el)     { el.classList.add('cc-active'); el.style.background = 'var(--bg3)'; el.scrollIntoView({block:'nearest'}); }
+      active = el;
+    };
+    if (e.key === 'ArrowDown')  { e.preventDefault(); setActive(active ? (active.nextElementSibling||items[0]) : items[0]); }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); setActive(active ? (active.previousElementSibling||items[items.length-1]) : items[items.length-1]); }
+    else if (e.key === 'Enter')     { e.preventDefault(); if (active) active.click(); else if (items[0]) items[0].click(); }
+    else if (e.key === 'Escape')    { drop.style.display = 'none'; }
   }
 
   async function loadComparisonCharts(period) {
@@ -7765,16 +7882,9 @@
     const area = document.getElementById('compChartArea');
     if (!area) return;
     area.innerHTML = '<div style="color:var(--text2);font-size:12px">Caricamento...</div>';
-    const resolveIsin = val => {
-      if (!val) return null;
-      const v = val.trim().toUpperCase();
-      const b = allBonds.find(x => x.isin === v) || allBonds.find(x => x.descrizione?.toUpperCase().includes(v));
-      const e = allETFs.find(x => x.isin === v) || allETFs.find(x => x.name?.toUpperCase().includes(v) || x.ticker?.toUpperCase() === v);
-      return (b || e)?.isin || v;
-    };
-    const isinA = resolveIsin(document.getElementById('chartCompA')?.value);
-    const isinB = resolveIsin(document.getElementById('chartCompB')?.value);
-    if (!isinA || !isinB) { area.innerHTML = '<div style="color:var(--amber);font-size:12px;text-align:center">⚠️ Inserisci entrambi i titoli</div>'; return; }
+    const isinA = window._compIsinA;
+    const isinB = window._compIsinB;
+    if (!isinA || !isinB) { area.innerHTML = '<div style="color:var(--amber);font-size:12px;text-align:center">⚠️ Seleziona entrambi i titoli dai menu</div>'; return; }
     const periodDays = {'1M':'30','3M':'90','6M':'180','1Y':'365','3Y':'1095'}[period] || '365';
     try {
       const [rA, rB] = await Promise.all([
