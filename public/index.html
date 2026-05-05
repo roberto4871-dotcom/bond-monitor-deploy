@@ -896,9 +896,10 @@
     <button class="tab-btn active" id="tab-table"     onclick="switchPanel('table')">📋 Tabella</button>
     <button class="tab-btn"        id="tab-yieldcurve" onclick="switchPanel('yieldcurve')">📈 Yield Curve</button>
     <button class="tab-btn"        id="tab-ladder"     onclick="switchPanel('ladder')">📊 Maturity Ladder</button>
-    <button class="tab-btn" id="tab-etf"   onclick="switchPanel('etf')">🏦 ETF Bond</button>
-    <button class="tab-btn" id="tab-macro" onclick="switchPanel('macro')">🌍 Macro</button>
-    <button class="tab-btn"        id="tab-portfolio"  onclick="switchPanel('portfolio')">💼 Portafoglio</button>
+    <button class="tab-btn" id="tab-etf"       onclick="switchPanel('etf')">🏦 ETF Bond</button>
+    <button class="tab-btn" id="tab-corporate" onclick="switchPanel('corporate')">🏢 Corporate EUR</button>
+    <button class="tab-btn" id="tab-macro"     onclick="switchPanel('macro')">🌍 Macro</button>
+    <button class="tab-btn" id="tab-portfolio" onclick="switchPanel('portfolio')">💼 Portafoglio</button>
   </div>
 
     <div class="loading-overlay" id="loadingOverlay">
@@ -1154,6 +1155,56 @@
       </div>
 
       <div id="portfolioSummary"></div>
+    </div>
+
+    <!-- CORPORATE EUR PANEL -->
+    <div class="extra-panel" id="panelCorporate" style="display:none;flex-direction:column;gap:0;padding:0;">
+      <div style="padding:12px 16px 8px;background:var(--bg2);border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:600;color:var(--text);">🏢 Obbligazioni Corporate EUR</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="text" id="corpSearch" placeholder="Cerca ISIN / descrizione..." oninput="renderCorporateTable()"
+              style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;width:220px;">
+            <span id="corpCount" style="font-size:12px;color:var(--text2);"></span>
+          </div>
+        </div>
+        <!-- Sotto-categoria chips -->
+        <div style="display:flex;flex-wrap:wrap;gap:6px;" id="corpCategoryChips">
+          <button class="etf-chip active" style="--chip-c:#8b949e" onclick="setCorporateGroup('',this)">Tutti</button>
+          <button class="etf-chip" style="--chip-c:#3b82f6" onclick="setCorporateGroup('banche-it',this)">🏦 Banche IT</button>
+          <button class="etf-chip" style="--chip-c:#6366f1" onclick="setCorporateGroup('banche-eu',this)">🌐 Banche EU</button>
+          <button class="etf-chip" style="--chip-c:#8b5cf6" onclick="setCorporateGroup('subordinati',this)">📊 Subordinati Tier2</button>
+          <button class="etf-chip" style="--chip-c:#a78bfa" onclick="setCorporateGroup('callable',this)">🔔 Callable</button>
+          <button class="etf-chip" style="--chip-c:#22c55e" onclick="setCorporateGroup('utility',this)">⚡ Utility IT</button>
+          <button class="etf-chip" style="--chip-c:#f59e0b" onclick="setCorporateGroup('telecom',this)">📡 Telecom</button>
+          <button class="etf-chip" style="--chip-c:#ef4444" onclick="setCorporateGroup('energy',this)">🛢 Oil & Energy</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;flex:1;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--bg2);position:sticky;top:0;z-index:2;">
+              <th onclick="sortCorp('isin')"        style="padding:8px 10px;text-align:left;cursor:pointer;white-space:nowrap;color:var(--text2);border-bottom:1px solid var(--border);">ISIN <span id="csort-isin"></span></th>
+              <th onclick="sortCorp('descrizione')" style="padding:8px 10px;text-align:left;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Descrizione <span id="csort-descrizione"></span></th>
+              <th onclick="sortCorp('emittente')"   style="padding:8px 10px;text-align:left;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Emittente <span id="csort-emittente"></span></th>
+              <th onclick="sortCorp('divisa')"      style="padding:8px 10px;text-align:center;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Val. <span id="csort-divisa"></span></th>
+              <th onclick="sortCorp('scadenza')"    style="padding:8px 10px;text-align:center;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Scadenza <span id="csort-scadenza"></span></th>
+              <th onclick="sortCorp('prezzo')"      style="padding:8px 10px;text-align:right;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Prezzo <span id="csort-prezzo"></span></th>
+              <th onclick="sortCorp('yield')"       style="padding:8px 10px;text-align:right;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Yield % <span id="csort-yield"></span></th>
+              <th onclick="sortCorp('duration')"    style="padding:8px 10px;text-align:right;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Duration <span id="csort-duration"></span></th>
+              <th onclick="sortCorp('zSpread')"     style="padding:8px 10px;text-align:right;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Z-Spread <span id="csort-zSpread"></span></th>
+              <th onclick="sortCorp('monitor')"     style="padding:8px 10px;text-align:left;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Categoria <span id="csort-monitor"></span></th>
+            </tr>
+          </thead>
+          <tbody id="corpBody">
+            <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">Caricamento...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-top:1px solid var(--border);">
+        <div id="corpPageInfo" style="font-size:12px;color:var(--text2);">—</div>
+        <div id="corpPageBtns" style="display:flex;gap:4px;"></div>
+      </div>
     </div>
 
     <!-- TABELLA -->
@@ -3178,16 +3229,18 @@
     document.getElementById('panelYieldCurve').style.display = panel === 'yieldcurve' ? 'flex' : 'none';
     document.getElementById('panelLadder').style.display     = panel === 'ladder'     ? 'flex' : 'none';
     document.getElementById('panelETF').style.display        = panel === 'etf'        ? 'flex' : 'none';
+    document.getElementById('panelCorporate').style.display  = panel === 'corporate'  ? 'flex' : 'none';
     document.getElementById('panelMacro').style.display      = panel === 'macro'      ? 'flex' : 'none';
     document.getElementById('panelPortfolio').style.display  = panel === 'portfolio'  ? 'flex' : 'none';
     document.querySelector('.table-toolbar').style.display   = panel === 'table'      ? '' : 'none';
     document.querySelector('.pagination').style.display      = panel === 'table'      ? '' : 'none';
-    ['table','yieldcurve','ladder','etf','macro','portfolio'].forEach(t => {
+    ['table','yieldcurve','ladder','etf','corporate','macro','portfolio'].forEach(t => {
       document.getElementById('tab-' + t).classList.toggle('active', t === panel);
     });
     if (panel === 'yieldcurve') renderYieldCurve();
     if (panel === 'ladder')     { populateLadderPaesi(); renderLadder(); }
     if (panel === 'etf')        loadETFPanel();
+    if (panel === 'corporate')  renderCorporateTable();
     if (panel === 'macro')      { loadMacroPanel(); renderMacroCalendar(); renderMacroIndicators(); }
     if (panel === 'portfolio')  renderPortfolio();
   }
@@ -3202,6 +3255,145 @@
     .tab-btn.active { background:var(--bg3); color:var(--blue); border-bottom:2px solid var(--blue); }
   `;
   document.head.appendChild(tabStyle);
+
+  // ─────────────────────────────────────────────
+  // CORPORATE EUR PANEL
+  // ─────────────────────────────────────────────
+  // Mappa nome-monitor → gruppo categoria
+  const CORP_MONITOR_GROUPS = {
+    'Intesa Sanpaolo EUR':  'banche-it',
+    'UniCredit EUR':        'banche-it',
+    'Mediobanca EUR':       'banche-eu',
+    'Subordinati Tier2 EUR':'subordinati',
+    'Callable EUR':         'callable',
+    'Corporate IT EUR':     'utility',
+    'Telecom EUR':          'telecom',
+    'Oil & Energy EUR':     'energy',
+    // anche monitor multi-valuta con EUR: mantieni escluso (solo le 8 nuove)
+  };
+  const CORP_MONITOR_NAMES = new Set(Object.keys(CORP_MONITOR_GROUPS));
+
+  let corpSortField = 'yield';
+  let corpSortDir   = 'desc';
+  let corpGroup     = '';
+  let corpPage      = 1;
+  const CORP_PAGE_SIZE = 100;
+  let _corpPageBonds = []; // current page bonds for row click lookup
+
+  function setCorporateGroup(grp, btn) {
+    corpGroup = grp;
+    corpPage  = 1;
+    document.querySelectorAll('#corpCategoryChips .etf-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderCorporateTable();
+  }
+
+  function sortCorp(field) {
+    if (corpSortField === field) {
+      corpSortDir = corpSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      corpSortField = field;
+      corpSortDir   = (field === 'yield' || field === 'prezzo' || field === 'zSpread') ? 'desc' : 'asc';
+    }
+    document.querySelectorAll('[id^="csort-"]').forEach(el => el.textContent = '');
+    const icon = document.getElementById('csort-' + field);
+    if (icon) icon.textContent = corpSortDir === 'asc' ? '▲' : '▼';
+    renderCorporateTable();
+  }
+
+  function renderCorporateTable() {
+    const search = (document.getElementById('corpSearch') || {value:''}).value.toLowerCase().trim();
+
+    // Filtra: solo monitor corporate EUR
+    let bonds = allBonds.filter(b => CORP_MONITOR_NAMES.has(b.monitor));
+
+    // Sub-gruppo
+    if (corpGroup) {
+      bonds = bonds.filter(b => CORP_MONITOR_GROUPS[b.monitor] === corpGroup);
+    }
+
+    // Ricerca testo
+    if (search) {
+      bonds = bonds.filter(b =>
+        (b.isin && b.isin.toLowerCase().includes(search)) ||
+        (b.descrizione && b.descrizione.toLowerCase().includes(search)) ||
+        (b.emittente && b.emittente.toLowerCase().includes(search))
+      );
+    }
+
+    // Ordinamento
+    bonds.sort((a, b) => {
+      let av = a[corpSortField];
+      let bv = b[corpSortField];
+      if (av === null || av === undefined) return 1;
+      if (bv === null || bv === undefined) return -1;
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av < bv) return corpSortDir === 'asc' ? -1 : 1;
+      if (av > bv) return corpSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    // Aggiorna contatore
+    const countEl = document.getElementById('corpCount');
+    if (countEl) countEl.textContent = `${bonds.length} titoli`;
+
+    // Paginazione
+    const totalPages = Math.max(1, Math.ceil(bonds.length / CORP_PAGE_SIZE));
+    if (corpPage > totalPages) corpPage = totalPages;
+    const start = (corpPage - 1) * CORP_PAGE_SIZE;
+    const pageBonds = bonds.slice(start, start + CORP_PAGE_SIZE);
+    _corpPageBonds = pageBonds; // store for row click lookup
+
+    // Render rows
+    const tbody = document.getElementById('corpBody');
+    if (!tbody) return;
+    if (bonds.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">Nessun titolo trovato</td></tr>`;
+    } else {
+      const yieldColor = y => y === null ? '' : y >= 5 ? 'color:var(--green)' : y >= 3 ? 'color:var(--amber)' : 'color:var(--text)';
+      const fmt2 = v => v !== null && v !== undefined ? v.toFixed(2) : '—';
+      const fmtDate = d => {
+        if (!d) return '—';
+        const parts = d.split('-');
+        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0].slice(2)}` : d;
+      };
+      tbody.innerHTML = pageBonds.map((b, i) => {
+        const y = b.yield;
+        return `<tr data-corp-idx="${i}" style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="openChart(_corpPageBonds[${i}])">
+          <td style="padding:6px 10px;font-size:11px;color:var(--text2);font-family:monospace;">${escHtml(b.isin||'')}</td>
+          <td style="padding:6px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(b.descrizione||'')}</td>
+          <td style="padding:6px 10px;color:var(--text2);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(b.emittente||'')}</td>
+          <td style="padding:6px 10px;text-align:center;"><span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${b.divisa==='EUR'?'rgba(59,130,246,0.15)':'rgba(251,191,36,0.15)'};color:${b.divisa==='EUR'?'var(--blue)':'var(--amber)'};">${escHtml(b.divisa||'')}</span></td>
+          <td style="padding:6px 10px;text-align:center;font-size:12px;color:var(--text2);">${fmtDate(b.scadenza)}</td>
+          <td style="padding:6px 10px;text-align:right;font-size:12px;">${b.prezzo !== null ? b.prezzo.toFixed(2) : '—'}</td>
+          <td style="padding:6px 10px;text-align:right;font-weight:600;${yieldColor(y)}">${y !== null ? y.toFixed(2)+'%' : '—'}</td>
+          <td style="padding:6px 10px;text-align:right;color:var(--text2);font-size:12px;">${fmt2(b.duration)}</td>
+          <td style="padding:6px 10px;text-align:right;color:var(--text2);font-size:12px;">${b.zSpread !== null ? Math.round(b.zSpread) : '—'}</td>
+          <td style="padding:6px 10px;font-size:11px;color:var(--text2);">${escHtml(b.monitor||'')}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Paginazione
+    const infoEl = document.getElementById('corpPageInfo');
+    const btnsEl = document.getElementById('corpPageBtns');
+    if (infoEl) infoEl.textContent = bonds.length > CORP_PAGE_SIZE
+      ? `Pag. ${corpPage}/${totalPages} — ${bonds.length} titoli`
+      : `${bonds.length} titoli`;
+    if (btnsEl) {
+      btnsEl.innerHTML = '';
+      if (totalPages > 1) {
+        for (let p = 1; p <= totalPages; p++) {
+          const btn = document.createElement('button');
+          btn.textContent = p;
+          btn.style.cssText = `padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:${p===corpPage?'var(--blue)':'var(--bg3)'};color:${p===corpPage?'#fff':'var(--text2)'};cursor:pointer;font-size:12px;`;
+          btn.onclick = () => { corpPage = p; renderCorporateTable(); };
+          btnsEl.appendChild(btn);
+        }
+      }
+    }
+  }
 
   // ─────────────────────────────────────────────
   // MATURITY LADDER

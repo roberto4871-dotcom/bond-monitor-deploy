@@ -38,6 +38,18 @@ const MONITORS = [
   { id: 73, name: 'ESG Green Bond' },
   { id: 82, name: 'Titoli ad alto rating' },
 
+  // ── Bancari EUR ───────────────────────────────────────────────
+  { id: 6,  name: 'Intesa Sanpaolo EUR' },      // EUR (+ qualche USD)
+  { id: 8,  name: 'UniCredit EUR' },            // EUR + USD
+  { id: 24, name: 'Mediobanca EUR' },           // EUR + USD
+  { id: 11, name: 'Subordinati Tier2 EUR' },    // EUR + USD: Citi, Commerzbank, CA, DB, ISP, MPS
+  { id: 79, name: 'Callable EUR' },             // EUR + USD: Acea, E.ON, Nexi, SocGen, GS, Barclays
+
+  // ── Corporate EUR ─────────────────────────────────────────────
+  { id: 32, name: 'Corporate IT EUR' },         // EUR: ENEL, ENI, Autostrade, Ferrovie, Snam, Terna
+  { id: 33, name: 'Telecom EUR' },              // EUR: DT, Orange, TIM, Telefonica, Vodafone
+  { id: 47, name: 'Oil & Energy EUR' },         // EUR: ENI, Shell
+
   // ── Bancari / corporate multi-valuta ─────────────────────────
   { id: 71, name: 'Banche italiane' },          // USD, GBP, AUD, CHF
   { id: 68, name: 'Banche europee' },           // USD, GBP, AUD, CHF, ZAR
