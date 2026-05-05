@@ -175,6 +175,13 @@
     .chip.active {
       background: var(--blue); border-color: var(--blue); color: white;
     }
+    .chip.chip-corp { border-color: rgba(34,197,94,.4); color: #4ade80; }
+    .chip.chip-corp.active { background: #16a34a; border-color: #16a34a; color: white; }
+    .chip.chip-em { border-color: rgba(251,191,36,.3); color: var(--amber); }
+    .chip.chip-em.active { background: #b45309; border-color: #b45309; color: white; }
+    .chip-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .6px; color: var(--text2); opacity:.55; margin: 8px 0 2px;
+      width: 100%; }
 
     .btn-reset {
       width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border);
@@ -1496,6 +1503,15 @@
   let onlyWithYield = false;
   let activeCurrencies = new Set();
   let activeCountries = new Set();
+  let showCorporate = false;   // chip "Corporate EUR" nella sidebar paesi
+  let showEmAltro   = false;   // chip "EM / Altro" (paesi minori raggruppati)
+
+  // Paesi principali mostrati come chip individuali — il resto va in "EM / Altro"
+  const MAJOR_COUNTRIES = ['Italia','Germania','Francia','Spagna','Portogallo','Grecia',
+    'Belgio','Paesi Bassi','Austria','Finlandia','Irlanda','Romania','Polonia','Ungheria',
+    'Rep. Ceca','Slovacchia','Slovenia','Croazia','Bulgaria','Lituania','Lettonia','Estonia',
+    'Svezia','Danimarca','Norvegia','Svizzera','Regno Unito','Stati Uniti','Giappone',
+    'Canada','Australia','Unione Europea','Sovranazionale'];
   let countdownInterval = null;
   let fetchFailCount = 0;        // consecutive fetch failures
   const FETCH_ERR_THRESHOLD = 3; // show error only after this many consecutive failures
@@ -1657,25 +1673,49 @@
       sel.appendChild(opt);
     });
 
-    // Paesi chips — ordinati: prima i paesi "nominati", poi Sovranazionale, poi il resto
-    const PAESE_ORDER = ['Italia','Germania','Francia','Spagna','Portogallo','Grecia','Belgio','Paesi Bassi','Austria','Finlandia','Irlanda','Romania','Polonia','Ungheria','Rep. Ceca','Slovacchia','Slovenia','Croazia','Bulgaria','Lituania','Lettonia','Estonia','Svezia','Danimarca','Norvegia','Svizzera','Regno Unito','Stati Uniti','Giappone','Canada','Australia','Unione Europea','Sovranazionale','Altro'];
+    // ── Paesi chips — solo paesi principali + gruppi EM e Corporate ──────────
     const allCountries = [...new Set(allBonds.map(b => b.paese).filter(Boolean))];
-    const sortedCountries = allCountries.sort((a, b) => {
-      const ia = PAESE_ORDER.indexOf(a), ib = PAESE_ORDER.indexOf(b);
-      if (ia === -1 && ib === -1) return a.localeCompare(b);
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
-    });
+
+    // Conta paesi minori presenti
+    const minorPresent = allCountries.filter(p => !MAJOR_COUNTRIES.includes(p) && p !== 'Altro');
+
     const countryContainer = document.getElementById('countryChips');
     countryContainer.innerHTML = '';
-    sortedCountries.forEach(paese => {
+
+    // ── Chip paesi principali ─────────────────────────────────────────────────
+    MAJOR_COUNTRIES.forEach(paese => {
+      if (!allCountries.includes(paese)) return; // presente nei dati?
       const chip = document.createElement('div');
       chip.className = 'chip' + (activeCountries.has(paese) ? ' active' : '');
       chip.textContent = paese;
       chip.onclick = () => toggleCountry(paese, chip);
       countryContainer.appendChild(chip);
     });
+
+    // ── Chip "EM / Altro" raggruppato ─────────────────────────────────────────
+    if (minorPresent.length > 0) {
+      const emChip = document.createElement('div');
+      emChip.id = 'chipEmAltro';
+      emChip.className = 'chip chip-em' + (showEmAltro ? ' active' : '');
+      emChip.textContent = '🌍 EM / Altro';
+      emChip.title = minorPresent.sort().join(', ');
+      emChip.onclick = () => toggleEmAltro();
+      countryContainer.appendChild(emChip);
+    }
+
+    // ── Separatore + chip Corporate ───────────────────────────────────────────
+    const sep = document.createElement('div');
+    sep.className = 'chip-section-label';
+    sep.textContent = 'Settore';
+    countryContainer.appendChild(sep);
+
+    const corpChip = document.createElement('div');
+    corpChip.id = 'chipCorporate';
+    corpChip.className = 'chip chip-corp' + (showCorporate ? ' active' : '');
+    corpChip.textContent = '🏢 Corporate EUR';
+    corpChip.title = 'Filtra per: Intesa, UniCredit, Mediobanca, ENEL, ENI, Telecom, Oil&Energy, Subordinati, Callable';
+    corpChip.onclick = () => toggleCorporateChip();
+    countryContainer.appendChild(corpChip);
 
     // Valute chips
     const currencies = [...new Set(allBonds.map(b => b.divisa).filter(Boolean))].sort();
@@ -1698,6 +1738,20 @@
       activeCountries.add(paese);
       el.classList.add('active');
     }
+    applyFilters();
+  }
+
+  function toggleEmAltro() {
+    showEmAltro = !showEmAltro;
+    const el = document.getElementById('chipEmAltro');
+    if (el) el.classList.toggle('active', showEmAltro);
+    applyFilters();
+  }
+
+  function toggleCorporateChip() {
+    showCorporate = !showCorporate;
+    const el = document.getElementById('chipCorporate');
+    if (el) el.classList.toggle('active', showCorporate);
     applyFilters();
   }
 
@@ -1738,7 +1792,16 @@
           !b.descrizione.toLowerCase().includes(search) &&
           !b.emittente.toLowerCase().includes(search)) return false;
       if (monitor && b.monitor !== monitor) return false;
-      if (activeCountries.size > 0 && !activeCountries.has(b.paese)) return false;
+      // Filtro paese/settore — OR tra le selezioni attive
+      const hasCountry = activeCountries.size > 0;
+      const anyActive  = hasCountry || showEmAltro || showCorporate;
+      if (anyActive) {
+        const isMajor   = MAJOR_COUNTRIES && MAJOR_COUNTRIES.includes(b.paese);
+        const passCountry = hasCountry && activeCountries.has(b.paese);
+        const passEm      = showEmAltro && !isMajor && !CORP_MONITOR_NAMES.has(b.monitor);
+        const passCorp    = showCorporate && CORP_MONITOR_NAMES.has(b.monitor);
+        if (!passCountry && !passEm && !passCorp) return false;
+      }
       if (activeCurrencies.size > 0 && !activeCurrencies.has(b.divisa)) return false;
       if (onlyWithYield && (b.yield === null || b.yield === undefined)) return false;
       if (!isNaN(yieldMin) && (b.yield === null || b.yield < yieldMin)) return false;
@@ -1776,6 +1839,8 @@
     activeCountries.clear();
     activeCurrencies.clear();
     onlyWithYield = false;
+    showCorporate  = false;
+    showEmAltro    = false;
     document.getElementById('chipWithYield').classList.remove('active');
     document.querySelectorAll('#countryChips .chip, #currencyChips .chip').forEach(c => c.classList.remove('active'));
     applyFilters();
