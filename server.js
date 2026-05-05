@@ -168,6 +168,64 @@ const DESC_PAESE_MAP = [
   [/\bIVORY COAST\b|\bCOTE D.IVOIRE\b/,'Costa d\'Avorio'],
 ];
 
+// Mappa keyword emittente → paese — copre i corporate bond con ISIN XS
+// (i bond corporate/bancari EUR hanno spesso ISIN Euroclear che non porta info-paese)
+const EMITTENTE_PAESE_KW = [
+  // ── Italia ──────────────────────────────────────────────────────
+  [/INTESA\b|ISP\b/i,                         'Italia'],
+  [/UNICREDIT/i,                               'Italia'],
+  [/MEDIOBANCA/i,                              'Italia'],
+  [/MONTE.*PASCHI|BANCA MPS|\bMPS\b/i,        'Italia'],
+  [/\bENEL\b/i,                               'Italia'],
+  [/\bENI\b/i,                                'Italia'],
+  [/AUTOSTRADE/i,                              'Italia'],
+  [/FERROVIE|FERR\.? STATO/i,                 'Italia'],
+  [/ITALGAS/i,                                 'Italia'],
+  [/\bSNAM\b/i,                               'Italia'],
+  [/\bTERNA\b/i,                              'Italia'],
+  [/TELECOM ITALIA|\bTIM\b/i,                  'Italia'],
+  [/\bACEA\b/i,                               'Italia'],
+  [/\bNEXI\b/i,                               'Italia'],
+  [/ALPERIA/i,                                 'Italia'],
+  [/ALERION/i,                                 'Italia'],
+  [/MEDIOCREDITO|BANCA IFIS|CREDITO EMILIANO|CREVAL/i, 'Italia'],
+  // ── Germania ────────────────────────────────────────────────────
+  [/DEUTSCHE BANK/i,                           'Germania'],
+  [/COMMERZBANK/i,                             'Germania'],
+  [/DEUTSCHE TELEKOM/i,                        'Germania'],
+  [/\bE\.ON\b|\bEON\b/i,                      'Germania'],
+  [/VOLKSWAGEN|\bVW\b|BMW\b|MERCEDES|DAIMLER/i,'Germania'],
+  [/BASF\b|BAYER\b|SIEMENS/i,                 'Germania'],
+  // ── Francia ─────────────────────────────────────────────────────
+  [/CREDIT AGRICOLE|CALYON|CA CIB/i,           'Francia'],
+  [/SOCIETE GENERALE|SOC\.? GEN/i,             'Francia'],
+  [/\bORANGE\b/i,                             'Francia'],
+  [/\bBNP\b/i,                                'Francia'],
+  [/AXA\b|ENGIE\b|TOTAL\b/i,                  'Francia'],
+  // ── Spagna ──────────────────────────────────────────────────────
+  [/TELEFONICA/i,                              'Spagna'],
+  [/SANTANDER/i,                               'Spagna'],
+  [/BBVA\b|IBERDROLA|ENDESA/i,                'Spagna'],
+  // ── Regno Unito ─────────────────────────────────────────────────
+  [/BARCLAYS/i,                                'Regno Unito'],
+  [/\bSHELL\b/i,                              'Regno Unito'],
+  [/VODAFONE/i,                                'Regno Unito'],
+  [/\bHSBC\b/i,                               'Regno Unito'],
+  [/LLOYDS|NATWEST|STANDARD CHARTERED/i,       'Regno Unito'],
+  // ── Paesi Bassi ─────────────────────────────────────────────────
+  [/\bING\b/i,                                'Paesi Bassi'],
+  [/RABOBANK/i,                                'Paesi Bassi'],
+  // ── USA ─────────────────────────────────────────────────────────
+  [/CITIGROUP|\bCITI\b/i,                     'Stati Uniti'],
+  [/GOLDMAN SACHS/i,                           'Stati Uniti'],
+  [/JPMORGAN|J\.P\. MORGAN/i,                 'Stati Uniti'],
+  [/BANK OF AMERICA|\bBOFA\b/i,               'Stati Uniti'],
+  [/MORGAN STANLEY/i,                          'Stati Uniti'],
+  [/WELLS FARGO/i,                             'Stati Uniti'],
+  // ── Svizzera ────────────────────────────────────────────────────
+  [/CREDIT SUISSE|\bUBS\b/i,                  'Svizzera'],
+];
+
 // Rileva paese dalla descrizione (fallback per ISIN XS/US con emittente non USA)
 function getCountryFromDesc(desc) {
   for (const [re, paese] of DESC_PAESE_MAP) {
@@ -176,8 +234,17 @@ function getCountryFromDesc(desc) {
   return null;
 }
 
+// Rileva paese dall'emittente (per bond corporate con ISIN XS)
+function getCountryFromEmittente(emittente) {
+  const e = (emittente || '').toUpperCase();
+  for (const [re, paese] of EMITTENTE_PAESE_KW) {
+    if (re.test(e)) return paese;
+  }
+  return null;
+}
+
 // Assegna paese considerando: monitor → prefisso ISIN → keywords emittente → descrizione
-function getPaese(isin, monitorName, descrizione) {
+function getPaese(isin, monitorName, descrizione, emittente) {
   const prefix = (isin || '').substring(0, 2).toUpperCase();
   const desc = (descrizione || '').toUpperCase();
 
@@ -206,6 +273,12 @@ function getPaese(isin, monitorName, descrizione) {
     if (SUPRA_KEYWORDS.some(kw => desc.includes(kw))) return 'Sovranazionale';
     const fromDesc = getCountryFromDesc(desc);
     if (fromDesc) return fromDesc;
+    // Fallback: cerca nell'emittente estratto
+    const fromEmit = getCountryFromEmittente(emittente);
+    if (fromEmit) return fromEmit;
+    // Ultimo tentativo: cerca le keyword emittente anche nella descrizione completa
+    const fromDescEmit = getCountryFromEmittente(descrizione);
+    if (fromDescEmit) return fromDescEmit;
     return 'Altro';
   }
 
@@ -323,12 +396,13 @@ function parseTable($, monitorName) {
         if (mc) { marketcode = mc[1]; }
       });
 
+      const emittente = extractIssuer(descrizione);
       bonds.push({
         isin,
         monitor: monitorName,
-        paese: getPaese(isin, monitorName, descrizione),
+        paese: getPaese(isin, monitorName, descrizione, emittente),
         descrizione,
-        emittente: extractIssuer(descrizione),
+        emittente,
         divisa: get('divisa') || 'EUR',
         scadenza: parseDate(scadenzaRaw),
         scadenzaRaw,
