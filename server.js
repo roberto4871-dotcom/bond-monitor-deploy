@@ -12,21 +12,40 @@ const PORT = process.env.PORT || 3001;
 // Timestamp univoco per questa istanza del server — usato per forzare il reload del browser
 const SERVER_BUILD = Date.now();
 
-// Tutti i monitor della sezione "Sovranazionali e Governativi"
+// Monitor attivi — governativi, sovranazionali, corporate multi-valuta
 const MONITORS = [
-  { id: 62, name: 'Sovranazionali' },
-  { id: 63, name: 'Unione Europea' },
-  { id: 73, name: 'ESG Green Bond' },
-  { id: 82, name: 'Titoli ad alto rating' },
+  // ── Governativi italiani ──────────────────────────────────────
   { id: 5,  name: 'BTP - Italia' },
   { id: 74, name: 'BTP Futura / Valore / Più' },
   { id: 72, name: 'BOT' },
+  { id: 76, name: 'BTP in USD' },              // BTP denominati in dollari
+
+  // ── Governativi europei ───────────────────────────────────────
   { id: 66, name: 'Titoli di stato europei' },
   { id: 43, name: 'Altri titoli di stato' },
+  { id: 23, name: 'Governativi extra-UE' },     // USD, GBP, NOK, SEK, Turkey in USD
   { id: 10, name: 'Germania' },
   { id: 13, name: 'Francia' },
   { id: 78, name: 'Romania' },
   { id: 58, name: 'Stati Uniti' },
+
+  // ── Sovranazionali / supranational ───────────────────────────
+  { id: 62, name: 'Sovranazionali' },
+  { id: 63, name: 'Unione Europea' },
+  { id: 16, name: 'BEI / EIB' },               // USD, GBP, TRY, NOK, SEK, ZAR, MXN
+
+  // ── ESG / rating ─────────────────────────────────────────────
+  { id: 73, name: 'ESG Green Bond' },
+  { id: 82, name: 'Titoli ad alto rating' },
+
+  // ── Bancari / corporate multi-valuta ─────────────────────────
+  { id: 71, name: 'Banche italiane' },          // USD, GBP, AUD, CHF
+  { id: 68, name: 'Banche europee' },           // USD, GBP, AUD, CHF, ZAR
+  { id: 49, name: 'Banche europee non-IT' },    // USD, ZAR
+  { id: 37, name: 'Banche USA' },               // USD (Goldman, JPMorgan, BofA...)
+  { id: 67, name: 'Corporate non-bancario' },   // USD, GBP (Ford, EDF, Toyota...)
+  { id: 34, name: 'Automotive' },               // USD (BMW, VW, Ford, Toyota)
+  { id: 81, name: 'Tecnologia' },               // USD (Apple, Microsoft...)
 ];
 
 const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minuti
