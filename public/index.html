@@ -214,10 +214,13 @@
     .chip.active {
       background: var(--blue); border-color: var(--blue); color: white;
     }
-    .chip.chip-corp { border-color: rgba(34,197,94,.4); color: #4ade80; }
-    .chip.chip-corp.active { background: #16a34a; border-color: #16a34a; color: white; }
-    .chip.chip-em { border-color: rgba(251,191,36,.3); color: var(--amber); }
-    .chip.chip-em.active { background: #b45309; border-color: #b45309; color: white; }
+    .chip.chip-corp  { border-color: rgba(34,197,94,.4);  color: #4ade80; }
+    .chip.chip-corp.active  { background: #16a34a; border-color: #16a34a; color: white; }
+    .chip.chip-em    { border-color: rgba(251,191,36,.3); color: var(--amber); }
+    .chip.chip-em.active    { background: #b45309; border-color: #b45309; color: white; }
+    .chip.chip-supra { border-color: rgba(167,139,250,.45); color: var(--purple); }
+    .chip.chip-supra.active { background: #6d28d9; border-color: #6d28d9; color: white; }
+    body.light .chip.chip-supra { border-color: rgba(109,40,217,.35); color: #7c3aed; }
     .chip-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase;
       letter-spacing: .6px; color: var(--text2); opacity:.55; margin: 8px 0 2px;
       width: 100%; }
@@ -1724,12 +1727,19 @@
     const countryContainer = document.getElementById('countryChips');
     countryContainer.innerHTML = '';
 
+    // Mappa chip speciali: paese → { emoji, extraClass }
+    const SPECIAL_CHIPS = {
+      'Unione Europea': { emoji: '🇪🇺', cls: 'chip-supra' },
+      'Sovranazionale': { emoji: '🌐', cls: 'chip-supra' },
+    };
+
     // ── Chip paesi principali ─────────────────────────────────────────────────
     MAJOR_COUNTRIES.forEach(paese => {
       if (!allCountries.includes(paese)) return; // presente nei dati?
+      const spec = SPECIAL_CHIPS[paese];
       const chip = document.createElement('div');
-      chip.className = 'chip' + (activeCountries.has(paese) ? ' active' : '');
-      chip.textContent = paese;
+      chip.className = 'chip' + (spec ? ' ' + spec.cls : '') + (activeCountries.has(paese) ? ' active' : '');
+      chip.textContent = spec ? spec.emoji + ' ' + paese : paese;
       chip.onclick = () => toggleCountry(paese, chip);
       countryContainer.appendChild(chip);
     });
