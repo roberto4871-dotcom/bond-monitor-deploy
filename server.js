@@ -34,11 +34,6 @@ const MONITORS = [
   { id: 63, name: 'Unione Europea' },
   { id: 16, name: 'BEI / EIB' },               // USD, GBP, TRY, NOK, SEK, ZAR, MXN
 
-  // ── Bancari EUR ───────────────────────────────────────────────
-  { id: 6,  name: 'Intesa Sanpaolo EUR' },      // EUR (+ qualche USD)
-  { id: 8,  name: 'UniCredit EUR' },            // EUR + USD
-  { id: 11, name: 'Subordinati Tier2 EUR' },    // EUR + USD: Citi, Commerzbank, CA, DB, ISP, MPS
-
 ];
 
 const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minuti
