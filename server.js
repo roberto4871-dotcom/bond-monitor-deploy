@@ -39,10 +39,6 @@ const MONITORS = [
   { id: 8,  name: 'UniCredit EUR' },            // EUR + USD
   { id: 11, name: 'Subordinati Tier2 EUR' },    // EUR + USD: Citi, Commerzbank, CA, DB, ISP, MPS
 
-  // ── Corporate EUR ─────────────────────────────────────────────
-  { id: 32, name: 'Corporate IT EUR' },         // EUR: ENEL, ENI, Autostrade, Ferrovie, Snam, Terna
-  { id: 33, name: 'Telecom EUR' },              // EUR: DT, Orange, TIM, Telefonica, Vodafone
-  { id: 47, name: 'Oil & Energy EUR' },         // EUR: ENI, Shell
 ];
 
 const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minuti

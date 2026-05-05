@@ -960,7 +960,6 @@
     <button class="tab-btn"        id="tab-yieldcurve" onclick="switchPanel('yieldcurve')">📈 Yield Curve</button>
     <button class="tab-btn"        id="tab-ladder"     onclick="switchPanel('ladder')">📊 Maturity Ladder</button>
     <button class="tab-btn" id="tab-etf"       onclick="switchPanel('etf')">🏦 ETF Bond</button>
-    <button class="tab-btn" id="tab-corporate" onclick="switchPanel('corporate')">🏢 Corporate EUR</button>
     <button class="tab-btn" id="tab-macro"     onclick="switchPanel('macro')">🌍 Macro</button>
     <button class="tab-btn" id="tab-portfolio" onclick="switchPanel('portfolio')">💼 Portafoglio</button>
   </div>
@@ -1218,56 +1217,6 @@
       </div>
 
       <div id="portfolioSummary"></div>
-    </div>
-
-    <!-- CORPORATE EUR PANEL -->
-    <div class="extra-panel" id="panelCorporate" style="display:none;flex-direction:column;gap:0;padding:0;">
-      <div style="padding:12px 16px 8px;background:var(--bg2);border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-          <div style="font-size:14px;font-weight:600;color:var(--text);">🏢 Obbligazioni Corporate EUR</div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <input type="text" id="corpSearch" placeholder="Cerca ISIN / descrizione..." oninput="renderCorporateTable()"
-              style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;width:220px;">
-            <span id="corpCount" style="font-size:12px;color:var(--text2);"></span>
-          </div>
-        </div>
-        <!-- Sotto-categoria chips -->
-        <div style="display:flex;flex-wrap:wrap;gap:6px;" id="corpCategoryChips">
-          <button class="etf-chip active" style="--chip-c:#8b949e" onclick="setCorporateGroup('',this)">Tutti</button>
-          <button class="etf-chip" style="--chip-c:#3b82f6" onclick="setCorporateGroup('banche-it',this)">🏦 Banche IT</button>
-          <button class="etf-chip" style="--chip-c:#6366f1" onclick="setCorporateGroup('banche-eu',this)">🌐 Banche EU</button>
-          <button class="etf-chip" style="--chip-c:#8b5cf6" onclick="setCorporateGroup('subordinati',this)">📊 Subordinati Tier2</button>
-          <button class="etf-chip" style="--chip-c:#a78bfa" onclick="setCorporateGroup('callable',this)">🔔 Callable</button>
-          <button class="etf-chip" style="--chip-c:#22c55e" onclick="setCorporateGroup('utility',this)">⚡ Utility IT</button>
-          <button class="etf-chip" style="--chip-c:#f59e0b" onclick="setCorporateGroup('telecom',this)">📡 Telecom</button>
-          <button class="etf-chip" style="--chip-c:#ef4444" onclick="setCorporateGroup('energy',this)">🛢 Oil & Energy</button>
-        </div>
-      </div>
-      <div style="overflow-x:auto;flex:1;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead>
-            <tr style="background:var(--bg2);position:sticky;top:0;z-index:2;">
-              <th onclick="sortCorp('isin')"        style="padding:8px 10px;text-align:left;cursor:pointer;white-space:nowrap;color:var(--text2);border-bottom:1px solid var(--border);">ISIN <span id="csort-isin"></span></th>
-              <th onclick="sortCorp('descrizione')" style="padding:8px 10px;text-align:left;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Descrizione <span id="csort-descrizione"></span></th>
-              <th onclick="sortCorp('emittente')"   style="padding:8px 10px;text-align:left;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Emittente <span id="csort-emittente"></span></th>
-              <th onclick="sortCorp('divisa')"      style="padding:8px 10px;text-align:center;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Val. <span id="csort-divisa"></span></th>
-              <th onclick="sortCorp('scadenza')"    style="padding:8px 10px;text-align:center;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Scadenza <span id="csort-scadenza"></span></th>
-              <th onclick="sortCorp('prezzo')"      style="padding:8px 10px;text-align:right;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Prezzo <span id="csort-prezzo"></span></th>
-              <th onclick="sortCorp('yield')"       style="padding:8px 10px;text-align:right;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Yield % <span id="csort-yield"></span></th>
-              <th onclick="sortCorp('duration')"    style="padding:8px 10px;text-align:right;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Duration <span id="csort-duration"></span></th>
-              <th onclick="sortCorp('zSpread')"     style="padding:8px 10px;text-align:right;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Z-Spread <span id="csort-zSpread"></span></th>
-              <th onclick="sortCorp('monitor')"     style="padding:8px 10px;text-align:left;cursor:pointer;color:var(--text2);border-bottom:1px solid var(--border);">Categoria <span id="csort-monitor"></span></th>
-            </tr>
-          </thead>
-          <tbody id="corpBody">
-            <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">Caricamento...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-top:1px solid var(--border);">
-        <div id="corpPageInfo" style="font-size:12px;color:var(--text2);">—</div>
-        <div id="corpPageBtns" style="display:flex;gap:4px;"></div>
-      </div>
     </div>
 
     <!-- TABELLA -->
@@ -1559,7 +1508,6 @@
   let onlyWithYield = false;
   let activeCurrencies = new Set();
   let activeCountries = new Set();
-  let showCorporate = false;   // chip "Corporate EUR" nella sidebar paesi
   let showEmAltro   = false;   // chip "EM / Altro" (paesi minori raggruppati)
 
   // Paesi principali mostrati come chip individuali — il resto va in "EM / Altro"
@@ -1694,10 +1642,7 @@
     { label: '🏛 Governativi italiani',    names: ['BTP - Italia','BTP Futura / Valore / Più','BOT','BTP in USD'] },
     { label: '🌍 Governativi europei',      names: ['Titoli di stato europei','Altri titoli di stato','Governativi extra-UE','Germania','Francia','Romania','Stati Uniti'] },
     { label: '🌐 Sovranazionali',           names: ['Sovranazionali','Unione Europea','BEI / EIB'] },
-    { label: '♻ ESG / Rating',             names: ['ESG Green Bond','Titoli ad alto rating'] },
-    { label: '🏢 Bancari EUR',             names: ['Intesa Sanpaolo EUR','UniCredit EUR','Mediobanca EUR','Subordinati Tier2 EUR','Callable EUR'] },
-    { label: '⚡ Corporate EUR',            names: ['Corporate IT EUR','Telecom EUR','Oil & Energy EUR'] },
-    { label: '💵 Bancari multi-valuta',     names: ['Banche italiane','Banche europee','Banche europee non-IT','Banche USA','Corporate non-bancario','Automotive','Tecnologia'] },
+    { label: '🏢 Bancari EUR',             names: ['Intesa Sanpaolo EUR','UniCredit EUR','Subordinati Tier2 EUR'] },
   ];
 
   function populateFilters() {
@@ -1766,20 +1711,6 @@
       countryContainer.appendChild(emChip);
     }
 
-    // ── Separatore + chip Corporate ───────────────────────────────────────────
-    const sep = document.createElement('div');
-    sep.className = 'chip-section-label';
-    sep.textContent = 'Settore';
-    countryContainer.appendChild(sep);
-
-    const corpChip = document.createElement('div');
-    corpChip.id = 'chipCorporate';
-    corpChip.className = 'chip chip-corp' + (showCorporate ? ' active' : '');
-    corpChip.textContent = '🏢 Corporate EUR';
-    corpChip.title = 'Filtra per: Intesa, UniCredit, Mediobanca, ENEL, ENI, Telecom, Oil&Energy, Subordinati, Callable';
-    corpChip.onclick = () => toggleCorporateChip();
-    countryContainer.appendChild(corpChip);
-
     // Valute chips
     const currencies = [...new Set(allBonds.map(b => b.divisa).filter(Boolean))].sort();
     const container = document.getElementById('currencyChips');
@@ -1808,13 +1739,6 @@
     showEmAltro = !showEmAltro;
     const el = document.getElementById('chipEmAltro');
     if (el) el.classList.toggle('active', showEmAltro);
-    applyFilters();
-  }
-
-  function toggleCorporateChip() {
-    showCorporate = !showCorporate;
-    const el = document.getElementById('chipCorporate');
-    if (el) el.classList.toggle('active', showCorporate);
     applyFilters();
   }
 
@@ -1857,13 +1781,12 @@
       if (monitor && b.monitor !== monitor) return false;
       // Filtro paese/settore — OR tra le selezioni attive
       const hasCountry = activeCountries.size > 0;
-      const anyActive  = hasCountry || showEmAltro || showCorporate;
+      const anyActive  = hasCountry || showEmAltro;
       if (anyActive) {
         const isMajor   = MAJOR_COUNTRIES && MAJOR_COUNTRIES.includes(b.paese);
         const passCountry = hasCountry && activeCountries.has(b.paese);
-        const passEm      = showEmAltro && !isMajor && !CORP_MONITOR_NAMES.has(b.monitor);
-        const passCorp    = showCorporate && CORP_MONITOR_NAMES.has(b.monitor);
-        if (!passCountry && !passEm && !passCorp) return false;
+        const passEm      = showEmAltro && !isMajor;
+        if (!passCountry && !passEm) return false;
       }
       if (activeCurrencies.size > 0 && !activeCurrencies.has(b.divisa)) return false;
       if (onlyWithYield && (b.yield === null || b.yield === undefined)) return false;
@@ -1902,7 +1825,6 @@
     activeCountries.clear();
     activeCurrencies.clear();
     onlyWithYield = false;
-    showCorporate  = false;
     showEmAltro    = false;
     document.getElementById('chipWithYield').classList.remove('active');
     document.querySelectorAll('#countryChips .chip, #currencyChips .chip').forEach(c => c.classList.remove('active'));
@@ -3417,18 +3339,16 @@
     document.getElementById('panelYieldCurve').style.display = panel === 'yieldcurve' ? 'flex' : 'none';
     document.getElementById('panelLadder').style.display     = panel === 'ladder'     ? 'flex' : 'none';
     document.getElementById('panelETF').style.display        = panel === 'etf'        ? 'flex' : 'none';
-    document.getElementById('panelCorporate').style.display  = panel === 'corporate'  ? 'flex' : 'none';
     document.getElementById('panelMacro').style.display      = panel === 'macro'      ? 'flex' : 'none';
     document.getElementById('panelPortfolio').style.display  = panel === 'portfolio'  ? 'flex' : 'none';
     document.querySelector('.table-toolbar').style.display   = panel === 'table'      ? '' : 'none';
     document.querySelector('.pagination').style.display      = panel === 'table'      ? '' : 'none';
-    ['table','yieldcurve','ladder','etf','corporate','macro','portfolio'].forEach(t => {
+    ['table','yieldcurve','ladder','etf','macro','portfolio'].forEach(t => {
       document.getElementById('tab-' + t).classList.toggle('active', t === panel);
     });
     if (panel === 'yieldcurve') renderYieldCurve();
     if (panel === 'ladder')     { populateLadderPaesi(); renderLadder(); }
     if (panel === 'etf')        loadETFPanel();
-    if (panel === 'corporate')  renderCorporateTable();
     if (panel === 'macro')      { loadMacroPanel(); renderMacroCalendar(); renderMacroIndicators(); }
     if (panel === 'portfolio')  renderPortfolio();
   }
@@ -3443,145 +3363,6 @@
     .tab-btn.active { background:var(--bg3); color:var(--blue); border-bottom:2px solid var(--blue); }
   `;
   document.head.appendChild(tabStyle);
-
-  // ─────────────────────────────────────────────
-  // CORPORATE EUR PANEL
-  // ─────────────────────────────────────────────
-  // Mappa nome-monitor → gruppo categoria
-  const CORP_MONITOR_GROUPS = {
-    'Intesa Sanpaolo EUR':  'banche-it',
-    'UniCredit EUR':        'banche-it',
-    'Mediobanca EUR':       'banche-eu',
-    'Subordinati Tier2 EUR':'subordinati',
-    'Callable EUR':         'callable',
-    'Corporate IT EUR':     'utility',
-    'Telecom EUR':          'telecom',
-    'Oil & Energy EUR':     'energy',
-    // anche monitor multi-valuta con EUR: mantieni escluso (solo le 8 nuove)
-  };
-  const CORP_MONITOR_NAMES = new Set(Object.keys(CORP_MONITOR_GROUPS));
-
-  let corpSortField = 'yield';
-  let corpSortDir   = 'desc';
-  let corpGroup     = '';
-  let corpPage      = 1;
-  const CORP_PAGE_SIZE = 100;
-  let _corpPageBonds = []; // current page bonds for row click lookup
-
-  function setCorporateGroup(grp, btn) {
-    corpGroup = grp;
-    corpPage  = 1;
-    document.querySelectorAll('#corpCategoryChips .etf-chip').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    renderCorporateTable();
-  }
-
-  function sortCorp(field) {
-    if (corpSortField === field) {
-      corpSortDir = corpSortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      corpSortField = field;
-      corpSortDir   = (field === 'yield' || field === 'prezzo' || field === 'zSpread') ? 'desc' : 'asc';
-    }
-    document.querySelectorAll('[id^="csort-"]').forEach(el => el.textContent = '');
-    const icon = document.getElementById('csort-' + field);
-    if (icon) icon.textContent = corpSortDir === 'asc' ? '▲' : '▼';
-    renderCorporateTable();
-  }
-
-  function renderCorporateTable() {
-    const search = (document.getElementById('corpSearch') || {value:''}).value.toLowerCase().trim();
-
-    // Filtra: solo monitor corporate EUR
-    let bonds = allBonds.filter(b => CORP_MONITOR_NAMES.has(b.monitor));
-
-    // Sub-gruppo
-    if (corpGroup) {
-      bonds = bonds.filter(b => CORP_MONITOR_GROUPS[b.monitor] === corpGroup);
-    }
-
-    // Ricerca testo
-    if (search) {
-      bonds = bonds.filter(b =>
-        (b.isin && b.isin.toLowerCase().includes(search)) ||
-        (b.descrizione && b.descrizione.toLowerCase().includes(search)) ||
-        (b.emittente && b.emittente.toLowerCase().includes(search))
-      );
-    }
-
-    // Ordinamento
-    bonds.sort((a, b) => {
-      let av = a[corpSortField];
-      let bv = b[corpSortField];
-      if (av === null || av === undefined) return 1;
-      if (bv === null || bv === undefined) return -1;
-      if (typeof av === 'string') av = av.toLowerCase();
-      if (typeof bv === 'string') bv = bv.toLowerCase();
-      if (av < bv) return corpSortDir === 'asc' ? -1 : 1;
-      if (av > bv) return corpSortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    // Aggiorna contatore
-    const countEl = document.getElementById('corpCount');
-    if (countEl) countEl.textContent = `${bonds.length} titoli`;
-
-    // Paginazione
-    const totalPages = Math.max(1, Math.ceil(bonds.length / CORP_PAGE_SIZE));
-    if (corpPage > totalPages) corpPage = totalPages;
-    const start = (corpPage - 1) * CORP_PAGE_SIZE;
-    const pageBonds = bonds.slice(start, start + CORP_PAGE_SIZE);
-    _corpPageBonds = pageBonds; // store for row click lookup
-
-    // Render rows
-    const tbody = document.getElementById('corpBody');
-    if (!tbody) return;
-    if (bonds.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text2);">Nessun titolo trovato</td></tr>`;
-    } else {
-      const yieldColor = y => y === null ? '' : y >= 5 ? 'color:var(--green)' : y >= 3 ? 'color:var(--amber)' : 'color:var(--text)';
-      const fmt2 = v => v !== null && v !== undefined ? v.toFixed(2) : '—';
-      const fmtDate = d => {
-        if (!d) return '—';
-        const parts = d.split('-');
-        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0].slice(2)}` : d;
-      };
-      tbody.innerHTML = pageBonds.map((b, i) => {
-        const y = b.yield;
-        return `<tr data-corp-idx="${i}" style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="openChart(_corpPageBonds[${i}])">
-          <td style="padding:6px 10px;font-size:11px;color:var(--text2);font-family:monospace;">${escHtml(b.isin||'')}</td>
-          <td style="padding:6px 10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(b.descrizione||'')}</td>
-          <td style="padding:6px 10px;color:var(--text2);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(b.emittente||'')}</td>
-          <td style="padding:6px 10px;text-align:center;"><span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${b.divisa==='EUR'?'rgba(59,130,246,0.15)':'rgba(251,191,36,0.15)'};color:${b.divisa==='EUR'?'var(--blue)':'var(--amber)'};">${escHtml(b.divisa||'')}</span></td>
-          <td style="padding:6px 10px;text-align:center;font-size:12px;color:var(--text2);">${fmtDate(b.scadenza)}</td>
-          <td style="padding:6px 10px;text-align:right;font-size:12px;">${b.prezzo !== null ? b.prezzo.toFixed(2) : '—'}</td>
-          <td style="padding:6px 10px;text-align:right;font-weight:600;${yieldColor(y)}">${y !== null ? y.toFixed(2)+'%' : '—'}</td>
-          <td style="padding:6px 10px;text-align:right;color:var(--text2);font-size:12px;">${fmt2(b.duration)}</td>
-          <td style="padding:6px 10px;text-align:right;color:var(--text2);font-size:12px;">${b.zSpread !== null ? Math.round(b.zSpread) : '—'}</td>
-          <td style="padding:6px 10px;font-size:11px;color:var(--text2);">${escHtml(b.monitor||'')}</td>
-        </tr>`;
-      }).join('');
-    }
-
-    // Paginazione
-    const infoEl = document.getElementById('corpPageInfo');
-    const btnsEl = document.getElementById('corpPageBtns');
-    if (infoEl) infoEl.textContent = bonds.length > CORP_PAGE_SIZE
-      ? `Pag. ${corpPage}/${totalPages} — ${bonds.length} titoli`
-      : `${bonds.length} titoli`;
-    if (btnsEl) {
-      btnsEl.innerHTML = '';
-      if (totalPages > 1) {
-        for (let p = 1; p <= totalPages; p++) {
-          const btn = document.createElement('button');
-          btn.textContent = p;
-          btn.style.cssText = `padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:${p===corpPage?'var(--blue)':'var(--bg3)'};color:${p===corpPage?'#fff':'var(--text2)'};cursor:pointer;font-size:12px;`;
-          btn.onclick = () => { corpPage = p; renderCorporateTable(); };
-          btnsEl.appendChild(btn);
-        }
-      }
-    }
-  }
 
   // ─────────────────────────────────────────────
   // MATURITY LADDER
@@ -5804,144 +5585,6 @@
           etfs:[{isin:'IE00B2NPKV68',ticker:'IEMB',   name:'iShares JPM $ EM Bond'}] },
       ]
     },
-    // ── CORPORATE EUR ─────────────────────────────────────────────────────────
-    {
-      key:'corp-it-eur', icon:'🏦', name:'Banche & Corporate IT EUR', badge:'CORP',
-      desc:'Intesa · UniCredit · ENEL · ENI · Snam · Rendita corporate diretta',
-      orizzonte:'3–7 anni',
-      rationale:'Portafoglio di obbligazioni corporate EUR emesse da grandi gruppi italiani — banche (Intesa Sanpaolo, UniCredit, Mediobanca) e utility/infrastrutture (ENEL, ENI, Snam, Terna, Autostrade, Ferrovie). Gli emittenti sono campioni nazionali con bilanci solidi e rating investment grade (BBB/BBB+), che offrono spread di 80–180 bps sui BTP equivalenti. Il componente subordinato Tier2 aggiunge carry aggiuntivo accettando un rischio di subordinazione bancaria mitigato dalla solidità patrimoniale post-Basilea IV. Ideale per chi vuole diversificare dal solo rischio sovrano italiano mantenendo l\'esposizione EUR e un emittente domestico ben noto.',
-      currency:'EUR', yieldRange:'4–5.5%', durRange:'3–7', riskLevel:2, color:'#2563eb',
-      bondFirst:true,
-      components:[
-        { label:'Banche IT EUR — Senior', pct:30,
-          desc:'Obbligazioni senior Intesa Sanpaolo, UniCredit e Mediobanca: spread +80/120bps sui BTP, rating BBB+/A-',
-          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'},
-                {isin:'LU1829219127',ticker:'CRPE',name:'Amundi Euro Corp Bond'}],
-          bonds:{monitor:['Intesa Sanpaolo EUR','UniCredit EUR','Mediobanca EUR'],durMin:2,durMax:8} },
-        { label:'Utility & Infrastrutture IT EUR', pct:30,
-          desc:'ENEL, ENI, Autostrade, Ferrovie, Snam, Terna, Italgas — cedole stabili, business regolato',
-          etfs:[{isin:'IE00BF2GFM37',ticker:'HYLD',name:'iShares EUR Corp Bond ex-Financials'},
-                {isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'}],
-          bonds:{monitor:['Corporate IT EUR'],durMin:3,durMax:10} },
-        { label:'Subordinati Tier2 EUR', pct:25,
-          desc:'Tier2 di Intesa, MPS, Deutsche Bank, Commerzbank, Citi, CA — spread +150/250bps, rischio subordinazione',
-          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',name:'Invesco AT1 Capital Bond'},
-                {isin:'IE00BZ0XVF52',ticker:'CCBO',name:'WisdomTree AT1 CoCo Bond'}],
-          bonds:{monitor:['Subordinati Tier2 EUR'],durMin:2,durMax:7} },
-        { label:'Callable EUR', pct:15,
-          desc:'Obbligazioni callable: Acea, E.ON, Nexi, SocGen, GS, Barclays — opzione call premia l\'investitore',
-          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'}],
-          bonds:{monitor:['Callable EUR'],durMin:2,durMax:6} },
-      ]
-    },
-    {
-      key:'utility-infra-eur', icon:'⚡', name:'Utility & Infrastrutture EUR', badge:'UTL',
-      desc:'ENEL · ENI · Shell · Telecom EU · Rendimento 4–5.5%',
-      orizzonte:'4–8 anni',
-      rationale:'Portafoglio focalizzato sui settori regolati — utility elettriche (ENEL, EDF), oil & gas (ENI, Shell), telecomunicazioni (Deutsche Telekom, Orange, Vodafone, TIM, Telefonica) — emittenti con flussi di cassa stabili e prevedibili grazie a concessioni e contratti di lungo periodo. La regolamentazione tariffaria garantisce una base di ricavo stabile, rendendo questi bond meno sensibili al ciclo economico rispetto ai corporate industriali o bancari. La diversificazione per sotto-settore (elettrico, gas, telco, oil) riduce la correlazione intra-portafoglio. Duration media di 4–8 anni cattura bene il tratto centrale della curva EUR.',
-      currency:'EUR', yieldRange:'4–5.5%', durRange:'4–8', riskLevel:2, color:'#16a34a',
-      bondFirst:true,
-      components:[
-        { label:'Utility Elettrica & Gas IT EUR', pct:40,
-          desc:'ENEL, Snam, Terna, Italgas, Acea — settore regolato, flussi stabili, rating BBB/A',
-          etfs:[{isin:'IE00BF2GFM37',ticker:'HYLD',name:'iShares EUR Corp Bond ex-Financials'},
-                {isin:'LU1829219127',ticker:'CRPE',name:'Amundi Euro Corp Bond'}],
-          bonds:{monitor:['Corporate IT EUR'],durMin:4,durMax:12} },
-        { label:'Oil & Energy EUR', pct:25,
-          desc:'ENI, Shell — major petrolifere investment grade, cedole elevate, duration media',
-          etfs:[{isin:'IE00BF2GFM37',ticker:'HYLD',name:'iShares EUR Corp Bond ex-Financials'}],
-          bonds:{monitor:['Oil & Energy EUR'],durMin:3,durMax:10} },
-        { label:'Telecom EUR', pct:25,
-          desc:'Deutsche Telekom, Orange, TIM, Telefonica, Vodafone — operatori con ricavi ricorrenti',
-          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'}],
-          bonds:{monitor:['Telecom EUR'],durMin:3,durMax:8} },
-        { label:'Gov IT EUR — Anchor', pct:10,
-          desc:'BTP 2–5 anni come stabilizzatore: riduce volatilità e aumenta la liquidità del portafoglio',
-          etfs:[{isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'}],
-          bonds:{paese:['Italia'],durMin:2,durMax:5} },
-      ]
-    },
-    {
-      key:'mix-gov-corp-it', icon:'🇮🇹', name:'Mix Gov + Corporate IT', badge:'IT',
-      desc:'BTP + Intesa + ENEL + ENI · Tutto italiano · Rendita EUR',
-      orizzonte:'3–8 anni',
-      rationale:'Portafoglio concentrato sull\'Italia che affianca BTP a emittenti corporate domestici di prima qualità. Il 35% in BTP garantisce l\'ancora governativa con cedola semestrale certa; il 65% in corporate IT (banche + utility + oil) aggiunge spread di 80–200bps rispetto ai BTP equivalenti, aumentando il rendimento complessivo senza uscire dall\'emittente italiano. Gli emittenti corporate sono tra i più grandi gruppi del Paese (Intesa, UniCredit, ENEL, ENI, Snam), con bilanci solidi e accesso diretto ai mercati dei capitali. Adatto per investitori retail che conoscono bene il contesto domestico e vogliono diversificare dal solo rischio sovrano mantenendo l\'euro e la familiarità con gli emittenti.',
-      currency:'EUR', yieldRange:'3.8–5%', durRange:'3–8', riskLevel:2, color:'#dc2626',
-      bondFirst:true,
-      components:[
-        { label:'BTP 3–8 anni', pct:35,
-          desc:'Titoli di Stato italiani: cedola semestrale garantita dallo Stato, rendimento 3.5–4.5%',
-          etfs:[{isin:'LU1598691050',ticker:'BTP13',name:'Amundi EMTS 1-3Y ITA BTP'},
-                {isin:'LU1437018598',ticker:'EGOV', name:'Amundi Euro Government Bond'}],
-          bonds:{paese:['Italia'],durMin:3,durMax:8} },
-        { label:'Banche IT EUR — Senior', pct:25,
-          desc:'Intesa Sanpaolo, UniCredit, Mediobanca: spread +80/150bps sui BTP, rating investment grade',
-          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'}],
-          bonds:{monitor:['Intesa Sanpaolo EUR','UniCredit EUR','Mediobanca EUR'],durMin:3,durMax:8} },
-        { label:'Utility IT EUR', pct:25,
-          desc:'ENEL, ENI, Snam, Terna, Autostrade, Ferrovie: business regolato, flussi stabili',
-          etfs:[{isin:'IE00BF2GFM37',ticker:'HYLD',name:'iShares EUR Corp Bond ex-Financials'}],
-          bonds:{monitor:['Corporate IT EUR'],durMin:3,durMax:10} },
-        { label:'Subordinati & Callable IT', pct:15,
-          desc:'Tier2 banche italiane e callable: spread extra +150/250bps, rischio subordinazione contenuto',
-          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',name:'Invesco AT1 Capital Bond'}],
-          bonds:{monitor:['Subordinati Tier2 EUR','Callable EUR'],durMin:2,durMax:6} },
-      ]
-    },
-    {
-      key:'subordinati-callable', icon:'📊', name:'Subordinati & Callable EUR', badge:'SUB',
-      desc:'Tier2 · Callable · Spread elevato · Emittenti investment grade',
-      orizzonte:'3–6 anni',
-      rationale:'Portafoglio specializzato su strumenti subordinati e callable di emittenti bancari e corporate investment grade europei. I Tier2 (Subordinated bonds) di banche come Deutsche Bank, Commerzbank, Crédit Agricole e Intesa offrono spread di 150–300bps rispetto ai senior equivalenti, con rischio di subordinazione mitigato dall\'obbligo regolatorio di mantenimento del capitale. Le obbligazioni callable (Acea, E.ON, Goldman Sachs, Barclays, SocGen) incorporano una call option a favore dell\'emittente: in cambio, l\'investitore riceve uno spread aggiuntivo di 50–150bps. Entrambi gli strumenti sono emessi da grandi corporate/banche IG — il rischio di credito è limitato, il rendimento superiore al senior. Adatto a investitori con conoscenza degli strumenti obbligazionari strutturati.',
-      currency:'EUR', yieldRange:'5–7%', durRange:'3–6', riskLevel:3, color:'#7c3aed',
-      bondFirst:true,
-      components:[
-        { label:'Subordinati Tier2 EUR', pct:40,
-          desc:'Tier2 bancari: DB, Commerzbank, CA, Citi, Intesa, MPS — spread +200/300bps, rating BBB-/BB+',
-          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',name:'Invesco AT1 Capital Bond'},
-                {isin:'IE00BZ0XVF52',ticker:'CCBO',name:'WisdomTree AT1 CoCo Bond'}],
-          bonds:{monitor:['Subordinati Tier2 EUR'],durMin:2,durMax:8} },
-        { label:'Callable EUR', pct:35,
-          desc:'Callable bond: Acea, E.ON, Nexi, SocGen, Goldman Sachs, Barclays — call premium nella cedola',
-          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'}],
-          bonds:{monitor:['Callable EUR'],durMin:2,durMax:7} },
-        { label:'Banche IT EUR — Senior (buffer)', pct:25,
-          desc:'Senior Intesa, UniCredit, Mediobanca: qualità più alta come stabilizzatore del portafoglio',
-          etfs:[{isin:'IE00B3F81409',ticker:'IBCX',name:'iShares Euro Corp Bond Large Cap'}],
-          bonds:{monitor:['Intesa Sanpaolo EUR','UniCredit EUR','Mediobanca EUR'],durMin:2,durMax:6} },
-      ]
-    },
-    {
-      key:'corp-eur-multi', icon:'🌐', name:'Corporate EUR Multi-Settore', badge:'MC',
-      desc:'Banche · Utility · Telecom · Oil&Gas · Diversificato EUR',
-      orizzonte:'4–8 anni',
-      rationale:'Portafoglio corporate EUR altamente diversificato che attraversa cinque settori distinti: banche italiane (senior), subordinati bancari europei, utility e infrastrutture italiane, telecomunicazioni europee e oil & energy. La diversificazione settoriale riduce la correlazione intra-portafoglio e il rischio idiosincratico su singolo emittente. Tutti gli emittenti sono investment grade (BBB-/A) e denominati in euro — nessun rischio valutario. Il rendimento complessivo di 4.5–5.5% è superiore ai governativi EUR di 100–200bps, con rischio di credito concentrato su large cap domestiche e europee ben conosciute. Adatto come nucleo corporate di un portafoglio obbligazionario diversificato.',
-      currency:'EUR', yieldRange:'4.5–5.5%', durRange:'4–8', riskLevel:2, color:'#0891b2',
-      bondFirst:true,
-      components:[
-        { label:'Banche IT EUR — Senior', pct:25,
-          desc:'Intesa, UniCredit, Mediobanca: large cap bancarie IT, spread +100bps, rating A-/BBB+',
-          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'},
-                {isin:'LU1829219127',ticker:'CRPE',name:'Amundi Euro Corp Bond'}],
-          bonds:{monitor:['Intesa Sanpaolo EUR','UniCredit EUR','Mediobanca EUR'],durMin:3,durMax:8} },
-        { label:'Subordinati & Callable EUR', pct:20,
-          desc:'Tier2 bancari + callable: spread extra +150/250bps su senior IG, emittenti investment grade',
-          etfs:[{isin:'IE00BFZPF322',ticker:'AT1',name:'Invesco AT1 Capital Bond'}],
-          bonds:{monitor:['Subordinati Tier2 EUR','Callable EUR'],durMin:2,durMax:7} },
-        { label:'Utility & Infrastrutture IT EUR', pct:25,
-          desc:'ENEL, Snam, Terna, ENI, Autostrade, Ferrovie, Italgas — business regolato, cedole stabili',
-          etfs:[{isin:'IE00BF2GFM37',ticker:'HYLD',name:'iShares EUR Corp Bond ex-Financials'}],
-          bonds:{monitor:['Corporate IT EUR'],durMin:4,durMax:10} },
-        { label:'Telecom EUR', pct:15,
-          desc:'Deutsche Telekom, Orange, Vodafone, TIM, Telefonica — operatori con ricavi ricorrenti da abbonamento',
-          etfs:[{isin:'IE00B3F81R35',ticker:'IEAC',name:'iShares Core EU Corp Bond'}],
-          bonds:{monitor:['Telecom EUR'],durMin:3,durMax:8} },
-        { label:'Oil & Energy EUR', pct:15,
-          desc:'ENI, Shell — major petrolifere con rating A-/BBB+, cedola elevata, scadenze distribuite',
-          etfs:[{isin:'IE00BF2GFM37',ticker:'HYLD',name:'iShares EUR Corp Bond ex-Financials'}],
-          bonds:{monitor:['Oil & Energy EUR'],durMin:3,durMax:10} },
-      ]
-    },
     // ── SHORT DURATION IG ──────────────────────────────────────────────────────
     {
       key:'short-dur-ig', icon:'🔒', name:'Short Duration IG', badge:'SDIG',
@@ -6639,8 +6282,6 @@
       monitors:['Titoli di stato europei','Germania','Francia','Romania','Unione Europea','Sovranazionali'] },
     { key:'altri',   label:'Altri Governativi',     icon:'🌍', color:'#f59e0b',
       monitors:['Altri titoli di stato','Stati Uniti'] },
-    { key:'special', label:'Speciali & ESG',        icon:'⭐', color:'#a855f7',
-      monitors:['ESG Green Bond','Titoli ad alto rating'] },
   ];
 
   // ── Toggle group collapse in browser ─────────────────────────────────────
