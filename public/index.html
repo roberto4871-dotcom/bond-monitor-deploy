@@ -1944,14 +1944,20 @@
     const total = filteredBonds.length;
 
     if (total === 0) {
+      // Distingui "ancora in caricamento" da "filtri troppo restrittivi"
+      const isLoading = allBonds.length === 0;
       tbody.innerHTML = `<tr><td colspan="11">
         <div class="empty-state">
-          <div class="empty-icon">🔍</div>
-          <div class="empty-text">Nessun titolo corrisponde ai filtri selezionati</div>
+          <div class="empty-icon">${isLoading ? '⏳' : '🔍'}</div>
+          <div class="empty-text">${isLoading
+            ? 'Dati in caricamento dal server — attendere qualche secondo…'
+            : 'Nessun titolo corrisponde ai filtri selezionati'}</div>
         </div>
       </td></tr>`;
       updatePagination(0);
-      document.getElementById('resultsCount').innerHTML = `<strong>0</strong> titoli trovati`;
+      document.getElementById('resultsCount').innerHTML = isLoading
+        ? `<span style="color:var(--amber)">⏳ Caricamento dati...</span>`
+        : `<strong>0</strong> titoli trovati`;
       return;
     }
 
