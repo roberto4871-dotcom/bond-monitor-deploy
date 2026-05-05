@@ -1889,17 +1889,30 @@ app.get('/api/macro-indicators', async (req, res) => {
   }
 });
 
+// ── Gestione errori globale — previene crash del processo ─────────────────
+process.on('uncaughtException', (err, origin) => {
+  console.error(`[CRASH PREVENTED] uncaughtException (${origin}): ${err.message}`);
+  console.error(err.stack);
+  // Non usciamo: il server rimane in piedi
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  console.error(`[CRASH PREVENTED] unhandledRejection: ${msg}`);
+  // Non usciamo
+});
+
 // Caricamento iniziale
-refreshData();
+refreshData().catch(e => console.error('[refreshData init]', e.message));
 
 // Prezzi ETF in background (parte subito, non blocca il server)
-setTimeout(refreshETFPricesBackground, 3000);
+setTimeout(() => refreshETFPricesBackground().catch(e => console.error('[ETF init]', e.message)), 3000);
 
 // Auto-refresh ogni 10 minuti
-setInterval(refreshData, REFRESH_INTERVAL);
+setInterval(() => refreshData().catch(e => console.error('[refreshData]', e.message)), REFRESH_INTERVAL);
 
 // Auto-refresh ETF ogni ora
-setInterval(refreshETFPricesBackground, ETF_CACHE_TTL);
+setInterval(() => refreshETFPricesBackground().catch(e => console.error('[ETF refresh]', e.message)), ETF_CACHE_TTL);
 
 app.listen(PORT, () => {
   console.log(`\n✅ Bond Monitor avviato su http://localhost:${PORT}`);

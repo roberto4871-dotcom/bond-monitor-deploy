@@ -7882,9 +7882,27 @@
     const area = document.getElementById('compChartArea');
     if (!area) return;
     area.innerHTML = '<div style="color:var(--text2);font-size:12px">Caricamento...</div>';
-    const isinA = window._compIsinA;
-    const isinB = window._compIsinB;
-    if (!isinA || !isinB) { area.innerHTML = '<div style="color:var(--amber);font-size:12px;text-align:center">⚠️ Seleziona entrambi i titoli dai menu</div>'; return; }
+
+    // Legge ISIN dal dropdown selezionato; fallback: testo digitato nel campo cerca
+    const resolveSlot = slot => {
+      const stored = window['_compIsin' + slot];
+      if (stored) return stored;
+      const q = (document.getElementById('compSearch' + slot)?.value || '').trim().toUpperCase();
+      if (!q) return null;
+      const b = allBonds.find(x => x.isin === q) || allBonds.find(x => x.descrizione?.toUpperCase().includes(q));
+      const e = allETFs.find(x => x.isin === q) || allETFs.find(x => x.name?.toUpperCase().includes(q) || x.ticker?.toUpperCase() === q);
+      const found = b || e;
+      if (found) { _compSelect(slot, found.isin, found.descrizione || found.name || found.isin); return found.isin; }
+      if (q.length === 12 && /^[A-Z]{2}/.test(q)) return q; // ISIN grezzo
+      return null;
+    };
+    const isinA = resolveSlot('A');
+    const isinB = resolveSlot('B');
+    if (!isinA || !isinB) {
+      area.innerHTML = '<div style="color:var(--amber);font-size:12px;text-align:center;padding:20px">⚠️ Cerca e seleziona un titolo per ciascun campo, poi clicca Confronta</div>';
+      showToast('Seleziona entrambi i titoli dalla ricerca', 'warning');
+      return;
+    }
     const periodDays = {'1M':'30','3M':'90','6M':'180','1Y':'365','3Y':'1095'}[period] || '365';
     try {
       const [rA, rB] = await Promise.all([
