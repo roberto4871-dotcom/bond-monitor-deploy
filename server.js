@@ -1072,6 +1072,9 @@ const ETF_LIST = [
   { isin:'LU1681041031', ticker:'HFRN',   name:'Amundi USD FRN Corp ESG EUR Hdg', cat:'Float Rate USD',   ter:0.20, dur:0.25, acc:true,  ytm:5.0  },
   // ── HY short duration ────────────────────────────────────────────────────
   { isin:'LU1617164998', ticker:'HYS',    name:'Amundi EUR Short Term HY Corp ESG', cat:'HY Corp EUR',    ter:0.30, dur:1.5,  acc:false, ytm:5.0   },
+  // Xtrackers Rolling Target Maturity HY EUR (~3Y rolling duration)
+  { isin:'LU1109939865', ticker:'XHY1',   name:'Xtrackers Rolling HY EUR Target Mat Dist', cat:'HY Corp EUR', ter:0.30, dur:2.5, acc:false, ytm:5.5   },
+  { isin:'LU1109941689', ticker:'XRTM',   name:'Xtrackers Rolling HY EUR Target Mat Acc',  cat:'HY Corp EUR', ter:0.30, dur:2.5, acc:true,  ytm:5.5  },
   // ── Fallen Angels HY ─────────────────────────────────────────────────────
   { isin:'IE00BYM31M36', ticker:'WING',   name:'iShares Fallen Angels HY Corp Bond',      cat:'Fallen Angels',  ter:0.50, dur:4.2,  acc:false, ytm:6.5  },
   { isin:'IE00BDFJYP58', ticker:'2B7X',   name:'iShares Fallen Angels HY Corp Bond Acc',  cat:'Fallen Angels',  ter:0.50, dur:4.2,  acc:true,  ytm:6.5  },
@@ -1118,6 +1121,11 @@ const ETF_LIST = [
   { isin:'IE000I2WYEU9', ticker:'31IG',   name:'iShares iBonds Dec 2031 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:5.6, acc:false, ytm:3.6  },
   { isin:'IE000D9WMGF0', ticker:'IG31',   name:'iShares iBonds Dec 2031 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:5.6, acc:true,  ytm:3.6 },
   { isin:'IE000I660ZF8', ticker:'IG32',   name:'iShares iBonds Dec 2032 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:6.6, acc:true,  ytm:3.7 },
+  // Xtrackers Target Maturity EUR Corp (scadenza settembre)
+  { isin:'LU2673523218', ticker:'XB27',   name:'Xtrackers Target Maturity Sept 2027 EUR Corp', cat:'iBonds EUR Corp', ter:0.12, dur:1.4, acc:false, ytm:3.2  },
+  { isin:'LU2673523309', ticker:'XB29',   name:'Xtrackers Target Maturity Sept 2029 EUR Corp', cat:'iBonds EUR Corp', ter:0.12, dur:3.4, acc:false, ytm:3.4  },
+  { isin:'LU2673523481', ticker:'XB31',   name:'Xtrackers Target Maturity Sept 2031 EUR Corp', cat:'iBonds EUR Corp', ter:0.12, dur:5.4, acc:false, ytm:3.6  },
+  { isin:'LU2673523564', ticker:'XB33',   name:'Xtrackers Target Maturity Sept 2033 EUR Corp', cat:'iBonds EUR Corp', ter:0.12, dur:7.4, acc:false, ytm:3.7  },
 
   // ── iBonds USD Corporate (scadenza fissa, valuta USD) ─────────────────────
   { isin:'IE000BWITBP9', ticker:'D26A',   name:'iShares iBonds Dec 2026 USD Corp Acc', cat:'iBonds USD Corp', ter:0.12, dur:0.6, acc:true,  ytm:5.0 },
