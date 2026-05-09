@@ -1112,7 +1112,19 @@ const ETF_LIST = [
   { isin:'IE000264WWY0', ticker:'IB28',   name:'iShares iBonds Dec 2028 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:2.6, acc:false, ytm:3.3  },
   { isin:'IE0008UEVOE0', ticker:'IVOA',   name:'iShares iBonds Dec 2028 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:2.6, acc:true,  ytm:3.3 },
   { isin:'IE000SNLFDR7', ticker:'29GA',   name:'iShares iBonds Dec 2029 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:3.6, acc:true,  ytm:3.4 },
+  { isin:'IE000IHURBR0', ticker:'29GI',   name:'iShares iBonds Dec 2029 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:3.6, acc:false, ytm:3.4  },
   { isin:'IE000LX17BP9', ticker:'30IG',   name:'iShares iBonds Dec 2030 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:4.6, acc:false, ytm:3.5  },
+  { isin:'IE000Y2BJVK9', ticker:'30IA',   name:'iShares iBonds Dec 2030 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:4.6, acc:true,  ytm:3.5 },
+  { isin:'IE000I2WYEU9', ticker:'31IG',   name:'iShares iBonds Dec 2031 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:5.6, acc:false, ytm:3.6  },
+  { isin:'IE000D9WMGF0', ticker:'IG31',   name:'iShares iBonds Dec 2031 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:5.6, acc:true,  ytm:3.6 },
+  { isin:'IE000I660ZF8', ticker:'IG32',   name:'iShares iBonds Dec 2032 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:6.6, acc:true,  ytm:3.7 },
+
+  // ── iBonds USD Corporate (scadenza fissa, valuta USD) ─────────────────────
+  { isin:'IE000BWITBP9', ticker:'D26A',   name:'iShares iBonds Dec 2026 USD Corp Acc', cat:'iBonds USD Corp', ter:0.12, dur:0.6, acc:true,  ytm:5.0 },
+  { isin:'IE0007UPSEA3', ticker:'CBU8',   name:'iShares iBonds Dec 2026 USD Corp',     cat:'iBonds USD Corp', ter:0.12, dur:0.6, acc:false, ytm:5.0  },
+  { isin:'IE000I1D7D10', ticker:'CEBK',   name:'iShares iBonds Dec 2027 USD Corp Acc', cat:'iBonds USD Corp', ter:0.12, dur:1.6, acc:true,  ytm:5.0 },
+  { isin:'IE0000VITHT2', ticker:'CBU4',   name:'iShares iBonds Dec 2028 USD Corp',     cat:'iBonds USD Corp', ter:0.12, dur:2.6, acc:false, ytm:5.1  },
+  { isin:'IE0000UJ3480', ticker:'CBU5',   name:'iShares iBonds Dec 2028 USD Corp Acc', cat:'iBonds USD Corp', ter:0.12, dur:2.6, acc:true,  ytm:5.1 },
 ];
 
 // Prezzi ETF caricati in background — risposta sempre immediata
