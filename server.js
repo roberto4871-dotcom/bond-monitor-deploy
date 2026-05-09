@@ -1072,6 +1072,12 @@ const ETF_LIST = [
   { isin:'LU1681041031', ticker:'HFRN',   name:'Amundi USD FRN Corp ESG EUR Hdg', cat:'Float Rate USD',   ter:0.20, dur:0.25, acc:true,  ytm:5.0  },
   // ── HY short duration ────────────────────────────────────────────────────
   { isin:'LU1617164998', ticker:'HYS',    name:'Amundi EUR Short Term HY Corp ESG', cat:'HY Corp EUR',    ter:0.30, dur:1.5,  acc:false, ytm:5.0   },
+  // ── Fallen Angels HY ─────────────────────────────────────────────────────
+  { isin:'IE00BYM31M36', ticker:'WING',   name:'iShares Fallen Angels HY Corp Bond',      cat:'Fallen Angels',  ter:0.50, dur:4.2,  acc:false, ytm:6.5  },
+  { isin:'IE00BDFJYP58', ticker:'2B7X',   name:'iShares Fallen Angels HY Corp Bond Acc',  cat:'Fallen Angels',  ter:0.50, dur:4.2,  acc:true,  ytm:6.5  },
+  { isin:'IE00BF3N7219', ticker:'IBC7',   name:'iShares Fallen Angels HY Corp EUR H',     cat:'Fallen Angels',  ter:0.55, dur:4.2,  acc:false, ytm:4.8  },
+  { isin:'IE00BF540Z61', ticker:'GFA',    name:'VanEck Global Fallen Angel HY Bond',      cat:'Fallen Angels',  ter:0.40, dur:4.5,  acc:true,  ytm:6.3  },
+  { isin:'IE000J6CHW80', ticker:'USFA',   name:'VanEck US Fallen Angel HY Bond',          cat:'Fallen Angels',  ter:0.35, dur:4.0,  acc:true,  ytm:6.8  },
   // ── Green Bond aggiuntivi ────────────────────────────────────────────────
   { isin:'IE00BMDBMN04', ticker:'GRON',   name:'iShares EUR Green Bond',         cat:'Green Bond',        ter:0.20, dur:6.0,  acc:false, ytm:3.2   },
   // ── EM Local Currency — include esposizione TRY tra le valute EM ─────────
