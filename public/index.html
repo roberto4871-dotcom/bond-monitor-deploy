@@ -862,7 +862,6 @@
     </div>
   </div>
   <div class="header-right">
-    <button onclick="openGlobalSearch()" title="Ricerca globale (Cmd+K)" style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;">🔍 <kbd style="font-size:9px;padding:1px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;color:var(--text2)">⌘K</kbd></button>
     <div id="spreadWidget" style="font-size:12px;color:var(--text2);display:flex;gap:10px;align-items:center;"></div>
     <div class="countdown">Prossimo aggiornamento: <span id="countdown">--:--</span></div>
     <div class="status-badge">
@@ -4925,71 +4924,6 @@
     btn.style.display = 'none';
   }
 
-  function toggleTmplSearch(ci) {
-    const panel = document.getElementById('tmplsp-'+ci);
-    if (!panel) return;
-    panel.classList.toggle('open');
-    if (panel.classList.contains('open')) {
-      if (!etfLoaded) fetchAndRenderETF(); // preload silently
-      const inp = panel.querySelector('.tmpl-search-input');
-      if (inp) { inp.value = ''; inp.focus(); }
-      const res = document.getElementById('tmplsr-'+ci);
-      if (res) res.innerHTML = '<div class="tmpl-search-empty">Digita per cercare tra tutti i titoli e gli ETF disponibili...</div>';
-    }
-  }
-
-  function searchTmplItems(query, ci, defaultNom) {
-    const q = (query||'').toLowerCase().trim();
-    const container = document.getElementById('tmplsr-'+ci);
-    if (!container) return;
-    if (q.length < 2) {
-      container.innerHTML = '<div class="tmpl-search-empty">Digita almeno 2 caratteri...</div>';
-      return;
-    }
-    const bonds = allBonds.filter(b =>
-      b.tipo !== 'ETF' && b.yield > 0 &&
-      (b.isin.toLowerCase().includes(q) || (b.descrizione||'').toLowerCase().includes(q) ||
-       (b.emittente||'').toLowerCase().includes(q) || (b.paese||'').toLowerCase().includes(q) ||
-       (b.valuta||'').toLowerCase().includes(q))
-    ).slice(0, 6);
-    const etfs = allETFs.filter(e =>
-      q === 'etf' || q === 'etfs' ||
-      (e.ticker||'').toLowerCase().includes(q) ||
-      (e.name||'').toLowerCase().includes(q)   ||
-      (e.isin||'').toLowerCase().includes(q)   ||
-      (e.cat||'').toLowerCase().includes(q)
-    ).slice(0, 8);
-    if (!bonds.length && !etfs.length) {
-      container.innerHTML = '<div class="tmpl-search-empty">Nessun risultato per "'+escHtml(query)+'"</div>';
-      return;
-    }
-    let html = '';
-    if (bonds.length) {
-      html += '<div class="tmpl-search-sep">Titoli di stato / Bond</div>';
-      bonds.forEach((b, bi) => {
-        const id = 'tsr'+ci+'b'+bi;
-        const badge = (b.isin||'').substring(0,2) || 'GOV';
-        const metric = b.yield ? b.yield.toFixed(2)+'%' : '';
-        html += buildSugRow('bond', badge, b.descrizione, metric, b.isin, id, defaultNom, false,
-          'addTmplBond(\''+b.isin+'\',document.getElementById(\''+id+'\').value,this)', '');
-      });
-    }
-    if (etfs.length) {
-      if (!etfLoaded) html += '<div class="tmpl-search-empty" style="margin:6px 0">⏳ ETF in caricamento — riprova tra un momento</div>';
-      else {
-        html += '<div class="tmpl-search-sep">ETF</div>';
-        etfs.forEach((e, ei) => {
-          const id = 'tsr'+ci+'e'+ei;
-          const metric = e.yld ? e.yld.toFixed(2)+'%' : '';
-          const ticker = e.ticker||'ETF';
-          html += buildSugRow('etf', ticker, e.name, metric, e.isin, id, defaultNom, false,
-            'addTmplETF(\''+e.isin+'\',\''+escHtml(ticker)+'\',\''+escHtml(e.name)+'\',document.getElementById(\''+id+'\').value,this)', '');
-        });
-      }
-    }
-    container.innerHTML = html;
-  }
-
   const PORTFOLIO_TEMPLATES = [
     {
       key:'prudente', icon:'🛡️', name:'Prudente', badge:'EUR',
@@ -7406,129 +7340,6 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // FEATURE 10 — GLOBAL SEARCH (Cmd+K)
-  // ══════════════════════════════════════════════════════════════════════════
-  function openGlobalSearch() {
-    const overlay = document.getElementById('globalSearchOverlay');
-    overlay.style.display = 'flex';
-    const inp = document.getElementById('globalSearchInput');
-    inp.value = '';
-    inp.focus();
-    runGlobalSearch('');
-  }
-
-  function closeGlobalSearch() {
-    document.getElementById('globalSearchOverlay').style.display = 'none';
-  }
-
-  document.addEventListener('keydown', e => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openGlobalSearch(); }
-    if (e.key === 'Escape') closeGlobalSearch();
-  });
-  document.getElementById('globalSearchOverlay').addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeGlobalSearch();
-  });
-
-  function runGlobalSearch(q) {
-    const el = document.getElementById('globalSearchResults');
-    if (!el) return;
-    q = (q||'').toLowerCase().trim();
-
-    if (!q) {
-      el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-size:12px">Digita per cercare bond, ETF, clienti, template…<br><br><span style="opacity:.5">Cmd+K per aprire · ESC per chiudere</span></div>';
-      return;
-    }
-
-    const sections = [];
-
-    const matchBonds = allBonds.filter(b =>
-      b.isin?.toLowerCase().includes(q) || b.descrizione?.toLowerCase().includes(q) ||
-      b.emittente?.toLowerCase().includes(q) || b.monitor?.toLowerCase().includes(q)
-    ).slice(0, 6);
-    if (matchBonds.length) sections.push({
-      title: '📋 Titoli Obbligazionari',
-      items: matchBonds.map(b => ({
-        icon: b.monitor && b.monitor.includes('BTP') ? '🇮🇹' : '📄',
-        label: b.descrizione || b.isin,
-        sub: `${b.monitor} · ${b.yield != null ? b.yield.toFixed(2)+'%' : '—'} · ${b.scadenza || '—'}`,
-        action: `closeGlobalSearch();switchPanel('table');setTimeout(()=>{const i=document.getElementById('filterSearch');if(i){i.value=${JSON.stringify(b.isin)};applyFilters();}},100)`
-      }))
-    });
-
-    const matchETFs = allETFs.filter(e =>
-      q === 'etf' || q === 'etfs' ||
-      e.isin?.toLowerCase().includes(q) || e.name?.toLowerCase().includes(q) ||
-      e.ticker?.toLowerCase().includes(q) || e.cat?.toLowerCase().includes(q)
-    ).slice(0, 8);
-    if (matchETFs.length) sections.push({
-      title: '📊 ETF',
-      items: matchETFs.map(e => ({
-        icon: e.acc ? '🔵' : '🟢',
-        label: e.name,
-        sub: `${e.cat} · ${(e.yld??e.ytm)?.toFixed(2)||'—'}% · ${e.acc?'ACC':'DIST'}`,
-        action: `closeGlobalSearch();switchPanel('etf');setTimeout(()=>{const i=document.getElementById('etfSearch');if(i){i.value=${JSON.stringify(e.ticker||'')};renderETF();}},100)`
-      }))
-    });
-
-    const portMatches = Object.values(portfolio).filter(p =>
-      p.bond?.isin?.toLowerCase().includes(q) || p.bond?.desc?.toLowerCase().includes(q) ||
-      p.bond?.name?.toLowerCase().includes(q) || p.bond?.descrizione?.toLowerCase().includes(q)
-    ).slice(0, 3);
-    if (portMatches.length) sections.push({
-      title: '💼 In Portafoglio',
-      items: portMatches.map(p => ({
-        icon: '💼',
-        label: p.bond.descrizione || p.bond.name || p.bond.isin,
-        sub: `Nominale €${p.nominale?.toLocaleString('it-IT')} · Yield ${(resolveYield(p.bond)||0).toFixed(2)}%`,
-        action: `closeGlobalSearch();switchPanel('portfolio')`
-      }))
-    });
-
-    const allTmpls = [...(typeof PORTFOLIO_TEMPLATES !== 'undefined' ? PORTFOLIO_TEMPLATES : []), ..._customTemplates];
-    const tmplMatches = allTmpls.filter(t => t.name?.toLowerCase().includes(q) || t.badge?.toLowerCase().includes(q)).slice(0, 3);
-    if (tmplMatches.length) sections.push({
-      title: '🗂 Template',
-      items: tmplMatches.map(t => ({
-        icon: t.icon || '⭐',
-        label: t.name,
-        sub: `${t.badge||''} · Yield ${t.yieldRange||'—'} · Duration ${t.durRange||'—'}`,
-        action: `closeGlobalSearch();switchPanel('portfolio');setTimeout(()=>openTemplate(${JSON.stringify(t.key)}),100)`
-      }))
-    });
-
-    const clientMatches = _clients.filter(c => c.name?.toLowerCase().includes(q)).slice(0, 3);
-    if (clientMatches.length) sections.push({
-      title: '👤 Clienti',
-      items: clientMatches.map(c => ({
-        icon: '👤',
-        label: c.name,
-        sub: `ID: ${c.id}`,
-        action: `closeGlobalSearch();switchClient(${JSON.stringify(c.id)});switchPanel('portfolio')`
-      }))
-    });
-
-    if (!sections.length) {
-      el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text2);font-size:12px">Nessun risultato per "<strong>' + escHtml(q) + '</strong>"</div>';
-      return;
-    }
-
-    el.innerHTML = sections.map(s => `
-      <div style="margin-bottom:4px">
-        <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:8px 12px 4px">${s.title}</div>
-        ${s.items.map(item => `
-          <div onclick="${item.action}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;transition:background .1s"
-               onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">
-            <span style="font-size:16px;min-width:24px;text-align:center">${item.icon}</span>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(item.label)}</div>
-              <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(item.sub)}</div>
-            </div>
-            <span style="font-size:10px;color:rgba(255,255,255,.15)">↵</span>
-          </div>`).join('')}
-      </div>`).join('');
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
   // FEATURE 11 — YTM / YIELD CALCULATOR
   // ══════════════════════════════════════════════════════════════════════════
   function calcYTM(price, couponRate, yearsToMat, freq) {
@@ -7767,20 +7578,6 @@
   }
 
 </script>
-
-<!-- GLOBAL SEARCH OVERLAY (Feature 10) -->
-<div id="globalSearchOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;align-items:flex-start;justify-content:center;padding-top:80px">
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:min(620px,95vw);max-height:70vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.6)">
-    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)">
-      <span style="font-size:16px">🔍</span>
-      <input id="globalSearchInput" type="text" placeholder="Cerca bond, ETF, cliente, template…" autocomplete="off"
-        oninput="runGlobalSearch(this.value)"
-        style="flex:1;background:none;border:none;outline:none;font-size:15px;color:var(--text)" />
-      <kbd style="font-size:10px;padding:2px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2)">ESC</kbd>
-    </div>
-    <div id="globalSearchResults" style="overflow-y:auto;max-height:calc(70vh - 60px);padding:8px"></div>
-  </div>
-</div>
 
 <!-- PORTFOLIO TEMPLATE MODAL -->
 <div class="tmpl-overlay" id="tmplOverlay" onclick="if(event.target===this)closeTmpl()">
