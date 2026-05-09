@@ -2162,7 +2162,7 @@
     const enriched = positions.map(pos => {
       const b   = pos.bond;
       const yv  = resolveYield(b);
-      const mv  = pos.nominale * (b.prezzo || 100) / 100;
+      const mv  = posMV(pos);
       const ced = pos.nominale * (yv || 0) / 100;
       totalMV  += mv;
       totalNom += pos.nominale;
@@ -4540,6 +4540,15 @@
     return null;
   }
 
+  // Per gli ETF il prezzo è in €/quota (non % del nominale come per le obbligazioni).
+  // Il campo "nominale" nel portafoglio rappresenta direttamente l'importo investito in €.
+  // Per i bond si usa la formula classica: nominale × prezzo / 100.
+  function posMV(pos) {
+    const b = pos.bond;
+    if (b.tipo === 'ETF') return pos.nominale;
+    return pos.nominale * (b.prezzo || 100) / 100;
+  }
+
   // Restituisce true se l'ETF è ad accumulazione
   function isAccETF(isin) {
     const e = allETFs.find(x => x.isin === isin);
@@ -4564,7 +4573,7 @@
       const isETF = b.tipo === 'ETF';
       const acc   = isETF && isAccETF(b.isin);
       const yv  = resolveYield(b) ?? 0;
-      const mv  = pos.nominale * (b.prezzo || 100) / 100;
+      const mv  = posMV(pos);
       const ced = pos.nominale * yv / 100;
       const rowCls   = yv >= 5 ? 'port-row-high' : yv >= 3 ? 'port-row-mid' : yv > 0 ? 'port-row-low' : 'port-row-none';
       const yieldCls = yv >= 5 ? 'port-yield-hi'  : yv >= 3 ? 'port-yield-md'  : 'port-yield-lo';
@@ -4608,7 +4617,7 @@
     const positions = Object.values(portfolio);
     if (positions.length === 0) return;
     const totalNom  = positions.reduce((s, p) => s + p.nominale, 0);
-    const totalMV   = positions.reduce((s, p) => s + p.nominale * (p.bond.prezzo || 100) / 100, 0);
+    const totalMV   = positions.reduce((s, p) => s + posMV(p), 0);
     const wtdYield  = totalNom > 0 ? positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0), 0) / totalNom : 0;
     const totCedola = positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0) / 100, 0);
     const totRateo  = positions.reduce((s, p) => {
@@ -4647,7 +4656,7 @@
       positions.forEach(p => {
         const dur = p.bond.duration || p.bond.dur || null;
         if (dur == null) return;
-        const mv = p.nominale * (p.bond.prezzo || 100) / 100;
+        const mv = posMV(p);
         deltaV += -dur * (sc.delta / 100) * mv;
       });
       const pct = totalMV > 0 ? (deltaV / totalMV * 100).toFixed(2) : '0.00';
@@ -4681,7 +4690,7 @@
     positions.forEach(p => {
       const dur = p.bond.duration || p.bond.dur || null;
       if (dur == null) return;
-      const mv = p.nominale*(p.bond.prezzo||100)/100;
+      const mv = posMV(p);
       wDur += dur*mv; wMV += mv;
     });
     const avgDur = wMV > 0 ? wDur/wMV : 5;
@@ -7029,11 +7038,11 @@
     const positions = Object.values(portfolio);
     if (!positions.length) { showToast('Il portafoglio è vuoto'); return; }
     const shifts = [-200, -100, -50, 0, +50, +100, +200];
-    const totalMV = positions.reduce((s, p) => s + p.nominale * (p.bond.prezzo || 100) / 100, 0);
+    const totalMV = positions.reduce((s, p) => s + posMV(p), 0);
     const rows = positions.map(p => {
       const b = p.bond;
       const dur = b.duration || 5;
-      const mv = p.nominale * (b.prezzo || 100) / 100;
+      const mv = posMV(p);
       return { desc: b.descrizione, isin: b.isin, dur, mv };
     });
 
@@ -7290,7 +7299,7 @@
     positions.forEach(p => {
       if (!p.bond.scadenza) return;
       const yr = new Date(p.bond.scadenza).getFullYear();
-      const mv = p.nominale * (p.bond.prezzo || 100) / 100;
+      const mv = posMV(p);
       byYear[yr] = (byYear[yr] || 0) + mv;
     });
     const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
@@ -7390,7 +7399,7 @@
     const positions = Object.values(portfolio);
     if (!positions.length) { showToast('Il portafoglio è vuoto', 'error'); return; }
     const totalNom = positions.reduce((s, p) => s + p.nominale, 0);
-    const totalMV = positions.reduce((s, p) => s + p.nominale * (p.bond.prezzo || 100) / 100, 0);
+    const totalMV = positions.reduce((s, p) => s + posMV(p), 0);
     const wtdYield = totalNom > 0 ? positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0), 0) / totalNom : 0;
     const snap = {
       date: new Date().toLocaleDateString('it-IT'),
