@@ -1084,6 +1084,35 @@ const ETF_LIST = [
   { isin:'IE00BDS67326', ticker:'EM1C',   name:'VanEck JPM EM Local Curr Bond',  cat:'EM Gov Local',      ter:0.30, dur:5.0,  acc:true,  ytm:5.8  },
   { isin:'IE00B4613386', ticker:'SYBM',   name:'SPDR Bloomberg EM Local Bond',   cat:'EM Gov Local',      ter:0.55, dur:4.8,  acc:false, ytm:5.5   },
   { isin:'IE00BFZPF546', ticker:'EMGA',   name:'iShares JPM EM Local Gov Acc',   cat:'EM Gov Local',      ter:0.50, dur:5.0,  acc:true,  ytm:5.5  },
+
+  // ── Covered Bond ─────────────────────────────────────────────────────────
+  { isin:'IE00B3B8Q275', ticker:'ICOV',   name:'iShares Euro Covered Bond',      cat:'Covered Bond',      ter:0.20, dur:4.5,  acc:false, ytm:2.5   },
+
+  // ── HY Corp Global ───────────────────────────────────────────────────────
+  { isin:'IE00B74DQ490', ticker:'HYLD',   name:'iShares Global HY Corp Bond',    cat:'HY Corp Global',    ter:0.50, dur:3.5,  acc:false, ytm:6.5   },
+
+  // ── IG Corp Global ───────────────────────────────────────────────────────
+  { isin:'IE00B7J7TB45', ticker:'CORP',   name:'iShares Global Corporate Bond',  cat:'IG Corp Global',    ter:0.20, dur:6.5,  acc:false, ytm:5.0   },
+  { isin:'IE00BFM6TB42', ticker:'CRPA',   name:'iShares Global Corporate Bond Acc', cat:'IG Corp Global', ter:0.20, dur:6.5,  acc:true,  ytm:5.0  },
+
+  // ── Short Duration Corp EUR ───────────────────────────────────────────────
+  { isin:'IE00B4L60045', ticker:'SE15',   name:'iShares EUR Corporate Bond 1-5yr', cat:'IG Corp EUR',     ter:0.20, dur:2.6,  acc:false, ytm:3.5   },
+
+  // ── Short Duration Corp USD ───────────────────────────────────────────────
+  { isin:'IE00BYXYYP94', ticker:'IS09',   name:'iShares USD Short Dur Corp Bond Acc', cat:'IG Corp USD',  ter:0.20, dur:2.5,  acc:true,  ytm:5.0  },
+
+  // ── Short Duration HY USD ─────────────────────────────────────────────────
+  { isin:'IE00BZ17CN18', ticker:'OM3J',   name:'iShares USD Short Dur HY Corp Bond', cat:'HY Corp USD',  ter:0.45, dur:2.0,  acc:true,  ytm:7.5  },
+
+  // ── iBonds EUR Corporate (scadenza fissa) ─────────────────────────────────
+  { isin:'IE000SIZJ2B2', ticker:'IB26',   name:'iShares iBonds Dec 2026 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:0.6, acc:false, ytm:3.0  },
+  { isin:'IE000WA6L436', ticker:'CEBE',   name:'iShares iBonds Dec 2026 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:0.6, acc:true,  ytm:3.0 },
+  { isin:'IE000H5X52W8', ticker:'IBE7',   name:'iShares iBonds Dec 2027 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:1.6, acc:false, ytm:3.2  },
+  { isin:'IE000ZOI8OK5', ticker:'IB27',   name:'iShares iBonds Dec 2027 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:1.6, acc:true,  ytm:3.2 },
+  { isin:'IE000264WWY0', ticker:'IB28',   name:'iShares iBonds Dec 2028 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:2.6, acc:false, ytm:3.3  },
+  { isin:'IE0008UEVOE0', ticker:'IVOA',   name:'iShares iBonds Dec 2028 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:2.6, acc:true,  ytm:3.3 },
+  { isin:'IE000SNLFDR7', ticker:'29GA',   name:'iShares iBonds Dec 2029 EUR Corp Acc', cat:'iBonds EUR Corp', ter:0.12, dur:3.6, acc:true,  ytm:3.4 },
+  { isin:'IE000LX17BP9', ticker:'30IG',   name:'iShares iBonds Dec 2030 EUR Corp',     cat:'iBonds EUR Corp', ter:0.12, dur:4.6, acc:false, ytm:3.5  },
 ];
 
 // Prezzi ETF caricati in background — risposta sempre immediata
