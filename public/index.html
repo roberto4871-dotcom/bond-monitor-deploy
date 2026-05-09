@@ -4949,13 +4949,16 @@
     const bonds = allBonds.filter(b =>
       b.tipo !== 'ETF' && b.yield > 0 &&
       (b.isin.toLowerCase().includes(q) || (b.descrizione||'').toLowerCase().includes(q) ||
-       (b.emittente||'').toLowerCase().includes(q))
+       (b.emittente||'').toLowerCase().includes(q) || (b.paese||'').toLowerCase().includes(q) ||
+       (b.valuta||'').toLowerCase().includes(q))
     ).slice(0, 6);
     const etfs = allETFs.filter(e =>
+      q === 'etf' || q === 'etfs' ||
       (e.ticker||'').toLowerCase().includes(q) ||
       (e.name||'').toLowerCase().includes(q)   ||
-      (e.isin||'').toLowerCase().includes(q)
-    ).slice(0, 5);
+      (e.isin||'').toLowerCase().includes(q)   ||
+      (e.cat||'').toLowerCase().includes(q)
+    ).slice(0, 8);
     if (!bonds.length && !etfs.length) {
       container.innerHTML = '<div class="tmpl-search-empty">Nessun risultato per "'+escHtml(query)+'"</div>';
       return;
@@ -7453,9 +7456,10 @@
     });
 
     const matchETFs = allETFs.filter(e =>
+      q === 'etf' || q === 'etfs' ||
       e.isin?.toLowerCase().includes(q) || e.name?.toLowerCase().includes(q) ||
       e.ticker?.toLowerCase().includes(q) || e.cat?.toLowerCase().includes(q)
-    ).slice(0, 4);
+    ).slice(0, 8);
     if (matchETFs.length) sections.push({
       title: '📊 ETF',
       items: matchETFs.map(e => ({
