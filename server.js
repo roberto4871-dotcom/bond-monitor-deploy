@@ -1133,6 +1133,35 @@ const ETF_LIST = [
   { isin:'IE000I1D7D10', ticker:'CEBK',   name:'iShares iBonds Dec 2027 USD Corp Acc', cat:'iBonds USD Corp', ter:0.12, dur:1.6, acc:true,  ytm:5.0 },
   { isin:'IE0000VITHT2', ticker:'CBU4',   name:'iShares iBonds Dec 2028 USD Corp',     cat:'iBonds USD Corp', ter:0.12, dur:2.6, acc:false, ytm:5.1  },
   { isin:'IE0000UJ3480', ticker:'CBU5',   name:'iShares iBonds Dec 2028 USD Corp Acc', cat:'iBonds USD Corp', ter:0.12, dur:2.6, acc:true,  ytm:5.1 },
+
+  // ── Gov USD 3-7Y ──────────────────────────────────────────────────────────
+  { isin:'IE00B3VWN393', ticker:'CSBGU7', name:'iShares USD Treasury 3-7Y Acc',        cat:'Gov USD 3-7Y',      ter:0.07, dur:4.0,  acc:true,  ytm:4.4  },
+
+  // ── Gov UK ────────────────────────────────────────────────────────────────
+  { isin:'IE00B1FZSB30', ticker:'IGLT',   name:'iShares Core UK Gilts',                cat:'Gov UK',            ter:0.07, dur:11.0, acc:false, ytm:4.5   },
+
+  // ── IG Corp EUR aggiuntivi ────────────────────────────────────────────────
+  { isin:'IE00BF11F565', ticker:'IEAA',   name:'iShares Core EUR Corp Bond Acc',        cat:'IG Corp EUR',       ter:0.09, dur:5.5,  acc:true,  ytm:3.8  },
+  { isin:'LU1437018168', ticker:'ECRP',   name:'Amundi Euro Corp Bond SRI Acc',         cat:'IG Corp EUR',       ter:0.14, dur:5.0,  acc:true,  ytm:3.7  },
+  { isin:'LU2037748774', ticker:'ECRP3',  name:'Amundi Euro Corp SRI 0-3Y Acc',         cat:'IG Corp EUR',       ter:0.14, dur:1.5,  acc:true,  ytm:3.0  },
+
+  // ── HY Corp EUR aggiuntivi ────────────────────────────────────────────────
+  { isin:'IE00BJK55C48', ticker:'EHYA',   name:'iShares EUR HY Corp Bond ESG Acc',      cat:'HY Corp EUR',       ter:0.50, dur:3.5,  acc:true,  ytm:5.5  },
+
+  // ── HY Corp USD EUR Hedged ────────────────────────────────────────────────
+  { isin:'IE00BF3N7102', ticker:'IHYE',   name:'iShares USD HY Corp Bond EUR H',        cat:'HY Corp USD EUR H', ter:0.55, dur:3.5,  acc:false, ytm:6.5   },
+
+  // ── AT1 / CoCo aggiuntivi ─────────────────────────────────────────────────
+  { isin:'IE00BFNNN236', ticker:'COBO',   name:'WisdomTree AT1 CoCo Bond EUR H',        cat:'AT1 / CoCo',        ter:0.39, dur:3.5,  acc:false, ytm:8.0   },
+
+  // ── Convertibili aggiuntivi ───────────────────────────────────────────────
+  { isin:'IE00BNH72088', ticker:'CONV',   name:'SPDR Global Convertible Bond USD',      cat:'Convertibili',      ter:0.50, dur:3.5,  acc:false, ytm:3.5   },
+
+  // ── Aggregate GLB EUR H aggiuntivi ────────────────────────────────────────
+  { isin:'IE00BDBRDM35', ticker:'AGGH',   name:'iShares Core Global Aggregate EUR H',   cat:'Aggregate GLB EUR H', ter:0.10, dur:6.5, acc:true,  ytm:4.0  },
+
+  // ── Green Bond aggiuntivi ─────────────────────────────────────────────────
+  { isin:'LU1681046261', ticker:'CB3',    name:'Amundi Euro Gov Green Bond Acc',        cat:'Green Bond',        ter:0.14, dur:7.0,  acc:true,  ytm:3.2  },
 ];
 
 // Prezzi ETF caricati in background — risposta sempre immediata
