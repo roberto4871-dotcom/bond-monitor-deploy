@@ -4322,10 +4322,77 @@
     switchPanel('portfolio');
   }
 
+  // Costruisce il "record slim" salvato (isin → metadata) partendo dall'oggetto bond vivo.
+  // Salviamo abbastanza campi per ricostruire la posizione anche senza allBonds/allETFs.
+  function _posSlim(pos) {
+    const b = pos.bond;
+    return {
+      nominale:  pos.nominale,
+      tipo:      b.tipo      || null,
+      name:      b.descrizione || b.name || b.isin,
+      emittente: b.emittente || b.ticker || '',
+      scadenza:  b.scadenza  || null,
+      prezzo:    b.prezzo    != null ? b.prezzo    : null,
+      yield:     b.yield     != null ? b.yield     : (b.yld != null ? b.yld : null),
+      duration:  b.duration  != null ? b.duration  : (b.dur != null ? b.dur : null),
+      divisa:    b.divisa    || b.currency || 'EUR',
+      paese:     b.paese     || '',
+      monitor:   b.monitor   || b.cat || '',
+    };
+  }
+
+  // Ricostruisce un oggetto bond da un record slim (fallback se non trovato in allBonds/allETFs).
+  function _bondFromMeta(isin, meta) {
+    if (!meta || !meta.name) return null;
+    return {
+      isin,
+      descrizione: meta.name,
+      emittente:   meta.emittente || '',
+      scadenza:    meta.scadenza  || null,
+      prezzo:      meta.prezzo    != null ? meta.prezzo   : 100,
+      yield:       meta.yield     != null ? meta.yield    : null,
+      duration:    meta.duration  != null ? meta.duration : null,
+      divisa:      meta.divisa    || 'EUR',
+      tipo:        meta.tipo      || null,
+      paese:       meta.paese     || '',
+      monitor:     meta.monitor   || '',
+    };
+  }
+
+  // Risolve un isin salvato (data = number | slim-object) → { bond, nominale } oppure null.
+  function _resolveSlimEntry(isin, data) {
+    const nominale = typeof data === 'number' ? data : (data && data.nominale) || 0;
+    const meta     = typeof data === 'object' ? data : null;
+
+    // 1. Dati freschi da allBonds
+    let bond = allBonds.find(b => b.isin === isin);
+
+    // 2. Dati freschi da allETFs (potrebbe essere vuoto in fase di avvio)
+    if (!bond) {
+      const etf = allETFs.find(e => e.isin === isin);
+      // Mappa i campi ETF nel formato "bond" usato dal portafoglio
+      if (etf) bond = {
+        ...etf,
+        descrizione: etf.name,
+        emittente:   etf.ticker || etf.name,
+        prezzo:      etf.price  || 100,
+        yield:       etf.yld    || null,
+        duration:    etf.dur    || null,
+        divisa:      etf.currency || 'EUR',
+        tipo:        'ETF',
+      };
+    }
+
+    // 3. Ricostruzione dai metadati salvati (usato per ETF non ancora caricati)
+    if (!bond) bond = _bondFromMeta(isin, meta);
+
+    return bond ? { bond, nominale } : null;
+  }
+
   function savePortfolio() {
-    // Salva solo isin + nominale (il bond si risolve da allBonds al caricamento)
+    // Salva isin → slim-record con metadata sufficienti a ricostruire la posizione
     const slim = {};
-    Object.entries(portfolio).forEach(([isin, pos]) => slim[isin] = pos.nominale);
+    Object.entries(portfolio).forEach(([isin, pos]) => { slim[isin] = _posSlim(pos); });
     localStorage.setItem('bond_portfolio', JSON.stringify(slim));
     _savePortfolioToServer();
   }
@@ -4333,9 +4400,9 @@
   function loadPortfolioFromStorage() {
     const slim = JSON.parse(localStorage.getItem('bond_portfolio') || '{}');
     portfolio = {};
-    Object.entries(slim).forEach(([isin, nominale]) => {
-      const bond = allBonds.find(b => b.isin === isin);
-      if (bond) portfolio[isin] = { bond, nominale };
+    Object.entries(slim).forEach(([isin, data]) => {
+      const entry = _resolveSlimEntry(isin, data);
+      if (entry) portfolio[isin] = entry;
     });
   }
 
@@ -4596,7 +4663,7 @@
           <span class="port-desc-isin">${b.isin}</span>
         </td>
         <td style="white-space:nowrap">${b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : (isETF?'—':'—')}</td>
-        <td>${b.prezzo !== null ? b.prezzo.toFixed(2) : '—'}</td>
+        <td>${b.prezzo != null ? b.prezzo.toFixed(2) : '—'}</td>
         <td class="${yieldCls}">${yieldTxt}${yieldNote}</td>
         <td><input type="number" value="${pos.nominale}" min="0" step="1000"
           onchange="updateNominale('${b.isin}', this.value)"></td>
@@ -4768,7 +4835,7 @@
   function openCalc(bond) {
     calcBond = bond;
     document.getElementById('calcDesc').textContent = bond.descrizione || bond.isin;
-    document.getElementById('calcPrice').value = bond.prezzo !== null ? bond.prezzo.toFixed(2) : '';
+    document.getElementById('calcPrice').value = bond.prezzo != null ? bond.prezzo.toFixed(2) : '';
     document.getElementById('calcNominale').value = 10000;
 
     // Prova a estrarre cedola dalla descrizione
@@ -5934,13 +6001,9 @@
       if (!confirm(`Caricare il template "${label}" nel portafoglio?\nLe posizioni attuali verranno sostituite.`)) return;
       portfolio = {};
       const positions = t._portfolioPositions;
-      Object.entries(positions).forEach(([isin, nominale]) => {
-        let bond = allBonds.find(b => b.isin === isin);
-        if (!bond) {
-          const etf = allETFs.find(e => e.isin === isin);
-          if (etf) bond = { ...etf, tipo: 'ETF' };
-        }
-        if (bond) portfolio[isin] = { bond, nominale: +nominale };
+      Object.entries(positions).forEach(([isin, data]) => {
+        const entry = _resolveSlimEntry(isin, data);
+        if (entry) portfolio[isin] = entry;
       });
       savePortfolio();
       renderPortfolio();
@@ -6129,8 +6192,8 @@
       orizzonte:  '—',
       riskLevel:  2,
       desc: `${positions.length} posizioni · Nominale ${(totalNom / 1000).toFixed(0)}k€`,
-      // posizioni reali (isin → nominale)
-      _portfolioPositions: Object.fromEntries(positions.map(([isin, p]) => [isin, p.nominale])),
+      // posizioni reali (isin → slim-record con metadata, per poter ricostruire ETF senza allETFs)
+      _portfolioPositions: Object.fromEntries(positions.map(([isin, p]) => [isin, _posSlim(p)])),
       // componenti per la card di anteprima
       components: positions.map(([isin, p]) => ({
         label: p.bond.desc || p.bond.ticker || isin,
@@ -6994,7 +7057,7 @@
 
   async function _savePortfolioToServer() {
     const slim = {};
-    Object.entries(portfolio).forEach(([isin, pos]) => slim[isin] = pos.nominale);
+    Object.entries(portfolio).forEach(([isin, pos]) => { slim[isin] = _posSlim(pos); });
     try {
       await fetch(`/api/portfolios/${_currentClientId}`, {
         method: 'POST',
@@ -7009,9 +7072,9 @@
       const res = await fetch(`/api/portfolios/${clientId}`);
       const slim = await res.json();
       portfolio = {};
-      Object.entries(slim).forEach(([isin, nominale]) => {
-        const bond = allBonds.find(b => b.isin === isin);
-        if (bond) portfolio[isin] = { bond, nominale };
+      Object.entries(slim).forEach(([isin, data]) => {
+        const entry = _resolveSlimEntry(isin, data);
+        if (entry) portfolio[isin] = entry;
       });
     } catch { /* keep existing */ }
   }
