@@ -1637,15 +1637,24 @@
     try {
       await fetch('/api/refresh');
     } catch (e) {}
-    // Poll ogni 2s finché isUpdating diventa false
+    // Poll ogni 2s finché isUpdating diventa false (max 2 minuti)
+    let _pollCount = 0;
     const poll = setInterval(async () => {
-      const res = await fetch('/api/status');
-      const s = await res.json();
-      if (!s.isUpdating) {
-        clearInterval(poll);
-        await fetchData();
-        btn.disabled = false;
-        btn.textContent = '↻ Aggiorna';
+      try {
+        const res = await fetch('/api/status');
+        const s = await res.json();
+        if (!s.isUpdating || ++_pollCount > 60) {
+          clearInterval(poll);
+          await fetchData();
+          btn.disabled = false;
+          btn.textContent = '↻ Aggiorna';
+        }
+      } catch {
+        if (++_pollCount > 60) {
+          clearInterval(poll);
+          btn.disabled = false;
+          btn.textContent = '↻ Aggiorna';
+        }
       }
     }, 2000);
   }
@@ -2020,7 +2029,7 @@
 
   function escHtml(str) {
     if (!str) return '';
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
   }
 
   // ─────────────────────────────────────────────
@@ -4402,6 +4411,7 @@
       divisa:    b.divisa    || b.currency || 'EUR',
       paese:     b.paese     || '',
       monitor:   b.monitor   || b.cat || '',
+      acc:       b.acc       || false,
     };
   }
 
@@ -4420,6 +4430,7 @@
       tipo:        meta.tipo      || null,
       paese:       meta.paese     || '',
       monitor:     meta.monitor   || '',
+      acc:         meta.acc       || false,
     };
   }
 
@@ -4439,9 +4450,9 @@
         ...etf,
         descrizione: etf.name,
         emittente:   etf.ticker || etf.name,
-        prezzo:      etf.price  || 100,
-        yield:       etf.yld    || null,
-        duration:    etf.dur    || null,
+        prezzo:      etf.price  != null ? etf.price  : 100,
+        yield:       etf.yld    != null ? etf.yld    : null,
+        duration:    etf.dur    != null ? etf.dur    : null,
         divisa:      etf.currency || 'EUR',
         tipo:        'ETF',
       };
@@ -4632,7 +4643,6 @@
       portfolio[r.isin] = { bond: r.bond, nominale: r.nominale };
     });
     savePortfolio();
-    _savePortfolioToServer();
     renderPortfolio();
     document.getElementById('importOverlay')?.remove();
     showToast('✅ Importati ' + resolved.filter(r=>r.found).length + ' titoli', 'success');
@@ -4645,7 +4655,6 @@
       portfolio[r.isin] = { bond: r.bond, nominale: r.nominale };
     });
     savePortfolio();
-    _savePortfolioToServer();
     renderPortfolio();
     document.getElementById('importOverlay')?.remove();
     showToast('✅ Aggiunti ' + resolved.filter(r=>r.found).length + ' titoli al portafoglio', 'success');
@@ -4654,7 +4663,9 @@
 
   function updateNominale(isin, val) {
     if (portfolio[isin]) {
-      portfolio[isin].nominale = parseFloat(val) || 0;
+      const n = parseFloat(val);
+      if (isNaN(n) || n <= 0) return;   // ignora valori non validi
+      portfolio[isin].nominale = n;
       savePortfolio();
       updatePortfolioSummary();
     }
@@ -4683,7 +4694,10 @@
   // Restituisce true se l'ETF è ad accumulazione
   function isAccETF(isin) {
     const e = allETFs.find(x => x.isin === isin);
-    return !!(e && e.acc);
+    if (e) return !!e.acc;
+    // Fallback: usa il campo salvato nel portafoglio se allETFs non ancora caricati
+    const pos = portfolio[isin];
+    return !!(pos && pos.bond && pos.bond.acc);
   }
 
   function renderPortfolio() {
@@ -4756,7 +4770,11 @@
     const totalNom  = positions.reduce((s, p) => s + p.nominale, 0);
     const totalMV   = positions.reduce((s, p) => s + posMV(p), 0);
     const wtdYield  = totalNom > 0 ? positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0), 0) / totalNom : 0;
-    const totCedola = positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0) / 100, 0);
+    // ETF ad accumulazione non distribuiscono cedole in cash → esclusi dal totale cedola
+    const totCedola = positions.reduce((s, p) => {
+      if (p.bond.tipo === 'ETF' && isAccETF(p.bond.isin)) return s;
+      return s + p.nominale * (resolveYield(p.bond) || 0) / 100;
+    }, 0);
     const totRateo  = positions.reduce((s, p) => {
       const couponRate = extractCouponFromDesc(p.bond.descrizione) || p.bond.yield || 0;
       const freq = guessFreq(p.bond);
@@ -4901,7 +4919,8 @@
     const avgDur = wMV > 0 ? wDur/wMV : 5;
     const base = years.map(y => totalMV * Math.pow(1+netY, y));
     const up   = years.map((y,i) => y===0 ? base[i]-avgDur*0.01*totalMV : (totalMV-avgDur*0.01*totalMV)*Math.pow(1+netY+0.01,y));
-    const down = years.map((y,i) => y===0 ? base[i]+avgDur*0.01*totalMV : (totalMV+avgDur*0.01*totalMV)*Math.pow(1+netY-0.01,y));
+    const downRate = Math.max(0, netY - 0.01);  // non scendere sotto zero
+    const down = years.map((y,i) => y===0 ? base[i]+avgDur*0.01*totalMV : (totalMV+avgDur*0.01*totalMV)*Math.pow(1+downRate,y));
     if (window._projChart) { window._projChart.destroy(); window._projChart=null; }
     window._projChart = new Chart(canvas.getContext('2d'), {
       type:'line',
@@ -7094,7 +7113,7 @@
       bond: {
         isin, descrizione: etf ? etf.name : name, emittente: ticker,
         scadenza: null, prezzo: etf ? (etf.price || 100) : 100,
-        yield: etf ? etf.yld || null : null, duration: etf ? etf.dur || null : null,
+        yield: etf ? (etf.yld != null ? etf.yld : null) : null, duration: etf ? (etf.dur != null ? etf.dur : null) : null,
         divisa: etf ? (etf.currency || 'EUR') : 'EUR', tipo: 'ETF',
         cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
       },
@@ -7106,7 +7125,7 @@
       btn.classList.add('added');
       btn.innerHTML = `✓ ${ticker}`;
       btn.style.cssText += ';opacity:.8;background:rgba(34,197,94,.15)!important;border-color:#22c55e80!important;color:#22c55e!important';
-      setTimeout(() => { btn.innerHTML = origHtml; btn.style.cssText = origStyle; btn.classList.add('added'); }, 2000);
+      setTimeout(() => { btn.innerHTML = origHtml; btn.style.cssText = origStyle; btn.classList.remove('added'); }, 2000);
     }
   }
 
@@ -7129,7 +7148,7 @@
       // Snapshot nominal values from DOM before any re-render
       const nominals = liveAlloc.map((_, idx) => {
         const el = document.getElementById('alnom'+idx);
-        return el ? Math.max(1000, Math.round(parseFloat(el.value)||1000) / 1000 * 1000) : liveAlloc[idx].nominale;
+        return el ? Math.max(1000, Math.round((parseFloat(el.value) || 1000) / 1000) * 1000) : liveAlloc[idx].nominale;
       });
 
       for (let i = 0; i < liveAlloc.length; i++) {
@@ -7142,7 +7161,7 @@
               isin: item.isin, descrizione: etf ? etf.name : (item.name||item.isin),
               emittente: item.ticker||'',
               scadenza: null, prezzo: etf ? (etf.price||100) : 100,
-              yield: etf ? (etf.yld||null) : null, duration: etf ? (etf.dur||null) : null,
+              yield: etf ? (etf.yld != null ? etf.yld : null) : null, duration: etf ? (etf.dur != null ? etf.dur : null) : null,
               divisa: etf ? (etf.currency||'EUR') : 'EUR', tipo: 'ETF',
               cat: etf ? etf.cat : '', monitor: etf ? etf.cat : '',
             },
@@ -7205,6 +7224,7 @@
 
   async function switchClient(id) {
     _currentClientId = id;
+    _renderClientSelect();
     await _loadPortfolioFromServer(id);
     renderPortfolio();
   }
@@ -7213,11 +7233,17 @@
     const name = prompt('Nome del nuovo cliente:');
     if (!name) return;
     const id = 'client_' + Date.now();
-    await fetch('/api/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, name })
-    });
+    try {
+      const r = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name })
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+    } catch(e) {
+      showToast('Errore creazione cliente: ' + e.message, 'error');
+      return;
+    }
     _clients.push({ id, name });
     _currentClientId = id;
     portfolio = {};
@@ -7251,7 +7277,9 @@
   async function _loadPortfolioFromServer(clientId) {
     try {
       const res = await fetch(`/api/portfolios/${clientId}`);
+      if (!res.ok) return;                           // mantieni quello che c'è
       const slim = await res.json();
+      if (!slim || typeof slim !== 'object') return;  // risposta non valida
       portfolio = {};
       Object.entries(slim).forEach(([isin, data]) => {
         const entry = _resolveSlimEntry(isin, data);
