@@ -4688,7 +4688,8 @@
 
   function renderPortfolio() {
     const tbody = document.getElementById('portfolioBody');
-    const positions = Object.values(portfolio);
+    // Snapshot PRIMA di qualsiasi operazione async in background (es. _loadPortfolioFromServer)
+    const positions = Object.values(portfolio).filter(p => p && p.bond);
     const isEmpty = positions.length === 0;
     document.getElementById('portEmpty').style.display     = isEmpty ? 'flex' : 'none';
     document.getElementById('portTableWrap').style.display = isEmpty ? 'none'  : '';
@@ -4745,11 +4746,12 @@
       </td></tr>`;
     }).join('');
     renderCashFlowLadder(positions);
-    updatePortfolioSummary();
+    updatePortfolioSummary(positions);
   }
 
-  function updatePortfolioSummary() {
-    const positions = Object.values(portfolio);
+  function updatePortfolioSummary(positions) {
+    // Se non passato esplicitamente, prendi lo snapshot corrente
+    if (!positions) positions = Object.values(portfolio).filter(p => p && p.bond);
     if (positions.length === 0) return;
     const totalNom  = positions.reduce((s, p) => s + p.nominale, 0);
     const totalMV   = positions.reduce((s, p) => s + posMV(p), 0);
@@ -7189,7 +7191,8 @@
       _clients.unshift({ id: 'default', name: 'Default' });
     }
     _renderClientSelect();
-    _loadPortfolioFromServer(_currentClientId);
+    await _loadPortfolioFromServer(_currentClientId);
+    renderPortfolio();
   }
 
   function _renderClientSelect() {
