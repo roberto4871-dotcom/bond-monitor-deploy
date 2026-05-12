@@ -452,57 +452,59 @@
     .projection-section { margin-top:0; padding:0; }
     .projection-canvas-wrap { position:relative; height:200px; }
 
-    /* ── Income & Analysis Section ───────────────────────────────── */
-    .port-analysis-wrap { padding:16px 20px 0; display:flex; flex-direction:column; gap:14px; }
-    /* Income hero card */
-    .income-hero { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:18px 20px; }
-    .income-hero-header { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text2); margin-bottom:14px; }
-    .income-hero-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:start; }
-    .income-big-block { background:linear-gradient(135deg,rgba(34,197,94,.12),rgba(59,130,246,.06)); border:1px solid rgba(34,197,94,.25); border-radius:12px; padding:16px; text-align:center; }
-    .income-big-lbl { font-size:10px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:#22c55e; margin-bottom:4px; }
-    .income-big-val { font-size:26px; font-weight:800; color:#22c55e; font-variant-numeric:tabular-nums; line-height:1.1; }
-    .income-big-sub { font-size:11px; color:rgba(34,197,94,.7); margin-top:4px; }
-    .income-sub-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .income-sub-block { background:var(--bg3); border:1px solid var(--border); border-radius:9px; padding:11px 13px; }
-    .income-sub-lbl { font-size:9px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--text2); }
-    .income-sub-val { font-size:15px; font-weight:700; color:var(--text); margin-top:3px; font-variant-numeric:tabular-nums; }
-    .income-yield-block { background:var(--bg3); border:1px solid var(--border); border-radius:9px; padding:11px 13px; display:flex; flex-direction:column; gap:6px; }
-    .income-yield-row { display:flex; justify-content:space-between; align-items:center; }
-    .income-yield-lbl { font-size:10px; color:var(--text2); }
-    .income-yield-val { font-size:13px; font-weight:700; color:var(--text); }
-    /* Income bars */
-    .income-bars { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:16px 20px; }
-    .income-bars-hdr { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text2); margin-bottom:12px; }
-    .income-bar-row { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
-    .income-bar-label { font-size:11px; color:var(--text2); width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
-    .income-bar-bg { flex:1; height:7px; background:var(--bg3); border-radius:4px; overflow:hidden; }
-    .income-bar-fill { height:100%; border-radius:4px; }
-    .income-bar-amt { font-size:11px; font-weight:600; color:var(--text); width:48px; text-align:right; flex-shrink:0; }
-    .income-bar-pct { font-size:10px; color:var(--text2); width:30px; text-align:right; flex-shrink:0; }
-    /* Scenario cards */
-    .sc-section { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:16px 20px; }
-    .sc-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-    .sc-card { border-radius:11px; padding:13px 14px; text-align:center; border:1px solid transparent; }
-    .sc-card-up { background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.2); }
-    .sc-card-dn { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.2); }
-    .sc-card-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-bottom:8px; }
-    .sc-card-up .sc-card-lbl { color:#22c55e; }
-    .sc-card-dn .sc-card-lbl { color:#ef4444; }
-    .sc-card-delta { font-size:18px; font-weight:800; line-height:1.1; }
-    .sc-card-up .sc-card-delta { color:#22c55e; }
-    .sc-card-dn .sc-card-delta { color:#ef4444; }
-    .sc-card-pct { font-size:12px; font-weight:600; margin-top:2px; }
-    .sc-card-up .sc-card-pct { color:rgba(34,197,94,.75); }
-    .sc-card-dn .sc-card-pct { color:rgba(239,68,68,.75); }
-    .sc-card-total { font-size:10px; color:var(--text2); margin-top:6px; font-variant-numeric:tabular-nums; }
-    /* Projection */
-    .proj-section { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:16px 20px; }
+    /* ── Rendimenti & Analisi (ry-* system) ──────────────────────── */
+    .ry-wrap { display:flex; flex-direction:column; gap:18px; padding:20px 0 8px; }
+    /* KPI strip */
+    .ry-kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; }
+    .ry-kpi { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:4px; }
+    .ry-kpi-accent { background:linear-gradient(135deg,rgba(34,197,94,.13),rgba(59,130,246,.06)); border-color:rgba(34,197,94,.3); }
+    .ry-kpi-green  { background:rgba(34,197,94,.07); border-color:rgba(34,197,94,.22); }
+    .ry-kpi-teal   { background:rgba(20,184,166,.07); border-color:rgba(20,184,166,.22); }
+    .ry-kpi-lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text2); }
+    .ry-kpi-accent .ry-kpi-lbl { color:#22c55e; }
+    .ry-kpi-green  .ry-kpi-lbl { color:#4ade80; }
+    .ry-kpi-teal   .ry-kpi-lbl { color:#2dd4bf; }
+    .ry-kpi-val { font-size:20px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; line-height:1.15; }
+    .ry-kpi-accent .ry-kpi-val { color:#22c55e; }
+    .ry-kpi-green  .ry-kpi-val { color:#4ade80; }
+    .ry-kpi-teal   .ry-kpi-val { color:#2dd4bf; }
+    .ry-kpi-sub { font-size:10px; color:var(--text2); }
+    /* Table */
+    .ry-table-wrap { background:var(--bg2); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+    .ry-table-hdr { padding:13px 18px 10px; border-bottom:1px solid var(--border); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text2); display:flex; align-items:center; gap:8px; }
+    .ry-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .ry-table th { padding:9px 14px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text2); border-bottom:1px solid var(--border); background:var(--bg3); white-space:nowrap; }
+    .ry-table td { padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; color:var(--text); }
+    .ry-table tbody tr:hover td { background:rgba(255,255,255,.03); }
+    .ry-table th.ry-num, .ry-table td.ry-num { text-align:right; }
+    /* Position name cell */
+    .ry-pos-name { font-weight:600; font-size:12px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+    .ry-pos-isin { font-size:10px; color:var(--text2); letter-spacing:.4px; margin-top:1px; }
+    .ry-pos-bar { margin-top:4px; height:3px; background:var(--bg3); border-radius:2px; overflow:hidden; max-width:160px; }
+    .ry-pos-bar-fill { height:100%; border-radius:2px; background:linear-gradient(90deg,#3b82f6,#22c55e); }
+    /* Yield coloring */
+    .ry-yield-hi  { color:#22c55e; font-weight:700; }
+    .ry-yield-ok  { color:#86efac; font-weight:600; }
+    .ry-yield-lo  { color:var(--text2); }
+    /* Cedola column */
+    .ry-cedola { font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+    /* Badges */
+    .ry-badge     { display:inline-block; font-size:9px; font-weight:700; padding:2px 6px; border-radius:4px; letter-spacing:.3px; background:rgba(100,116,139,.2); color:#94a3b8; margin-left:4px; }
+    .ry-badge-etf { background:rgba(59,130,246,.15); color:#60a5fa; }
+    /* Percentage dot */
+    .ry-pct-dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+    /* Total row */
+    .ry-total-row td { border-top:2px solid var(--border); font-weight:700; background:var(--bg3); color:var(--text); }
+    /* Projection card */
+    .ry-proj-wrap { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:16px 20px; }
+    .ry-proj-hdr  { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text2); margin-bottom:14px; }
     /* Template filter */
     .tmpl-filter-bar { display:flex; flex-wrap:wrap; gap:6px; grid-column:1/-1; margin-bottom:4px; }
     .tmpl-fpill { padding:5px 13px; border-radius:20px; font-size:11px; font-weight:600; border:1px solid var(--border); background:var(--bg2); color:var(--text2); cursor:pointer; transition:all .15s; white-space:nowrap; }
     .tmpl-fpill:hover { border-color:rgba(59,130,246,.4); color:var(--text); }
     .tmpl-fpill.active { background:rgba(59,130,246,.15); border-color:rgba(59,130,246,.5); color:#60a5fa; }
-    @media(max-width:700px){.sc-cards{grid-template-columns:repeat(2,1fr)}.income-hero-grid{grid-template-columns:1fr}}
+    @media(max-width:900px){.ry-kpis{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:600px){.ry-kpis{grid-template-columns:repeat(2,1fr)}.ry-pos-name{max-width:110px}}
 
     /* ETF DETAIL MODAL — Professional */
     .etf-detail-overlay {
@@ -4682,12 +4684,10 @@
     if (btnSave) btnSave.style.display = isEmpty ? 'none' : '';
     if (isEmpty) {
       document.getElementById('portfolioSummary').innerHTML = '';
-      const inc = document.getElementById('incomeSection');
-      if (inc) inc.innerHTML = '';
-      const sc  = document.getElementById('scenarioSection');
-      if (sc)  sc.innerHTML = '';
-      const pr  = document.getElementById('projectionSection');
-      if (pr)  { pr.style.display='none'; }
+      // Rimuovi eventuali sezioni dinamiche di analisi precedenti
+      ['incomeSection','scenarioSection','projectionSection'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.remove();
+      });
       return;
     }
     tbody.innerHTML = positions.map(pos => {
@@ -4754,202 +4754,156 @@
     document.getElementById('pkYield').textContent  = wtdYield.toFixed(2) + '%';
     document.getElementById('pkCedola').textContent = fmt(totCedola);
     document.getElementById('pkRateo').textContent  = fmt2(totRateo);
+    // Tutto l'approfondimento va in #portfolioSummary (sotto la tabella)
     renderIncomeSection(positions, totalNom, totalMV, wtdYield, totCedola);
-    renderScenarioAnalysis(positions, totalMV);
-    renderProjectionChart(positions, wtdYield, totalMV);
   }
 
-  // ── Sezione rendimento percepito (income dashboard) ──────────────────────
+  // ── Sezione rendimento professionale ─────────────────────────────────────
   function renderIncomeSection(positions, totalNom, totalMV, wtdYield, totCedola) {
-    let wrap = document.getElementById('incomeSection');
-    if (!wrap) {
-      wrap = document.createElement('div');
-      wrap.id = 'incomeSection';
-      wrap.className = 'port-analysis-wrap';
-      // Insert right after the KPI bar (before portfolioSummary)
-      const kpiBar = document.getElementById('portKpiBar');
-      kpiBar.insertAdjacentElement('afterend', wrap);
-    }
+    const wrap = document.getElementById('portfolioSummary');
     if (!positions || positions.length === 0) { wrap.innerHTML=''; return; }
 
-    const fmt   = (v,d=0) => v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:d});
-    const netY  = wtdYield * 0.875;
-    const mensile   = totCedola / 12;
-    const trimest   = totCedola / 4;
+    const fmt  = (v, d=0) => v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:d});
+    const netY    = wtdYield * 0.875;
+    const mensile = totCedola / 12;
+    const trimest = totCedola / 4;
+    const cedNetta = totCedola * 0.875;
 
-    // ── Income hero card ────────────────────────────────────────────────────
-    const heroHtml = `
-    <div class="income-hero">
-      <div class="income-hero-header">💰 Rendimento annuo stimato</div>
-      <div class="income-hero-grid">
-        <div class="income-big-block">
-          <div class="income-big-lbl">Cedola annua</div>
-          <div class="income-big-val">${fmt(totCedola)}</div>
-          <div class="income-big-sub">${totCedola>0?(totCedola/totalMV*100).toFixed(2)+'% del capitale':'Nessun rendimento'}</div>
-        </div>
-        <div>
-          <div class="income-sub-grid">
-            <div class="income-sub-block">
-              <div class="income-sub-lbl">Al mese</div>
-              <div class="income-sub-val">${fmt(mensile)}</div>
-            </div>
-            <div class="income-sub-block">
-              <div class="income-sub-lbl">Al trimestre</div>
-              <div class="income-sub-val">${fmt(trimest)}</div>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="income-yield-block">
-            <div class="income-yield-row">
-              <span class="income-yield-lbl">Yield lordo pond.</span>
-              <span class="income-yield-val" style="color:#22c55e">${wtdYield.toFixed(2)}%</span>
-            </div>
-            <div style="height:1px;background:var(--border);margin:2px 0"></div>
-            <div class="income-yield-row">
-              <span class="income-yield-lbl">Yield netto (12,5%)</span>
-              <span class="income-yield-val" style="color:#4ade80">${netY.toFixed(2)}%</span>
-            </div>
-            <div style="height:1px;background:var(--border);margin:2px 0"></div>
-            <div class="income-yield-row">
-              <span class="income-yield-lbl">Cedola netta anno</span>
-              <span class="income-yield-val" style="color:#4ade80">${fmt(totCedola * 0.875)}</span>
-            </div>
-          </div>
-        </div>
+    // ── 1. KPI strip ────────────────────────────────────────────────────────
+    const kpisHtml = `
+    <div class="ry-kpis">
+      <div class="ry-kpi ry-kpi-accent">
+        <div class="ry-kpi-lbl">Cedola annua lorda</div>
+        <div class="ry-kpi-val">${fmt(totCedola)}</div>
+        <div class="ry-kpi-sub">${totCedola > 0 ? (totCedola/totalMV*100).toFixed(2)+'% del capitale' : '—'}</div>
+      </div>
+      <div class="ry-kpi">
+        <div class="ry-kpi-lbl">Al mese</div>
+        <div class="ry-kpi-val">${fmt(mensile)}</div>
+      </div>
+      <div class="ry-kpi">
+        <div class="ry-kpi-lbl">Al trimestre</div>
+        <div class="ry-kpi-val">${fmt(trimest)}</div>
+      </div>
+      <div class="ry-kpi ry-kpi-green">
+        <div class="ry-kpi-lbl">Yield lordo pond.</div>
+        <div class="ry-kpi-val">${wtdYield.toFixed(2)}%</div>
+      </div>
+      <div class="ry-kpi ry-kpi-teal">
+        <div class="ry-kpi-lbl">Yield netto (12,5%)</div>
+        <div class="ry-kpi-val">${netY.toFixed(2)}%</div>
+      </div>
+      <div class="ry-kpi ry-kpi-teal">
+        <div class="ry-kpi-lbl">Cedola netta anno</div>
+        <div class="ry-kpi-val">${fmt(cedNetta)}</div>
       </div>
     </div>`;
 
-    // ── Income bars by position ─────────────────────────────────────────────
-    const barColors = ['#22c55e','#3b82f6','#f59e0b','#a855f7','#ef4444','#06b6d4','#f97316','#84cc16'];
-    const posIncome = positions
-      .map((p,i) => ({ name: p.bond.descrizione || p.bond.isin, ced: p.nominale*(resolveYield(p.bond)||0)/100, color: barColors[i%barColors.length] }))
-      .filter(x => x.ced > 0)
-      .sort((a,b) => b.ced - a.ced)
-      .slice(0, 8);
-    const maxCed = posIncome.length ? posIncome[0].ced : 1;
+    // ── 2. Per-position rendimento table ────────────────────────────────────
+    const barColors = ['#22c55e','#3b82f6','#f59e0b','#a855f7','#ef4444','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
+    const sorted = [...positions].sort((a,b) =>
+      (b.nominale*(resolveYield(b.bond)||0)/100) - (a.nominale*(resolveYield(a.bond)||0)/100));
 
-    let barsHtml = '';
-    if (posIncome.length > 0) {
-      const barRows = posIncome.map(x => {
-        const pct = Math.round(x.ced / totCedola * 100);
-        const barW = Math.round(x.ced / maxCed * 100);
-        return `<div class="income-bar-row">
-          <div class="income-bar-label" title="${escHtml(x.name)}">${escHtml(x.name)}</div>
-          <div class="income-bar-bg"><div class="income-bar-fill" style="width:${barW}%;background:${x.color}"></div></div>
-          <div class="income-bar-amt">${fmt(x.ced)}</div>
-          <div class="income-bar-pct">${pct}%</div>
-        </div>`;
-      }).join('');
-      barsHtml = `<div class="income-bars"><div class="income-bars-hdr">📊 Cedola per posizione</div>${barRows}</div>`;
-    }
+    const typeBadge = t => {
+      if (t === 'ETF') return `<span class="ry-badge ry-badge-etf">ETF</span>`;
+      return `<span class="ry-badge ry-badge-bond">${escHtml(t||'Bond')}</span>`;
+    };
 
-    wrap.innerHTML = heroHtml + barsHtml;
-  }
-
-  function renderScenarioAnalysis(positions, totalMV) {
-    let el = document.getElementById('scenarioSection');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'scenarioSection';
-      el.className = 'port-analysis-wrap';
-      el.style.paddingTop = '0';
-      document.getElementById('panelPortfolio').appendChild(el);
-    }
-    if (!positions || positions.length === 0) { el.innerHTML = ''; return; }
-
-    const scenarios = [
-      { label:'Tassi −2%', delta:-2, cls:'sc-card-up' },
-      { label:'Tassi −1%', delta:-1, cls:'sc-card-up' },
-      { label:'Tassi +1%', delta:+1, cls:'sc-card-dn' },
-      { label:'Tassi +2%', delta:+2, cls:'sc-card-dn' },
-    ];
-
-    const cards = scenarios.map(sc => {
-      let deltaV = 0;
-      positions.forEach(p => {
-        const dur = p.bond.duration || p.bond.dur || null;
-        if (dur == null) return;
-        deltaV += -dur * (sc.delta / 100) * posMV(p);
-      });
-      const pct = totalMV > 0 ? deltaV / totalMV * 100 : 0;
-      const sign = deltaV >= 0 ? '+' : '';
-      const fmtK = v => {
-        const abs = Math.abs(v);
-        return (v<0?'−':'+')+' '+(abs>=1000 ? '€'+(abs/1000).toFixed(1)+'k' : '€'+Math.round(abs).toLocaleString('it-IT'));
-      };
-      const fmtTotal = v => v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
-      return `<div class="sc-card ${sc.cls}">
-        <div class="sc-card-lbl">${sc.label}</div>
-        <div class="sc-card-delta">${fmtK(deltaV)}</div>
-        <div class="sc-card-pct">${sign}${pct.toFixed(1)}%</div>
-        <div class="sc-card-total">${fmtTotal(totalMV + deltaV)}</div>
-      </div>`;
+    const rows = sorted.map((p, i) => {
+      const b   = p.bond;
+      const yv  = resolveYield(b) || 0;
+      const ced = p.nominale * yv / 100;
+      const pctPort = totalNom > 0 ? p.nominale / totalNom * 100 : 0;
+      const pctCed  = totCedola > 0 ? ced / totCedola * 100 : 0;
+      const color   = barColors[i % barColors.length];
+      const yvCls   = yv >= 4 ? 'ry-yield-hi' : yv >= 1 ? 'ry-yield-ok' : 'ry-yield-lo';
+      return `<tr>
+        <td>
+          <div class="ry-pos-name" title="${escHtml(b.descrizione||b.isin)}">${escHtml(b.descrizione||b.isin)}</div>
+          <div class="ry-pos-isin">${b.isin}</div>
+          <div class="ry-pos-bar"><div class="ry-pos-bar-fill" style="width:${Math.round(pctCed)}%;background:${color}"></div></div>
+        </td>
+        <td style="white-space:nowrap">${typeBadge(b.tipo)}</td>
+        <td class="ry-num">${fmt(p.nominale)}</td>
+        <td class="ry-num ${yvCls}">${yv > 0 ? yv.toFixed(2)+'%' : '<span style="color:var(--text2)">—</span>'}</td>
+        <td class="ry-num ry-cedola">${ced > 0 ? fmt(ced) : '<span style="color:var(--text2)">—</span>'}</td>
+        <td class="ry-num">${ced > 0 ? fmt(ced/12) : '—'}</td>
+        <td class="ry-num">
+          <span class="ry-pct-dot" style="background:${color}"></span>${pctPort.toFixed(0)}%
+        </td>
+      </tr>`;
     }).join('');
 
-    el.innerHTML = `<div class="sc-section">
-      <div class="scenario-title">⚡ Impatto variazione tassi</div>
-      <div class="sc-cards">${cards}</div>
-      <div style="font-size:10px;color:var(--text2);margin-top:8px">Stima su duration modificata · posizioni senza duration escluse</div>
+    const tableHtml = `
+    <div class="ry-table-wrap">
+      <div class="ry-table-hdr">📊 Dettaglio rendimento per posizione</div>
+      <div style="overflow-x:auto">
+      <table class="ry-table">
+        <thead><tr>
+          <th>Posizione</th><th>Tipo</th>
+          <th class="ry-num">Nominale</th>
+          <th class="ry-num">Yield %</th>
+          <th class="ry-num">Cedola/anno</th>
+          <th class="ry-num">Al mese</th>
+          <th class="ry-num">% port.</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr class="ry-total-row">
+          <td><strong>Totale portafoglio</strong></td><td></td>
+          <td class="ry-num"><strong>${fmt(totalNom)}</strong></td>
+          <td class="ry-num ry-yield-hi"><strong>${wtdYield.toFixed(2)}%</strong></td>
+          <td class="ry-num ry-yield-hi"><strong>${fmt(totCedola)}</strong></td>
+          <td class="ry-num"><strong>${fmt(totCedola/12)}</strong></td>
+          <td class="ry-num">100%</td>
+        </tr></tfoot>
+      </table>
+      </div>
     </div>`;
+
+    // ── 3. Projection chart ──────────────────────────────────────────────────
+    const projHtml = `
+    <div class="ry-proj-wrap">
+      <div class="ry-table-hdr">📈 Proiezione capitale (10 anni)</div>
+      <div class="projection-canvas-wrap"><canvas id="projectionChart"></canvas></div>
+      <div style="font-size:10px;color:var(--text2);padding:6px 4px 0">Yield netto 12,5% reinvestito · Scenari tassi: base, +1%, −1%</div>
+    </div>`;
+
+    wrap.innerHTML = `<div class="ry-wrap">${kpisHtml}${tableHtml}${projHtml}</div>`;
+    _drawProjectionChart(positions, wtdYield, totalMV);
   }
 
-  function renderProjectionChart(positions, wtdYield, totalMV) {
-    let el = document.getElementById('projectionSection');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'projectionSection';
-      el.className = 'port-analysis-wrap';
-      el.style.paddingTop = '0';
-      el.style.paddingBottom = '20px';
-      document.getElementById('panelPortfolio').appendChild(el);
-    }
-    if (!positions || positions.length === 0 || totalMV <= 0) { el.style.display='none'; return; }
-    el.style.display = '';
-
-    // Ensure canvas wrapper exists
-    if (!document.getElementById('projectionChart')) {
-      el.innerHTML = `<div class="proj-section">
-        <div class="scenario-title">📈 Proiezione capitale (10 anni)</div>
-        <div class="projection-canvas-wrap"><canvas id="projectionChart"></canvas></div>
-        <div style="font-size:10px;color:var(--text2);margin-top:6px">Yield netto 12,5% reinvestito · Scenari tassi: base, +1%, −1%</div>
-      </div>`;
-    }
-
+  function _drawProjectionChart(positions, wtdYield, totalMV) {
+    const canvas = document.getElementById('projectionChart');
+    if (!canvas || !positions || !positions.length || totalMV <= 0) return;
     const netY  = wtdYield * 0.875 / 100;
     const years = [0,1,2,3,5,7,10];
     let wDur=0, wMV=0;
     positions.forEach(p => {
       const dur = p.bond.duration || p.bond.dur || null;
       if (dur == null) return;
-      const mv = posMV(p);
-      wDur += dur*mv; wMV += mv;
+      const mv = posMV(p); wDur += dur*mv; wMV += mv;
     });
     const avgDur = wMV > 0 ? wDur/wMV : 5;
     const base = years.map(y => totalMV * Math.pow(1+netY, y));
     const up   = years.map((y,i) => y===0 ? base[i]-avgDur*0.01*totalMV : (totalMV-avgDur*0.01*totalMV)*Math.pow(1+netY+0.01,y));
     const down = years.map((y,i) => y===0 ? base[i]+avgDur*0.01*totalMV : (totalMV+avgDur*0.01*totalMV)*Math.pow(1+netY-0.01,y));
-
-    const ctx = document.getElementById('projectionChart').getContext('2d');
     if (window._projChart) { window._projChart.destroy(); window._projChart=null; }
-    window._projChart = new Chart(ctx, {
+    window._projChart = new Chart(canvas.getContext('2d'), {
       type:'line',
       data:{ labels: years.map(y=>y===0?'Oggi':'Anno '+y), datasets:[
-        { label:'Base (cedole reinvestite)', data:base, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)', tension:0.35, fill:true, borderWidth:2, pointRadius:3, pointBackgroundColor:'#3b82f6' },
+        { label:'Base (reinvestito)', data:base, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.08)', tension:0.35, fill:true, borderWidth:2, pointRadius:3, pointBackgroundColor:'#3b82f6' },
         { label:'Tassi +1%', data:up, borderColor:'#ef4444', backgroundColor:'transparent', tension:0.35, fill:false, borderDash:[5,4], borderWidth:1.5, pointRadius:2 },
         { label:'Tassi −1%', data:down, borderColor:'#22c55e', backgroundColor:'transparent', tension:0.35, fill:false, borderDash:[5,4], borderWidth:1.5, pointRadius:2 },
       ]},
       options:{
         responsive:true, maintainAspectRatio:false,
         plugins:{
-          legend:{ labels:{color:'#8b949e',font:{size:11},boxWidth:20,padding:14} },
-          tooltip:{ callbacks:{
-            label: c => {
-              const gain = c.parsed.y - totalMV;
-              const gainStr = (gain>=0?'+':'')+gain.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
-              return c.dataset.label+': '+c.parsed.y.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})+' ('+gainStr+')';
-            }
-          }}
+          legend:{ labels:{color:'#8b949e',font:{size:11},boxWidth:18,padding:14} },
+          tooltip:{ callbacks:{ label: c => {
+            const gain = c.parsed.y - totalMV;
+            return c.dataset.label+': '+c.parsed.y.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})+
+              ' ('+(gain>=0?'+':'')+gain.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})+')';
+          }}}
         },
         scales:{
           x:{ ticks:{color:'#8b949e',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
@@ -4958,6 +4912,10 @@
       }
     });
   }
+
+  // Compatibility stubs
+  function renderScenarioAnalysis() {}
+  function renderProjectionChart(positions, wtdYield, totalMV) { _drawProjectionChart(positions, wtdYield, totalMV); }
 
   // ─────────────────────────────────────────────
   // CALCOLATORE
