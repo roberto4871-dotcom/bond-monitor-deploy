@@ -6064,16 +6064,15 @@
   let allocMode = 'etf';   // 'etf' | 'mixed'
   let liveAlloc = [];       // current working allocation (editable by user)
   let _customTemplates = []; // cache sincronizzata col server
-  let _tmplFilter = 'all';   // filtro attivo nella griglia template
+  let _tmplFilter = 'btp';   // filtro attivo nella griglia template
 
   const TMPL_FILTER_CATS = [
-    { key:'all',   label:'Tutti',       icon:'📋', badges:null },
-    { key:'btp',   label:'BTP',         icon:'🇮🇹', badges:['BTP'] },
-    { key:'gov',   label:'Gov/EUR',     icon:'🌍', badges:['EUR','GOV','AAA','SDIG','EUR H','AGG','GLB'] },
-    { key:'hy',    label:'Reddito/HY',  icon:'💰', badges:['HY','HY+','DIST','SUB','HYB','CONV'] },
-    { key:'fx',    label:'Globale/FX',  icon:'🌐', badges:['USD','EM','ASIA','LAD'] },
-    { key:'tema',  label:'Tematici',    icon:'🔧', badges:['INFL','ESG','SOC','MM','BBL','FRN','PENS','COV','30Y'] },
-    { key:'custom',label:'Personalizzati',icon:'⭐',custom:true },
+    { key:'btp',   label:'BTP',          icon:'🇮🇹', badges:['BTP'] },
+    { key:'gov',   label:'Gov/EUR',      icon:'🌍', badges:['EUR','GOV','AAA','SDIG','EUR H','AGG','GLB'] },
+    { key:'hy',    label:'Reddito/HY',   icon:'💰', badges:['HY','HY+','DIST','SUB','HYB','CONV'] },
+    { key:'fx',    label:'Globale/FX',   icon:'🌐', badges:['USD','EM','ASIA','LAD'] },
+    { key:'tema',  label:'Tematici',     icon:'🔧', badges:['INFL','ESG','SOC','MM','BBL','FRN','PENS','COV','30Y'] },
+    { key:'custom',label:'Personalizzati',icon:'⭐', custom:true },
   ];
   function _setTmplFilter(key) { _tmplFilter = key; _renderTemplateCards(); }
 
@@ -6113,17 +6112,16 @@
     // Filtra in base alla categoria attiva
     const catDef = TMPL_FILTER_CATS.find(c => c.key === _tmplFilter) || TMPL_FILTER_CATS[0];
     const filtered = allTmpl.filter(t => {
-      if (_tmplFilter === 'all') return true;
       if (catDef.custom) return !!t._isCustom;
       return catDef.badges && catDef.badges.includes(t.badge);
     });
 
     // Filter pills
     const pills = TMPL_FILTER_CATS.map(cat => {
-      const count = cat.key === 'all' ? allTmpl.length
-        : cat.custom ? allTmpl.filter(t => !!t._isCustom).length
+      const count = cat.custom
+        ? allTmpl.filter(t => !!t._isCustom).length
         : allTmpl.filter(t => cat.badges && cat.badges.includes(t.badge)).length;
-      if (count === 0 && cat.key !== 'all') return '';
+      if (count === 0) return '';
       const active = _tmplFilter === cat.key ? ' active' : '';
       return `<button class="tmpl-fpill${active}" onclick="_setTmplFilter('${cat.key}')">${cat.icon} ${cat.label} <span style="opacity:.55;font-size:10px">${count}</span></button>`;
     }).join('');
