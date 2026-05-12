@@ -3134,7 +3134,7 @@
   // ─────────────────────────────────────────────
   document.getElementById('loadingOverlay').classList.add('show');
 
-  fetchData().then(() => {
+  function _initAfterLoad() {
     document.getElementById('loadingOverlay').classList.remove('show');
     sortBy('yield');
     populateYCPaese();
@@ -3144,7 +3144,20 @@
     _loadClients();
     _loadNotes();
     renderBtpYieldCurve();
-  });
+  }
+
+  // Primo fetch con retry automatico (server potrebbe essere in riavvio dopo deploy)
+  (async function bootFetch() {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      try {
+        await fetchData();
+        if (allBonds.length > 0) { _initAfterLoad(); return; }
+      } catch(e) {}
+      await new Promise(r => setTimeout(r, attempt < 3 ? 3000 : 8000));
+    }
+    // Dopo tutti i retry, init comunque (mostra stato di errore)
+    _initAfterLoad();
+  })();
 
   // Polling ogni 5 minuti per verificare aggiornamenti
   setInterval(fetchData, 5 * 60 * 1000);
