@@ -5158,10 +5158,14 @@
     const paeseSet = criteria.paese && criteria.paese.length
       ? new Set(criteria.paese.map(p => _ISO_PAESE[p] || p))
       : null;
+    const divisaSet = criteria.divisa && criteria.divisa.length
+      ? new Set(criteria.divisa)
+      : null;
     return allBonds.filter(b => {
       if (b.tipo === 'ETF') return false;
       if (!b.yield || b.yield <= 0) return false;
       if (paeseSet && !paeseSet.has(b.paese)) return false;
+      if (divisaSet && !divisaSet.has(b.divisa || 'EUR')) return false;
       if (criteria.monitor && criteria.monitor.length && !criteria.monitor.includes(b.monitor)) return false;
       const dur = b.duration || 0;
       if (criteria.durMin != null && dur < criteria.durMin) return false;
@@ -5513,19 +5517,19 @@
           desc:'Quota liquida: scadenze ravvicinate per reinvestimento o utilizzo del capitale',
           etfs:[{isin:'LU1650487413',ticker:'EM13',name:'Amundi Euro Gov Bond 1-3Y'},
                 {isin:'IE00B14X4S71',ticker:'IBTS',name:'iShares $ Treasury 1-3Y'}],
-          bonds:{durMin:1,durMax:3} },
+          bonds:{paese:['IT','DE','FR','ES','PT','AT','BE','NL'],durMin:1,durMax:3} },
         { label:'Medio-breve 3–5 anni', pct:25,
           desc:'Cedole certe nel medio termine, ottimo carry sul tratto breve-medio della curva',
           etfs:[{isin:'LU1287023003',ticker:'EM57',name:'Amundi Euro Gov Bond 5-7Y'}],
-          bonds:{durMin:3,durMax:5} },
+          bonds:{paese:['IT','DE','FR','ES','PT','AT','BE','NL'],durMin:3,durMax:5} },
         { label:'Medio 5–8 anni', pct:25,
           desc:'Cuore del portafoglio, principale fonte di reddito fisso',
           etfs:[{isin:'LU1287023185',ticker:'EM710',name:'Amundi Euro Gov Bond 7-10Y'}],
-          bonds:{durMin:5,durMax:8} },
+          bonds:{paese:['IT','DE','FR','ES','PT','AT','BE','NL'],durMin:5,durMax:8} },
         { label:'Medio-lungo 8–15 anni', pct:25,
           desc:'Blocca il rendimento attuale su orizzonte lungo, massimizza il reddito futuro',
           etfs:[{isin:'LU1287023268',ticker:'EM15',name:'Amundi Euro Gov Bond 15+Y'}],
-          bonds:{durMin:8,durMax:15} },
+          bonds:{paese:['IT','DE','FR','ES','PT','AT','BE','NL'],durMin:8,durMax:15} },
       ]
     },
     // ── HY EUR DISTRIBUTION ────────────────────────────────────────────────
@@ -5842,15 +5846,15 @@
         { label:'BEI / EIB', pct:35,
           desc:'Banca Europea degli Investimenti: AAA, emittente sovranazionale più grande al mondo',
           etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}],
-          bonds:{monitor:['BEI / EIB'],durMin:2,durMax:10} },
+          bonds:{monitor:['BEI / EIB'],divisa:['EUR'],durMin:2,durMax:10} },
         { label:'Unione Europea', pct:35,
           desc:'Obbligazioni UE (NextGen EU, SURE): AAA, garanzia collettiva 27 paesi',
           etfs:[{isin:'IE00B4WXJJ64',ticker:'SEGA',name:'iShares Core EU Gov Bond'}],
-          bonds:{monitor:['Unione Europea'],durMin:2,durMax:10} },
+          bonds:{monitor:['Unione Europea'],divisa:['EUR'],durMin:2,durMax:10} },
         { label:'Sovranazionali Mix', pct:30,
           desc:'ESM, EFSF, CEB e altri sovranazionali: alta qualità, diversificazione emittente',
           etfs:[{isin:'LU1437018598',ticker:'EGOV',name:'Amundi Euro Government Bond'}],
-          bonds:{monitor:['Sovranazionali'],durMin:2,durMax:12} },
+          bonds:{monitor:['Sovranazionali'],divisa:['EUR'],durMin:2,durMax:12} },
       ]
     },
     {
@@ -6493,11 +6497,11 @@
 
       // ── Country-specific criteria (paese): stay within that country ──────────
       if (criteria.paese && criteria.paese.length) {
-        // Level 1: paese + duration range
+        // Level 1: paese + duration + divisa
         let bonds = getBondSuggestions(criteria);
         if (bonds.length) return bonds;
-        // Level 2: same paese, relax duration
-        bonds = getBondSuggestions({ paese: criteria.paese });
+        // Level 2: same paese + divisa, relax duration
+        bonds = getBondSuggestions({ paese: criteria.paese, divisa: criteria.divisa });
         if (bonds.length) return bonds;
         // No bonds found for that country → let caller fall back to ETF
         return [];
@@ -6505,22 +6509,22 @@
 
       // ── Monitor-specific criteria: stay within that monitor category ─────────
       if (criteria.monitor && criteria.monitor.length) {
-        // Level 1: monitor + duration range
+        // Level 1: monitor + duration + divisa
         let bonds = getBondSuggestions(criteria);
         if (bonds.length) return bonds;
-        // Level 2: same monitor, relax duration
-        bonds = getBondSuggestions({ monitor: criteria.monitor });
+        // Level 2: same monitor + divisa, relax duration
+        bonds = getBondSuggestions({ monitor: criteria.monitor, divisa: criteria.divisa });
         if (bonds.length) return bonds;
         // No bonds in that monitor → fall back to ETF
         return [];
       }
 
       // ── Generic duration-only criteria (no country/monitor constraint) ───────
-      let bonds = getBondSuggestions({ durMin: criteria.durMin, durMax: criteria.durMax });
+      let bonds = getBondSuggestions({ durMin: criteria.durMin, durMax: criteria.durMax, divisa: criteria.divisa });
       if (bonds.length) return bonds;
-      // Last resort: any bond sorted by yield (only for generic templates)
+      // Last resort: any EUR government bond sorted by yield
       bonds = allBonds
-        .filter(b => b.tipo !== 'ETF' && b.isin && b.yield > 0)
+        .filter(b => b.tipo !== 'ETF' && b.isin && b.yield > 0 && (b.divisa || 'EUR') === 'EUR')
         .sort((a, b) => (b.yield || 0) - (a.yield || 0))
         .slice(0, 8);
       return bonds;
