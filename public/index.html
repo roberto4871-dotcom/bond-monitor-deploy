@@ -3346,7 +3346,11 @@
     dates.forEach((d, i) => {
       const m = d.getMonth(), y = d.getFullYear(), q = Math.floor(m / 3);
       if (_isShortR) {
-        if (m !== _lM || y !== _lY) { _bndLbls[i] = `${_mesiIT[m]} '${String(y).slice(2)}`; _lM = m; _lY = y; }
+        // Short periods: just month abbr (3 chars), show year only on January
+        if (m !== _lM || y !== _lY) {
+          _bndLbls[i] = m === 0 ? `gen '${String(y).slice(2)}` : _mesiIT[m];
+          _lM = m; _lY = y;
+        }
       } else if (_isMedR) {
         if (q !== _lQ || y !== _lY) { _bndLbls[i] = `${_mesiIT[m]} '${String(y).slice(2)}`; _lQ = q; _lY = y; }
       } else {
@@ -3399,7 +3403,8 @@
             },
             ticks: {
               color: '#7a8fa8',
-              maxRotation: 0,
+              maxRotation: 45,
+              minRotation: 0,
               autoSkip: false,
               callback: (val, idx) => _bndLbls[idx] || '',
             },
