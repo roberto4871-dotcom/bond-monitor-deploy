@@ -1394,7 +1394,6 @@
         <span id="chartSourceBadge" style="font-size:11px;color:var(--text2);margin-right:6px;"></span>
         <button class="period-btn active" id="tabPrice" onclick="switchTab('price')">Prezzo</button>
         <button class="period-btn" id="tabYield" onclick="switchTab('yield')">Yield %</button>
-        <button class="period-btn" id="tabZspread" onclick="switchTab('zspread')">Z-Spread</button>
         <button class="period-btn" onclick="exportChartPDF()" title="Esporta PDF" style="background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.3);color:#60a5fa;margin-left:4px;">⬇ PDF</button>
       </div>
     </div>
@@ -3229,7 +3228,6 @@
     document.querySelectorAll('.modal-periods > div:first-child .period-btn').forEach((b,i) => b.classList.toggle('active', i===5));
     document.getElementById('tabPrice').classList.add('active');
     document.getElementById('tabYield').classList.remove('active');
-    document.getElementById('tabZspread').classList.remove('active');
 
     document.getElementById('chartModal').classList.add('show');
     loadChart('1y');
@@ -3239,7 +3237,6 @@
     currentTab = tab;
     document.getElementById('tabPrice').classList.toggle('active', tab === 'price');
     document.getElementById('tabYield').classList.toggle('active', tab === 'yield');
-    document.getElementById('tabZspread').classList.toggle('active', tab === 'zspread');
     if (currentChartData) renderChart(currentChartData);
   }
 
@@ -3309,11 +3306,6 @@
       label = 'Yield %';
       suffix = '%';
       decimals = 3;
-    } else if (currentTab === 'zspread') {
-      pairs = data.zspreadData || [];
-      label = 'Z-Spread (bp)';
-      suffix = ' bp';
-      decimals = 1;
     } else {
       pairs = data.price || [];
       label = 'Prezzo';
@@ -3360,7 +3352,7 @@
 
     const first = values[0], last = values[values.length - 1];
     const isUp = last >= first;
-    const lineColor = currentTab === 'yield' ? '#fbbf24' : currentTab === 'zspread' ? '#a78bfa' : (isUp ? '#34d399' : '#f87171');
+    const lineColor = currentTab === 'yield' ? '#fbbf24' : (isUp ? '#34d399' : '#f87171');
     const fillColor = lineColor + '14';
 
     chartInstance = new Chart(canvas, {
@@ -3432,7 +3424,7 @@
     const isin = document.getElementById('modalIsin').textContent;
     const desc = document.getElementById('modalDesc').textContent;
     const meta = document.getElementById('modalMeta').textContent;
-    const tabLabels = { price: 'Prezzo', yield: 'Yield %', zspread: 'Z-Spread' };
+    const tabLabels = { price: 'Prezzo', yield: 'Yield %' };
     const periodLabels = { ytd: 'YTD', '1y': '1 Anno', '2y': '2 Anni', '3y': '3 Anni', '5y': '5 Anni', max: 'Storico' };
     const tabLabel = tabLabels[currentTab] || currentTab;
     const periodLabel = periodLabels[currentRange] || currentRange;
