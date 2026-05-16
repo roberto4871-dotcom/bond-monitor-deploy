@@ -1077,11 +1077,6 @@
       <div class="panel-header" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <span>📊 Maturity Ladder — scadenze per anno</span>
         <div style="display:flex;gap:8px;align-items:center;">
-          <label style="font-size:12px;color:var(--text2);">Visualizza:</label>
-          <select id="ladderMode" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
-            <option value="count">N° titoli</option>
-            <option value="yield">Yield medio %</option>
-          </select>
           <label style="font-size:12px;color:var(--text2);">Paese:</label>
           <select id="ladderPaese" onchange="renderLadder()" style="padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
             <option value="">Tutti i paesi</option>
@@ -3560,7 +3555,7 @@
   }
 
   function renderLadder() {
-    const mode         = document.getElementById('ladderMode').value;
+    const mode         = 'yield';
     const paeseFilter  = document.getElementById('ladderPaese')?.value  || '';
     const paeseFilter2 = document.getElementById('ladderPaese2')?.value || '';
 
@@ -5285,8 +5280,7 @@
     const imgData = canvas.toDataURL('image/png');
     const paese1 = document.getElementById('ladderPaese')?.value || 'Tutti i paesi';
     const paese2 = document.getElementById('ladderPaese2')?.value || '';
-    const modeEl = document.getElementById('ladderMode');
-    const modeText = modeEl ? (modeEl.value === 'yield' ? 'Yield medio %' : 'N° titoli') : '';
+    const modeText = 'Yield medio %';
     const dateStr = new Date().toLocaleDateString('it-IT');
     const title = 'Maturity Ladder — ' + paese1 + (paese2 ? ' vs ' + paese2 : '');
     const win = window.open('', '_blank');
