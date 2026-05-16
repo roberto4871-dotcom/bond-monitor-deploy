@@ -1105,9 +1105,6 @@
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <input type="text" class="etf-search" id="etfSearch" placeholder="Cerca ticker / nome..." oninput="renderETF()">
-          <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;">
-            <input type="checkbox" id="etfOnlyPrice" onchange="renderETF()"> Solo con prezzo
-          </label>
           <span id="etfCount" style="font-size:12px;color:var(--text2);"></span>
           <button onclick="exportETFXLSX()" style="margin-left:auto;font-size:12px;padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;" title="Esporta ETF visibili in Excel con link JustETF e Borsa Italiana">📊 Esporta Excel</button>
         </div>
@@ -2961,12 +2958,12 @@
     const ws1 = wb.addWorksheet('📊 Riepilogo');
     ws1.columns = [
       {width:8},{width:7},{width:44},{width:24},{width:7},
-      {width:10},{width:10},{width:10},{width:10},{width:11},{width:11},
+      {width:10},{width:10},{width:10},
       {width:10},{width:7},{width:18},{width:20},
     ];
 
     // Title band
-    ws1.mergeCells('A1:O1');
+    ws1.mergeCells('A1:L1');
     const t1 = ws1.getCell('A1');
     t1.value = `📊 ETF Obbligazionari — Bond Monitor  ·  ${new Date().toLocaleDateString('it-IT')}  ·  ${etfs.length} ETF`;
     t1.fill = { type:'pattern', pattern:'solid', fgColor:{ argb: C.DARK_BLUE } };
@@ -2975,7 +2972,7 @@
     ws1.getRow(1).height = 52;
 
     // Subtitle
-    ws1.mergeCells('A2:O2');
+    ws1.mergeCells('A2:L2');
     const sub1 = ws1.getCell('A2');
     sub1.value = 'Dati aggiornati in tempo reale. Yield: distribuzione annua live o stima YTM (simbolo ~). ACC = accumulazione. DIST = distribuzione.';
     sub1.font = { italic:true, name:'Calibri', size:9, color:{ argb: C.TEXT_MID } };
@@ -3016,7 +3013,7 @@
 
     // Column headers
     ws1.getRow(6).height = 28;
-    const hdrs = ['Tipo','ISIN','Nome ETF','Categoria','Val.','Prezzo','Yield %','Var %','YTD %','Min 52W','Max 52W','Duration','TER %','JustETF','Borsa IT'];
+    const hdrs = ['Tipo','ISIN','Nome ETF','Categoria','Val.','Prezzo','Yield %','YTD %','Duration','TER %','JustETF','Borsa IT'];
     hdrs.forEach((h, ci) => {
       const c = ws1.getCell(6, ci+1);
       c.value = h;
@@ -3031,7 +3028,7 @@
     let dRow = 7;
     groups.forEach(g => {
       // Group header
-      ws1.mergeCells(dRow, 1, dRow, 15);
+      ws1.mergeCells(dRow, 1, dRow, 12);
       const gh = ws1.getCell(dRow, 1);
       gh.value = `${g.icon}  ${g.label.toUpperCase()}  (${g.items.length} ETF)`;
       gh.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: g.color.replace('#','FF') } };
@@ -3060,10 +3057,7 @@
           e.isin, e.name||'', e.cat||'', e.currency||'EUR',
           e.price != null ? e.price : '—',
           yv != null ? +yv.toFixed(2) : '—',
-          chg != null ? chg : '—',
           ytd != null ? ytd : '—',
-          e.low52w  != null ? e.low52w  : '—',
-          e.high52w != null ? e.high52w : '—',
           e.dur != null ? e.dur : '—',
           e.ter != null ? e.ter : '—',
         ];
@@ -3076,13 +3070,13 @@
           // Numeric columns: right align + colour
           if (ci >= 4) {
             c.alignment = { horizontal:'right', vertical:'middle' };
-            if (ci === 4 && typeof v === 'number' && v > 0) {  // Yield
+            if (ci === 5 && typeof v === 'number' && v > 0) {  // Yield
               c.font = { bold:true, name:'Calibri', size:10, color:{ argb: v >= 5 ? C.AMBER : C.GREEN } };
               c.numFmt = '0.00"%"';
-            } else if ((ci === 5 || ci === 6) && typeof v === 'number') { // Var / YTD
+            } else if (ci === 6 && typeof v === 'number') { // YTD
               c.font = { name:'Calibri', size:9, color:{ argb: v >= 0 ? C.GREEN : C.RED } };
               c.numFmt = '0.00"%"';
-            } else if (ci >= 7 && ci <= 9 && typeof v === 'number') { // 52W min/max, duration
+            } else if (ci >= 7 && ci <= 8 && typeof v === 'number') { // Duration, TER
               c.numFmt = '0.00'; c.font = { name:'Calibri', size:9, color:{ argb: C.TEXT_MID } };
             }
           } else {
@@ -3094,13 +3088,13 @@
         });
 
         // Link cells
-        const jc = ws1.getCell(dRow, 14);
+        const jc = ws1.getCell(dRow, 11);
         jc.value = { text:'JustETF ↗', hyperlink: jurl(e.isin) };
         jc.font  = { name:'Calibri', size:9, color:{ argb: C.MID_BLUE }, underline:true };
         jc.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: rowBg } };
         jc.alignment = { horizontal:'center', vertical:'middle' }; jc.border = border;
 
-        const bc = ws1.getCell(dRow, 15);
+        const bc = ws1.getCell(dRow, 12);
         bc.value = { text:'Borsa IT ↗', hyperlink: burl(e.isin) };
         bc.font  = { name:'Calibri', size:9, color:{ argb: C.MID_BLUE }, underline:true };
         bc.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb: rowBg } };
