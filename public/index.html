@@ -597,12 +597,15 @@
     .port-btn-secondary { font-size:12px; padding:5px 12px; background:var(--bg3); border:1px solid var(--border); border-radius:7px; color:var(--red); cursor:pointer; transition:border-color .15s; }
     .port-btn-secondary:hover { border-color:var(--red); }
     /* KPI BAR */
-    .port-kpi-bar { display:grid; grid-template-columns:repeat(6,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:16px 24px 0; }
+    .port-kpi-bar { display:grid; grid-template-columns:repeat(6,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:16px 24px 12px; flex-shrink:0; }
     .port-kpi { background:var(--bg2); padding:14px 18px; }
     .port-kpi-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px; color:var(--text2); }
     .port-kpi-value { font-size:18px; font-weight:700; color:var(--text); margin-top:5px; font-variant-numeric:tabular-nums; }
     .port-kpi-green { color:#22c55e !important; }
     .port-kpi-amber { color:#f59e0b !important; }
+    .port-kpi-dur { background:rgba(168,85,247,.06); border-left:2px solid rgba(168,85,247,.25); }
+    .port-kpi-dur .port-kpi-label { color:#c084fc; }
+    .port-kpi-dur .port-kpi-value { color:#c084fc; }
     /* TABLE */
     .port-table-wrap { overflow-x:auto; margin:16px 0 0; }
     .port-table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -1231,9 +1234,9 @@
           <div class="port-kpi-label">Rateo maturato</div>
           <div class="port-kpi-value port-kpi-amber" id="pkRateo">—</div>
         </div>
-        <div class="port-kpi" style="border-left:2px solid rgba(168,85,247,.35);background:rgba(168,85,247,.06)">
-          <div class="port-kpi-label" style="color:#c084fc">Duration pond.</div>
-          <div class="port-kpi-value" id="pkDur" style="color:#c084fc">—</div>
+        <div class="port-kpi port-kpi-dur">
+          <div class="port-kpi-label">Duration pond.</div>
+          <div class="port-kpi-value" id="pkDur">—</div>
         </div>
       </div>
 
