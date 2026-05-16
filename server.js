@@ -1821,16 +1821,54 @@ function getBondYield10Y(paese, targetYears = 10, rangeYears = 3) {
   };
 }
 
+// Fetch CPI USA (BLS public API v1 — nessuna registrazione richiesta)
+async function fetchUSCPI() {
+  try {
+    const url = 'https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0';
+    const resp = await axios.get(url, { timeout: 12000 });
+    const series = resp.data?.Results?.series?.[0];
+    if (!series?.data?.length) return null;
+    // I dati arrivano già ordinati: più recente per primo
+    const d = series.data;
+    const last = d[0];
+    // Cerca lo stesso mese dell'anno precedente
+    const prevYear = String(parseInt(last.year) - 1);
+    const prev = d.find(x => x.year === prevYear && x.period === last.period)
+              || d[Math.min(12, d.length - 1)];
+    if (!prev || last.year === prev.year) return null;
+    const yoy = (parseFloat(last.value) / parseFloat(prev.value) - 1) * 100;
+    const month = last.period.replace('M', '').padStart(2, '0');
+    return { value: +yoy.toFixed(2), prev: null, date: `${last.year}-${month}` };
+  } catch (e) {
+    console.warn('[macro] US CPI fetch failed:', e.message);
+    return null;
+  }
+}
+
 app.get('/api/macro', async (req, res) => {
   if (macroCache && Date.now() - macroCacheTime < MACRO_CACHE_TTL) return res.json(macroCache);
   try {
-    // ECB API (gratuita) + Yahoo Finance chart() per US yields
-    const [ecbRate, hicp, us10y, us3m, us30y] = await Promise.all([
+    // ECB API (gratuita) + Yahoo Finance chart() per US yields + HICP paesi + CPI USA
+    const [ecbRate, hicp, us10y, us3m, us30y,
+           hicpDE, hicpFR, hicpIT, hicpES, hicpNL, hicpBE, hicpAT, hicpPT, hicpGR,
+           usCpi] = await Promise.all([
       fetchECBSeries('FM/B.U2.EUR.4F.KR.DFR.LEV'),
       fetchECBSeries('ICP/M.U2.N.000000.4.ANR'),
       fetchYahooIndicator('^TNX'),
       fetchYahooIndicator('^IRX'),
       fetchYahooIndicator('^TYX'),
+      // HICP per paese (ECB, variazione annua)
+      fetchECBSeries('ICP/M.DE.N.000000.4.ANR'),
+      fetchECBSeries('ICP/M.FR.N.000000.4.ANR'),
+      fetchECBSeries('ICP/M.IT.N.000000.4.ANR'),
+      fetchECBSeries('ICP/M.ES.N.000000.4.ANR'),
+      fetchECBSeries('ICP/M.NL.N.000000.4.ANR'),
+      fetchECBSeries('ICP/M.BE.N.000000.4.ANR'),
+      fetchECBSeries('ICP/M.AT.N.000000.4.ANR'),
+      fetchECBSeries('ICP/M.PT.N.000000.4.ANR'),
+      fetchECBSeries('ICP/M.GR.N.000000.4.ANR'),
+      // CPI USA
+      fetchUSCPI(),
     ]);
 
     // BTP 10Y — mediana bond scrappati 7-13Y (robusto su outlier)
@@ -1853,7 +1891,9 @@ app.get('/api/macro', async (req, res) => {
       ? { value: +((ita10y.value - ger10y.value) * 100).toFixed(0), date: ita10y.date }
       : null;
 
-    const data = { ecbRate, hicp, us10y, us3m, us30y, ger10y, ita10y, spreadBtpBund, lastUpdate: new Date().toISOString() };
+    const data = { ecbRate, hicp, us10y, us3m, us30y, ger10y, ita10y, spreadBtpBund,
+                   hicpDE, hicpFR, hicpIT, hicpES, hicpNL, hicpBE, hicpAT, hicpPT, hicpGR,
+                   usCpi, lastUpdate: new Date().toISOString() };
     macroCache = data;
     macroCacheTime = Date.now();
     res.json(data);

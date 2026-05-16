@@ -4288,9 +4288,30 @@
       const chgStr = chg != null ? `<span class="${chg >= 0 ? 'pos-change' : 'neg-change'}">${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg).toFixed(2)}${unit}</span>` : '';
       return `<div class="macro-card ${colorClass||''}"><div class="macro-card-label">${label}</div><div class="macro-card-value">${v.toFixed(2)}<span style="font-size:13px;font-weight:400"> ${unit}</span></div><div class="macro-card-change">${chgStr}</div><div class="macro-card-sub">${note||''}${item.date ? ' · ' + item.date : ''}</div></div>`;
     };
+
+    // Card piccola per inflazione per paese
+    const inflCountryCard = (flag, label, item) => {
+      if (!item || item.value == null)
+        return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 11px;min-width:0">
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${flag} ${label}</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text2)">N/D</div>
+        </div>`;
+      const v = item.value;
+      const col = v > 4 ? '#ef4444' : v > 3 ? '#f97316' : v > 2 ? '#f59e0b' : '#22c55e';
+      const chg = item.prev != null ? v - item.prev : null;
+      const chgHtml = chg != null
+        ? `<span style="font-size:9px;margin-left:3px;color:${chg > 0 ? '#f87171' : '#4ade80'}">${chg > 0 ? '▲' : '▼'}${Math.abs(chg).toFixed(2)}</span>`
+        : '';
+      return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 11px;min-width:0">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${flag} ${label}</div>
+        <div style="font-size:17px;font-weight:700;color:${col};line-height:1.1">${v.toFixed(2)}<span style="font-size:10px;font-weight:400"> %</span>${chgHtml}</div>
+        <div style="font-size:8.5px;color:var(--text2);margin-top:2px">${item.date || ''}</div>
+      </div>`;
+    };
+
     const rateColor = v => v > 3.5 ? 'mc-amber' : '';
     const inflColor = v => v > 3 ? 'mc-red' : v > 2 ? 'mc-amber' : 'mc-green';
-    const spColor   = v => v > 200 ? 'mc-red' : v > 130 ? 'mc-amber' : 'mc-green';
+
     document.getElementById('macroGrid').innerHTML = `
       <div class="macro-section-title">🏛 Tassi di Riferimento Banche Centrali</div>
       ${card('BCE — Deposit Rate', data.ecbRate, '%', rateColor(data.ecbRate?.value||0), 'Banca Centrale Europea')}
@@ -4299,8 +4320,23 @@
       ${card('Bund 10Y — Germania', data.ger10y, '%', '', data.ger10y?.note || 'ECB YC AAA')}
       ${card('Treasury 10Y — USA', data.us10y, '%', '', '^TNX')}
       ${card('Treasury 30Y — USA', data.us30y, '%', '', '^TYX')}
-      <div class="macro-section-title">💹 Inflazione</div>
-      ${card('HICP — Area Euro', data.hicp, '%', inflColor(data.hicp?.value||0), 'ECB · variazione annua')}
+      <div class="macro-section-title">🌡 Inflazione — Variazione Annua</div>
+      ${card('CPI — USA', data.usCpi, '%', inflColor(data.usCpi?.value||0), 'BLS · anno su anno')}
+      ${card('HICP — Area Euro', data.hicp, '%', inflColor(data.hicp?.value||0), 'ECB · anno su anno')}
+      <div style="grid-column:1/-1">
+        <div style="font-size:10.5px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px">HICP per paese — Area Euro</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:7px;">
+          ${inflCountryCard('🇩🇪','Germania', data.hicpDE)}
+          ${inflCountryCard('🇫🇷','Francia', data.hicpFR)}
+          ${inflCountryCard('🇮🇹','Italia', data.hicpIT)}
+          ${inflCountryCard('🇪🇸','Spagna', data.hicpES)}
+          ${inflCountryCard('🇳🇱','Paesi Bassi', data.hicpNL)}
+          ${inflCountryCard('🇧🇪','Belgio', data.hicpBE)}
+          ${inflCountryCard('🇦🇹','Austria', data.hicpAT)}
+          ${inflCountryCard('🇵🇹','Portogallo', data.hicpPT)}
+          ${inflCountryCard('🇬🇷','Grecia', data.hicpGR)}
+        </div>
+      </div>
     `;
   }
 
@@ -7560,29 +7596,49 @@
 
     const today = new Date();
 
-    // Prendi solo BTP italiani con yield credibile (2%–8%) e scadenza futura
-    const pts = allBonds
+    // Raccogli tutti i BTP italiani con yield credibile
+    const rawPts = allBonds
       .filter(b => b.paese && b.paese.toLowerCase().includes('ital') && b.scadenza)
       .map(b => {
         const y = resolveYield(b);
         const x = (new Date(b.scadenza) - today) / (365.25 * 24 * 3600 * 1000);
         return { x, y, label: b.descrizione || b.isin };
       })
-      .filter(p => p.x > 0.25 && p.x <= 32 && p.y >= 1.5 && p.y <= 9)
+      .filter(p => p.x > 0.25 && p.x <= 32 && p.y >= 1.5 && p.y <= 9);
+
+    if (rawPts.length < 3) {
+      svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati non disponibili</text>';
+      return;
+    }
+
+    // ── Smoothing: raggruppa in bucket da 0.5Y e usa la MEDIANA per bucket ──
+    // Elimina il zigzag causato da bond multipli sullo stesso punto o dati anomali
+    const BUCKET = 0.5;
+    const bucketMap = {};
+    rawPts.forEach(p => {
+      const k = Math.floor(p.x / BUCKET);
+      if (!bucketMap[k]) bucketMap[k] = [];
+      bucketMap[k].push(p.y);
+    });
+    const pts = Object.entries(bucketMap)
+      .map(([k, yields]) => {
+        yields.sort((a, b) => a - b);
+        return { x: (+k + 0.5) * BUCKET, y: yields[Math.floor(yields.length / 2)] };
+      })
       .sort((a, b) => a.x - b.x);
 
-    if (pts.length < 3) {
+    if (pts.length < 2) {
       svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati non disponibili</text>';
       return;
     }
 
     const W = 700, H = 180;
-    const PL = 44, PR = 16, PT = 14, PB = 28; // padding left/right/top/bottom
+    const PL = 44, PR = 16, PT = 14, PB = 28;
 
     const xMin = 0, xMax = Math.ceil(Math.max(...pts.map(p => p.x)) / 5) * 5;
     const rawYMin = Math.min(...pts.map(p => p.y));
     const rawYMax = Math.max(...pts.map(p => p.y));
-    const yPad = Math.max((rawYMax - rawYMin) * 0.15, 0.2);
+    const yPad = Math.max((rawYMax - rawYMin) * 0.2, 0.15);
     const yMin = Math.max(0, rawYMin - yPad);
     const yMax = rawYMax + yPad;
 
@@ -7594,7 +7650,7 @@
     const step = (yMax - yMin) > 2 ? 0.5 : 0.25;
     for (let t = Math.ceil(yMin / step) * step; t <= yMax; t = +(t + step).toFixed(2)) yTicks.push(t);
 
-    // Griglia verticale (anni)
+    // Griglia verticale (anni chiave)
     const xTicks = [1, 2, 3, 5, 7, 10, 15, 20, 30].filter(t => t <= xMax);
 
     const gridH = yTicks.map(t =>
@@ -7607,29 +7663,47 @@
        <text x="${sx(t).toFixed(1)}" y="${H - PB + 14}" font-size="9" fill="#6b7280" text-anchor="middle">${t}y</text>`
     ).join('');
 
-    const polyline = pts.map(p => `${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
-    const areaPath = `${sx(pts[0].x).toFixed(1)},${H - PB} ${polyline} ${sx(pts[pts.length-1].x).toFixed(1)},${H - PB}`;
+    // ── Curva smooth (cubic bezier con control point al centro di ogni segmento) ──
+    let pathD = `M${sx(pts[0].x).toFixed(1)},${sy(pts[0].y).toFixed(1)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[i - 1], p1 = pts[i];
+      const cx = ((sx(p0.x) + sx(p1.x)) / 2).toFixed(1);
+      pathD += ` C${cx},${sy(p0.y).toFixed(1)} ${cx},${sy(p1.y).toFixed(1)} ${sx(p1.x).toFixed(1)},${sy(p1.y).toFixed(1)}`;
+    }
 
-    // Solo i punti chiave visibili (1Y, 2Y, 5Y, 10Y, 15Y, 20Y, 30Y) — non tutti per non affollare
+    // Area fill sotto la curva
+    const lastPt = pts[pts.length - 1];
+    const areaD = `${pathD} L${sx(lastPt.x).toFixed(1)},${H - PB} L${sx(pts[0].x).toFixed(1)},${H - PB} Z`;
+
+    // Scatter dei punti grezzi (piccoli, semitrasparenti)
+    const scatter = rawPts.map(p =>
+      `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="2.5" fill="rgba(96,165,250,.25)" stroke="none"><title>${p.label}: ${p.y.toFixed(2)}%</title></circle>`
+    ).join('');
+
+    // Dot + label per i punti chiave (1Y, 2Y, 3Y, 5Y, 7Y, 10Y, 15Y, 20Y, 30Y)
     const keyYears = [1, 2, 3, 5, 7, 10, 15, 20, 30];
+    const midY = (rawYMin + rawYMax) / 2;
     const keyDots = keyYears.map(yr => {
       const near = pts.reduce((best, p) => Math.abs(p.x - yr) < Math.abs(best.x - yr) ? p : best, pts[0]);
-      if (Math.abs(near.x - yr) > 1) return '';
-      return `<circle cx="${sx(near.x).toFixed(1)}" cy="${sy(near.y).toFixed(1)}" r="4" fill="#3b82f6" stroke="#1e3a5f" stroke-width="1.5">
-        <title>${yr}Y: ${near.y.toFixed(2)}%</title></circle>
-        <text x="${sx(near.x).toFixed(1)}" y="${(sy(near.y) - 8).toFixed(1)}" font-size="8.5" fill="#93c5fd" text-anchor="middle">${near.y.toFixed(2)}%</text>`;
+      if (Math.abs(near.x - yr) > 1.5) return '';
+      const cx = sx(near.x).toFixed(1);
+      const cy = sy(near.y).toFixed(1);
+      const lY = (near.y > midY ? +cy - 9 : +cy + 15).toFixed(1);
+      return `<circle cx="${cx}" cy="${cy}" r="4" fill="#3b82f6" stroke="#0f172a" stroke-width="1.5"><title>${yr}Y: ${near.y.toFixed(2)}%</title></circle>
+              <text x="${cx}" y="${lY}" font-size="8.5" fill="#93c5fd" text-anchor="middle">${near.y.toFixed(2)}%</text>`;
     }).join('');
 
     svg.innerHTML = `
       <defs>
         <linearGradient id="ycFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#3b82f6" stop-opacity=".18"/>
+          <stop offset="0%" stop-color="#3b82f6" stop-opacity=".20"/>
           <stop offset="100%" stop-color="#3b82f6" stop-opacity=".02"/>
         </linearGradient>
       </defs>
       ${gridH}${gridV}
-      <polygon points="${areaPath}" fill="url(#ycFill)"/>
-      <polyline points="${polyline}" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${scatter}
+      <path d="${areaD}" fill="url(#ycFill)"/>
+      <path d="${pathD}" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
       ${keyDots}`;
   }
 
