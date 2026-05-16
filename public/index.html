@@ -6472,31 +6472,42 @@
   function buildMixedAlloc(t, amount) {
     const items = [];
 
-    // Robust bond lookup — 4 fallback levels so something always comes back
+    // Bond lookup with smart fallback — NEVER crosses country/monitor boundaries
     function tryBonds(criteria) {
       if (!criteria) return [];
-      // Level 1: full criteria (monitor/paese + duration + yield > 0)
-      let bonds = getBondSuggestions(criteria);
-      // Level 2a: drop paese (API may use different country codes)
-      if (!bonds.length && criteria.paese && criteria.paese.length) {
-        bonds = getBondSuggestions({ monitor: criteria.monitor, durMin: criteria.durMin, durMax: criteria.durMax });
+
+      // ── Country-specific criteria (paese): stay within that country ──────────
+      if (criteria.paese && criteria.paese.length) {
+        // Level 1: paese + duration range
+        let bonds = getBondSuggestions(criteria);
+        if (bonds.length) return bonds;
+        // Level 2: same paese, relax duration
+        bonds = getBondSuggestions({ paese: criteria.paese });
+        if (bonds.length) return bonds;
+        // No bonds found for that country → let caller fall back to ETF
+        return [];
       }
-      // Level 2b: drop duration but keep monitor
-      if (!bonds.length && criteria.monitor && criteria.monitor.length) {
+
+      // ── Monitor-specific criteria: stay within that monitor category ─────────
+      if (criteria.monitor && criteria.monitor.length) {
+        // Level 1: monitor + duration range
+        let bonds = getBondSuggestions(criteria);
+        if (bonds.length) return bonds;
+        // Level 2: same monitor, relax duration
         bonds = getBondSuggestions({ monitor: criteria.monitor });
+        if (bonds.length) return bonds;
+        // No bonds in that monitor → fall back to ETF
+        return [];
       }
-      // Level 3: drop everything — generic duration only
-      if (!bonds.length) {
-        bonds = getBondSuggestions({ durMin: criteria.durMin, durMax: criteria.durMax });
-      }
-      // Level 4 moved below
-      // Level 4: ignore yield filter entirely — take ANY government bond available
-      if (!bonds.length) {
-        bonds = allBonds
-          .filter(b => b.tipo !== 'ETF' && b.isin)
-          .sort((a, b) => (b.yield || 0) - (a.yield || 0))
-          .slice(0, 8);
-      }
+
+      // ── Generic duration-only criteria (no country/monitor constraint) ───────
+      let bonds = getBondSuggestions({ durMin: criteria.durMin, durMax: criteria.durMax });
+      if (bonds.length) return bonds;
+      // Last resort: any bond sorted by yield (only for generic templates)
+      bonds = allBonds
+        .filter(b => b.tipo !== 'ETF' && b.isin && b.yield > 0)
+        .sort((a, b) => (b.yield || 0) - (a.yield || 0))
+        .slice(0, 8);
       return bonds;
     }
 
