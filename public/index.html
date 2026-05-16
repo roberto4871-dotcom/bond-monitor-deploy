@@ -3757,16 +3757,13 @@
   function renderETF() {
     if (!etfLoaded) return;
     const search = (document.getElementById('etfSearch').value || '').toLowerCase();
-    const onlyP  = document.getElementById('etfOnlyPrice').checked;
-
     // which groups to show
     const groupsToShow = etfGroupFilter
       ? ETF_GROUPS.filter(g => g.key === etfGroupFilter)
       : ETF_GROUPS;
 
-    // base filter (search + onlyPrice)
+    // base filter (search)
     const baseFilter = e => {
-      if (onlyP && !e.price) return false;
       if (search && !((e.ticker||'').toLowerCase().includes(search)) &&
                    !e.name.toLowerCase().includes(search) &&
                    !e.isin.toLowerCase().includes(search)) return false;
