@@ -5141,12 +5141,27 @@
   // ─────────────────────────────────────────────
 
   // bonds: { paese, durMin, durMax, limit } — filters allBonds dynamically
+  // Mappa codici ISO → nome paese come salvato nel DB (es. 'IT' → 'Italia')
+  const _ISO_PAESE = {
+    'IT':'Italia','DE':'Germania','FR':'Francia','ES':'Spagna','PT':'Portogallo',
+    'GR':'Grecia','BE':'Belgio','NL':'Paesi Bassi','AT':'Austria','FI':'Finlandia',
+    'IE':'Irlanda','RO':'Romania','PL':'Polonia','HU':'Ungheria','CZ':'Rep. Ceca',
+    'SK':'Slovacchia','SI':'Slovenia','HR':'Croazia','BG':'Bulgaria','LT':'Lituania',
+    'LV':'Lettonia','EE':'Estonia','SE':'Svezia','DK':'Danimarca','NO':'Norvegia',
+    'CH':'Svizzera','GB':'Regno Unito','US':'Stati Uniti','JP':'Giappone',
+    'CA':'Canada','AU':'Australia',
+  };
+
   function getBondSuggestions(criteria) {
     if (!allBonds.length) return [];
+    // Supporta sia codici ISO ('IT') che nomi completi ('Italia')
+    const paeseSet = criteria.paese && criteria.paese.length
+      ? new Set(criteria.paese.map(p => _ISO_PAESE[p] || p))
+      : null;
     return allBonds.filter(b => {
       if (b.tipo === 'ETF') return false;
       if (!b.yield || b.yield <= 0) return false;
-      if (criteria.paese && criteria.paese.length && !criteria.paese.includes(b.paese)) return false;
+      if (paeseSet && !paeseSet.has(b.paese)) return false;
       if (criteria.monitor && criteria.monitor.length && !criteria.monitor.includes(b.monitor)) return false;
       const dur = b.duration || 0;
       if (criteria.durMin != null && dur < criteria.durMin) return false;
