@@ -6552,40 +6552,19 @@
       if (bondCriteria) {
         const bonds = tryBonds(bondCriteria);
         if (bonds.length > 0) {
-          const isBondFirst = t.bondFirst === true;
-          if (isBondFirst) {
-            // Bond-first templates: use 100% bonds for this component (no ETF)
-            const bondNom = Math.max(1000, Math.round(amount * pct / 100 / 1000) * 1000);
-            const b = bonds[0];
-            items.push({
-              isin:b.isin, type:'bond', name:b.descrizione, paese:b.paese,
-              yield:b.yield, prezzo:b.prezzo, duration:b.duration,
-              pct, label:c.label, nominale:bondNom,
-              alts:bonds.slice(1,5).map(bb=>({type:'bond',isin:bb.isin,name:bb.descrizione,paese:bb.paese,yield:bb.yield})),
-              bondCriteria,
-            });
-          } else {
-            // Mixed templates: split ~55% ETF / 45% bond
-            const etfPct  = Math.max(5, Math.round(pct * 0.55));
-            const bondPct = pct - etfPct;
-            const etfNom  = Math.max(1000, Math.round(amount * etfPct  / 100 / 1000) * 1000);
-            const bondNom = Math.max(1000, Math.round(amount * bondPct / 100 / 1000) * 1000);
-            if (e) {
-              items.push({
-                isin:e.isin, type:'etf', ticker:e.ticker, name:e.name,
-                pct:etfPct, label:c.label, nominale:etfNom,
-                alts:(c.etfs||[]).slice(1).map(a=>({type:'etf',isin:a.isin,ticker:a.ticker,name:a.name})),
-              });
-            }
-            const b = bonds[0];
-            items.push({
-              isin:b.isin, type:'bond', name:b.descrizione, paese:b.paese,
-              yield:b.yield, prezzo:b.prezzo, duration:b.duration,
-              pct:bondPct, label:c.label, nominale:bondNom,
-              alts:bonds.slice(1,4).map(bb=>({type:'bond',isin:bb.isin,name:bb.descrizione,paese:bb.paese,yield:bb.yield})),
-              bondCriteria,
-            });
-          }
+          // Bonds ALWAYS primary — ETFs are swap alternatives
+          const bondNom = Math.max(1000, Math.round(amount * pct / 100 / 1000) * 1000);
+          const b = bonds[0];
+          // Build alts: other bonds first, then ETFs as fallback alternatives
+          const bondAlts = bonds.slice(1,4).map(bb=>({type:'bond',isin:bb.isin,name:bb.descrizione,paese:bb.paese,yield:bb.yield}));
+          const etfAlts  = (c.etfs||[]).slice(0,3).map(a=>({type:'etf',isin:a.isin,ticker:a.ticker,name:a.name}));
+          items.push({
+            isin:b.isin, type:'bond', name:b.descrizione, paese:b.paese,
+            yield:b.yield, prezzo:b.prezzo, duration:b.duration,
+            pct, label:c.label, nominale:bondNom,
+            alts:[...bondAlts, ...etfAlts],
+            bondCriteria,
+          });
           return;
         }
       }
