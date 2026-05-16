@@ -1052,11 +1052,19 @@
 
     <!-- YIELD CURVE PANEL -->
     <div class="extra-panel" id="panelYieldCurve">
-      <div class="panel-header">
-        Yield Curve —
-        <select id="ycPaese" onchange="renderYieldCurve()" style="padding:5px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
-          <option value="">Seleziona paese...</option>
-        </select>
+      <div class="panel-header" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-weight:700;">Yield Curve</span>
+          <select id="ycPaese" onchange="renderYieldCurve()" style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;min-width:160px;">
+            <option value="">Seleziona paese...</option>
+          </select>
+          <select id="ycDivisa" onchange="renderYieldCurve()" style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
+            <option value="EUR">Solo EUR</option>
+            <option value="">Tutte le valute</option>
+            <option value="USD">Solo USD</option>
+            <option value="GBP">Solo GBP</option>
+          </select>
+        </div>
         <span id="ycInfo" style="font-size:12px;color:var(--text2);"></span>
       </div>
       <div class="yc-canvas-wrap">
@@ -4389,32 +4397,47 @@
   }
 
   function renderYieldCurve() {
-    const paese = document.getElementById('ycPaese').value;
+    const paese  = document.getElementById('ycPaese').value;
     if (!paese) return;
+    const divisa = (document.getElementById('ycDivisa') || {}).value ?? 'EUR';
 
-    const allValid = allBonds.filter(b =>
+    // 1. Prendi tutti i bond validi (yield > 0, duration valida, valuta ok)
+    const raw = allBonds.filter(b =>
       b.paese === paese &&
-      b.yield !== null && b.yield !== undefined &&
-      b.duration !== null && b.duration !== undefined
+      b.yield  != null && b.yield  > 0 &&
+      b.duration != null && b.duration >= 0 &&
+      (!divisa || (b.divisa || 'EUR') === divisa)
     );
-    const bonds = allValid.filter(b => b.yield > -1.5); // esclude anomalie estreme
-    const posCount = bonds.filter(b => b.yield > 0).length;
+
+    // 2. Rimozione outlier con metodo IQR (3× IQR)
+    const sortY = raw.map(b => b.yield).sort((a, b) => a - b);
+    let yFence = 20;
+    if (sortY.length >= 4) {
+      const q1 = sortY[Math.floor(sortY.length * 0.25)];
+      const q3 = sortY[Math.floor(sortY.length * 0.75)];
+      yFence = Math.min(q3 + 3 * (q3 - q1), 20);
+    }
+    const bonds    = raw.filter(b => b.yield <= yFence);
+    const excluded = raw.length - bonds.length;
+
     document.getElementById('ycInfo').textContent =
-      `${allValid.length} titoli · ${posCount} rendimento positivo`;
+      `${bonds.length} titoli` + (excluded > 0 ? `  ·  ${excluded} anomalie escluse` : '');
 
-    // Colori tema
+    if (!bonds.length) return;
+
+    // 3. Colori tema
     const isLight = document.documentElement.style.colorScheme === 'light';
-    const gridColor = isLight ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.06)';
-    const tickColor = isLight ? '#64748b' : '#7a8fa8';
-    const refLineColor = isLight ? 'rgba(0,0,0,.12)' : 'rgba(255,255,255,.1)';
-    const refLabelColor = isLight ? '#94a3b8' : '#475569';
+    const gridC   = isLight ? 'rgba(0,0,0,.07)'  : 'rgba(255,255,255,.06)';
+    const tickC   = isLight ? '#64748b' : '#7a8fa8';
+    const refC    = isLight ? 'rgba(0,0,0,.13)'  : 'rgba(255,255,255,.1)';
+    const refLblC = isLight ? '#94a3b8' : '#4b5563';
 
-    // Dataset per fascia di duration
+    // 4. Scatter suddiviso per fascia di duration
     const buckets = [
-      { label: '0–2 anni',  min: 0,  max: 2,   bg: 'rgba(52,211,153,.75)',  bd: '#34d399' },
-      { label: '2–5 anni',  min: 2,  max: 5,   bg: 'rgba(96,165,250,.75)',  bd: '#60a5fa' },
-      { label: '5–10 anni', min: 5,  max: 10,  bg: 'rgba(251,191,36,.75)',  bd: '#fbbf24' },
-      { label: '10+ anni',  min: 10, max: 999, bg: 'rgba(248,113,113,.75)', bd: '#f87171' },
+      { label: '0–2 anni',  min: 0,  max: 2,   bg: 'rgba(52,211,153,.8)',   bd: '#34d399' },
+      { label: '2–5 anni',  min: 2,  max: 5,   bg: 'rgba(96,165,250,.8)',   bd: '#60a5fa' },
+      { label: '5–10 anni', min: 5,  max: 10,  bg: 'rgba(251,191,36,.8)',   bd: '#fbbf24' },
+      { label: '10+ anni',  min: 10, max: 999, bg: 'rgba(248,113,113,.8)',  bd: '#f87171' },
     ];
     const datasets = buckets.map(bk => ({
       label: bk.label,
@@ -4423,7 +4446,7 @@
         .map(b => ({
           x: b.duration, y: b.yield, bond: b,
           isin: b.isin,
-          desc: (b.descrizione || b.isin).substring(0, 50),
+          desc: (b.descrizione || b.isin).substring(0, 52),
           scad: b.scadenza ? b.scadenza.substring(0, 10) : '',
         })),
       backgroundColor: bk.bg,
@@ -4434,53 +4457,49 @@
       order: 1,
     }));
 
-    // Curva media (media ponderata mobile per distanza)
-    const tBonds = bonds.filter(b => b.yield > 0.1 && b.yield < 9);
-    const maxDur  = Math.min(Math.max(...tBonds.map(b => b.duration), 5), 30);
-    const trendPts = [];
-    for (let d = 0.25; d <= maxDur; d += 0.25) {
-      const near = tBonds.filter(b => Math.abs(b.duration - d) <= 1.5);
+    // 5. Curva media: media ponderata per distanza (solo bond con yield nel 90° percentile)
+    const p90 = sortY[Math.floor(sortY.length * 0.9)] || yFence;
+    const tB  = bonds.filter(b => b.yield <= p90);
+    const maxD = Math.min(Math.max(...tB.map(b => b.duration), 5), 30);
+    const tPts = [];
+    for (let d = 0.25; d <= maxD; d += 0.25) {
+      const near = tB.filter(b => Math.abs(b.duration - d) <= 1.5);
       if (near.length >= 2) {
         let wS = 0, wY = 0;
         near.forEach(b => { const w = 1 / (Math.abs(b.duration - d) + 0.15); wS += w; wY += w * b.yield; });
-        trendPts.push({ x: d, y: wY / wS });
+        tPts.push({ x: d, y: wY / wS });
       }
     }
-    if (trendPts.length >= 3) {
+    if (tPts.length >= 3) {
       datasets.push({
         type: 'line', label: 'Curva media',
-        data: trendPts,
-        borderColor: isLight ? 'rgba(100,116,139,.45)' : 'rgba(148,163,184,.4)',
+        data: tPts,
+        borderColor: isLight ? 'rgba(71,85,105,.5)' : 'rgba(148,163,184,.45)',
         backgroundColor: 'transparent',
         borderWidth: 2.5, borderDash: [6, 4],
         pointRadius: 0, tension: 0.4, fill: false, order: 0,
       });
     }
 
-    // Range assi
-    const yields = bonds.map(b => b.yield);
-    const yMin = Math.max(Math.min(...yields) - 0.4, -2);
-    const yMax = Math.max(...yields) + 0.4;
+    // 6. Range assi
+    const allY = bonds.map(b => b.yield);
+    const yMin = Math.max(Math.min(...allY) - 0.3, 0);
+    const yMax = Math.max(...allY) + 0.4;
     const xMax = Math.min(Math.max(...bonds.map(b => b.duration)) + 1.5, 33);
 
-    // Plugin linee verticali di riferimento
-    const refLinePlugin = {
-      id: 'ycRefLines',
-      afterDraw(chart) {
-        const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+    // 7. Plugin linee verticali benchmark
+    const refPlugin = {
+      id: 'ycRef',
+      afterDraw({ ctx, chartArea: { top, bottom }, scales: { x } }) {
         ctx.save();
         [2, 5, 10, 20].forEach(yr => {
           const px = x.getPixelForValue(yr);
-          if (px <= x.right && px >= x.left) {
-            ctx.strokeStyle = refLineColor;
-            ctx.setLineDash([3, 5]);
-            ctx.lineWidth = 1;
+          if (px >= x.left && px <= x.right) {
+            ctx.strokeStyle = refC; ctx.setLineDash([3,5]); ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, bottom); ctx.stroke();
             ctx.setLineDash([]);
-            ctx.fillStyle = refLabelColor;
-            ctx.font = '10px system-ui,sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${yr}A`, px, top - 5);
+            ctx.fillStyle = refLblC; ctx.font = '10px system-ui,sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(`${yr}A`, px, top - 4);
           }
         });
         ctx.restore();
@@ -4494,7 +4513,7 @@
     ycChart = new Chart(canvas.getContext('2d'), {
       type: 'scatter',
       data: { datasets },
-      plugins: [refLinePlugin],
+      plugins: [refPlugin],
       options: {
         responsive: true, maintainAspectRatio: false,
         onClick: (evt, elements) => {
@@ -4502,17 +4521,11 @@
           const pt = datasets[elements[0].datasetIndex]?.data[elements[0].index];
           if (pt?.bond) openChart(pt.bond);
         },
-        onHover: (evt, elements) => {
-          canvas.style.cursor = elements.length ? 'pointer' : 'default';
-        },
+        onHover: (evt, elements) => { canvas.style.cursor = elements.length ? 'pointer' : 'default'; },
         plugins: {
           legend: {
             display: true, position: 'top', align: 'end',
-            labels: {
-              color: tickColor, boxWidth: 10, boxHeight: 10,
-              usePointStyle: true, pointStyle: 'circle',
-              padding: 14, font: { size: 11 },
-            }
+            labels: { color: tickC, boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle', padding: 14, font: { size: 11 } }
           },
           tooltip: {
             backgroundColor: '#1c2230', borderColor: '#2a3347', borderWidth: 1,
@@ -4526,7 +4539,7 @@
                   `  ${r.desc}`,
                   `  Duration: ${item.parsed.x.toFixed(2)}a  ·  Yield: ${item.parsed.y.toFixed(3)}%`,
                   r.scad ? `  Scadenza: ${r.scad}` : null,
-                  `  → clicca per il grafico`,
+                  `  → clicca per il grafico storico`,
                 ].filter(Boolean);
               }
             }
@@ -4535,15 +4548,14 @@
         scales: {
           x: {
             min: 0, max: xMax,
-            title: { display: true, text: 'Duration (anni)', color: tickColor, font: { size: 11 } },
-            grid: { color: gridColor },
-            ticks: { color: tickColor, maxTicksLimit: 14 },
+            title: { display: true, text: 'Duration (anni)', color: tickC, font: { size: 11 } },
+            grid: { color: gridC }, ticks: { color: tickC, maxTicksLimit: 14 },
           },
           y: {
             min: yMin, max: yMax,
-            title: { display: true, text: 'Yield (%)', color: tickColor, font: { size: 11 } },
-            grid: { color: gridColor },
-            ticks: { color: tickColor, callback: v => v.toFixed(2) + '%' },
+            title: { display: true, text: 'Yield (%)', color: tickC, font: { size: 11 } },
+            grid: { color: gridC },
+            ticks: { color: tickC, callback: v => v.toFixed(2) + '%' },
           }
         }
       }
