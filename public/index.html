@@ -597,7 +597,7 @@
     .port-btn-secondary { font-size:12px; padding:5px 12px; background:var(--bg3); border:1px solid var(--border); border-radius:7px; color:var(--red); cursor:pointer; transition:border-color .15s; }
     .port-btn-secondary:hover { border-color:var(--red); }
     /* KPI BAR */
-    .port-kpi-bar { display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:16px 24px 0; }
+    .port-kpi-bar { display:grid; grid-template-columns:repeat(6,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:16px 24px 0; }
     .port-kpi { background:var(--bg2); padding:14px 18px; }
     .port-kpi-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px; color:var(--text2); }
     .port-kpi-value { font-size:18px; font-weight:700; color:var(--text); margin-top:5px; font-variant-numeric:tabular-nums; }
@@ -645,7 +645,8 @@
     .port-idea-stats { display:flex; gap:7px; flex-wrap:wrap; }
     .port-idea-yield { font-size:10px; font-weight:600; background:rgba(34,197,94,.1); color:#22c55e; border:1px solid rgba(34,197,94,.2); padding:2px 8px; border-radius:20px; }
     .port-idea-dur { font-size:10px; font-weight:600; background:rgba(59,130,246,.1); color:#3b82f6; border:1px solid rgba(59,130,246,.2); padding:2px 8px; border-radius:20px; }
-    @media(max-width:700px){.port-kpi-bar{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:900px){.port-kpi-bar{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:600px){.port-kpi-bar{grid-template-columns:repeat(2,1fr)}}
     /* TEMPLATE MODAL */
     .tmpl-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9100;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
     .tmpl-overlay.show{display:flex;}
@@ -1229,6 +1230,10 @@
         <div class="port-kpi">
           <div class="port-kpi-label">Rateo maturato</div>
           <div class="port-kpi-value port-kpi-amber" id="pkRateo">—</div>
+        </div>
+        <div class="port-kpi" style="border-left:2px solid rgba(168,85,247,.35);background:rgba(168,85,247,.06)">
+          <div class="port-kpi-label" style="color:#c084fc">Duration pond.</div>
+          <div class="port-kpi-value" id="pkDur" style="color:#c084fc">—</div>
         </div>
       </div>
 
@@ -4782,17 +4787,27 @@
     }, 0);
     const fmt  = v => v.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:0});
     const fmt2 = v => v.toLocaleString('it-IT', {style:'currency',currency:'EUR',maximumFractionDigits:2});
+    // Duration media ponderata per valore di mercato
+    let _durW = 0, _durMV = 0;
+    positions.forEach(p => {
+      const dur = p.bond.duration ?? p.bond.dur ?? null;
+      if (dur == null) return;
+      const mv = posMV(p); _durW += dur * mv; _durMV += mv;
+    });
+    const wtdDur = _durMV > 0 ? _durW / _durMV : null;
+
     document.getElementById('pkMV').textContent     = fmt(totalMV);
     document.getElementById('pkNom').textContent    = fmt(totalNom);
     document.getElementById('pkYield').textContent  = wtdYield.toFixed(2) + '%';
     document.getElementById('pkCedola').textContent = fmt(totCedola);
     document.getElementById('pkRateo').textContent  = fmt2(totRateo);
+    document.getElementById('pkDur').textContent    = wtdDur != null ? wtdDur.toFixed(1) + ' anni' : '—';
     // Tutto l'approfondimento va in #portfolioSummary (sotto la tabella)
-    renderIncomeSection(positions, totalNom, totalMV, wtdYield, totCedola);
+    renderIncomeSection(positions, totalNom, totalMV, wtdYield, totCedola, wtdDur);
   }
 
   // ── Sezione rendimento professionale ─────────────────────────────────────
-  function renderIncomeSection(positions, totalNom, totalMV, wtdYield, totCedola) {
+  function renderIncomeSection(positions, totalNom, totalMV, wtdYield, totCedola, wtdDur) {
     const wrap = document.getElementById('portfolioSummary');
     if (!positions || positions.length === 0) { wrap.innerHTML=''; return; }
 
@@ -4846,10 +4861,12 @@
       const b   = p.bond;
       const yv  = resolveYield(b) || 0;
       const ced = p.nominale * yv / 100;
+      const dur = b.duration ?? b.dur ?? null;
       const pctPort = totalNom > 0 ? p.nominale / totalNom * 100 : 0;
       const pctCed  = totCedola > 0 ? ced / totCedola * 100 : 0;
       const color   = barColors[i % barColors.length];
       const yvCls   = yv >= 4 ? 'ry-yield-hi' : yv >= 1 ? 'ry-yield-ok' : 'ry-yield-lo';
+      const durTxt  = dur != null ? `<strong>${dur.toFixed(1)}</strong><span style="font-size:10px;color:var(--text2)"> a</span>` : '<span style="color:var(--text2)">—</span>';
       return `<tr>
         <td>
           <div class="ry-pos-name" title="${escHtml(b.descrizione||b.isin)}">${escHtml(b.descrizione||b.isin)}</div>
@@ -4859,6 +4876,7 @@
         <td style="white-space:nowrap">${typeBadge(b.tipo)}</td>
         <td class="ry-num">${fmt(p.nominale)}</td>
         <td class="ry-num ${yvCls}">${yv > 0 ? yv.toFixed(2)+'%' : '<span style="color:var(--text2)">—</span>'}</td>
+        <td class="ry-num" style="color:#c084fc">${durTxt}</td>
         <td class="ry-num ry-cedola">${ced > 0 ? fmt(ced) : '<span style="color:var(--text2)">—</span>'}</td>
         <td class="ry-num">${ced > 0 ? fmt(ced/12) : '—'}</td>
         <td class="ry-num">
@@ -4876,6 +4894,7 @@
           <th>Posizione</th><th>Tipo</th>
           <th class="ry-num">Nominale</th>
           <th class="ry-num">Yield %</th>
+          <th class="ry-num" style="color:#c084fc">Duration</th>
           <th class="ry-num">Cedola/anno</th>
           <th class="ry-num">Al mese</th>
           <th class="ry-num">% port.</th>
@@ -4885,6 +4904,7 @@
           <td><strong>Totale portafoglio</strong></td><td></td>
           <td class="ry-num"><strong>${fmt(totalNom)}</strong></td>
           <td class="ry-num ry-yield-hi"><strong>${wtdYield.toFixed(2)}%</strong></td>
+          <td class="ry-num" style="color:#c084fc"><strong>${wtdDur != null ? wtdDur.toFixed(1)+' a' : '—'}</strong></td>
           <td class="ry-num ry-yield-hi"><strong>${fmt(totCedola)}</strong></td>
           <td class="ry-num"><strong>${fmt(totCedola/12)}</strong></td>
           <td class="ry-num">100%</td>
