@@ -7469,15 +7469,185 @@
   // FEATURE 2 — PDF REPORT
   // ══════════════════════════════════════════════════════════════════════════
   function printPortfolioPDF() {
-    const ph = document.getElementById('printHeader');
-    if (ph) {
-      const pos = Object.values(portfolio);
-      const totalNom = pos.reduce((s, p) => s + p.nominale, 0);
-      ph.innerHTML = `<strong>Portafoglio Obbligazionario</strong> — ${new Date().toLocaleDateString('it-IT')} &nbsp;|&nbsp; ${pos.length} posizioni &nbsp;|&nbsp; Nominale: €${totalNom.toLocaleString('it-IT')}`;
-    }
-    document.body.classList.add('printing-portfolio');
-    window.print();
-    document.body.classList.remove('printing-portfolio');
+    const positions = Object.values(portfolio).filter(p => p && p.bond);
+    if (!positions.length) { showToast('Il portafoglio è vuoto'); return; }
+
+    const fmt    = (v, d=0) => v.toLocaleString('it-IT', {style:'currency', currency:'EUR', maximumFractionDigits:d});
+    const fmtPct = v => v != null ? v.toFixed(2) + '%' : '—';
+
+    const totalNom  = positions.reduce((s, p) => s + p.nominale, 0);
+    const totalMV   = positions.reduce((s, p) => s + posMV(p), 0);
+    const wtdYield  = totalNom > 0
+      ? positions.reduce((s, p) => s + p.nominale * (resolveYield(p.bond) || 0), 0) / totalNom : 0;
+    const totCedola = positions.reduce((s, p) => {
+      if (p.bond.tipo === 'ETF' && isAccETF(p.bond.isin)) return s;
+      return s + p.nominale * (resolveYield(p.bond) || 0) / 100;
+    }, 0);
+    let _durW = 0, _durMV = 0;
+    positions.forEach(p => {
+      const dur = p.bond.duration ?? p.bond.dur ?? null;
+      if (dur == null) return;
+      const mv = posMV(p); _durW += dur * mv; _durMV += mv;
+    });
+    const wtdDur  = _durMV > 0 ? _durW / _durMV : null;
+    const netYield = wtdYield * 0.875;
+    const now     = new Date();
+    const dateStr = now.toLocaleDateString('it-IT', {day:'2-digit', month:'long', year:'numeric'});
+
+    const rows = positions.map(pos => {
+      const b      = pos.bond;
+      const isETF  = b.tipo === 'ETF';
+      const acc    = isETF && isAccETF(b.isin);
+      const yv     = resolveYield(b) ?? 0;
+      const mv     = posMV(pos);
+      const ced    = (!isETF || !acc) ? pos.nominale * yv / 100 : 0;
+      const scad   = b.scadenza ? new Date(b.scadenza).toLocaleDateString('it-IT') : '—';
+      const yieldCls = yv >= 5 ? 'yield-hi' : yv >= 3 ? 'yield-md' : 'yield-lo';
+      const dur    = (b.duration ?? b.dur) != null ? (b.duration ?? b.dur).toFixed(1) : '—';
+      const badge  = isETF
+        ? `<span class="badge b-etf">ETF ${acc ? 'ACC' : 'DIST'}</span>`
+        : `<span class="badge b-bond">${b.tipo || 'Bond'}</span>`;
+      const peso   = totalMV > 0 ? (mv / totalMV * 100).toFixed(1) + '%' : '—';
+      return `<tr>
+        <td>${badge}</td>
+        <td><span class="desc-main">${b.descrizione || '—'}</span><span class="desc-isin">${b.isin}</span></td>
+        <td style="white-space:nowrap">${scad}</td>
+        <td class="r">${b.prezzo != null ? b.prezzo.toFixed(2) : '—'}</td>
+        <td class="r ${yieldCls}">${yv > 0 ? fmtPct(yv) : '—'}</td>
+        <td class="r">${yv > 0 ? fmtPct(yv * 0.875) : '—'}</td>
+        <td class="r">${pos.nominale.toLocaleString('it-IT')}</td>
+        <td class="r">${fmt(mv)}</td>
+        <td class="r">${ced > 0 ? fmt(ced) : '—'}</td>
+        <td class="r">${dur}</td>
+        <td class="r">${peso}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Portafoglio Obbligazionario — ${dateStr}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;color:#111827;font-size:10.5px;padding:12px 16px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #1e40af;padding-bottom:10px;margin-bottom:13px}
+.hdr-title{font-size:18px;font-weight:800;color:#1e40af;letter-spacing:-.5px}
+.hdr-sub{font-size:10px;color:#6b7280;margin-top:3px}
+.hdr-meta{text-align:right;font-size:9px;color:#6b7280;line-height:1.7}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-bottom:13px}
+.kpi{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:6px;padding:7px 9px}
+.kpi.acc{background:#1e40af;border-color:#1e40af}
+.kl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#4b5563;margin-bottom:2px}
+.kpi.acc .kl{color:rgba(255,255,255,.7)}
+.kv{font-size:13px;font-weight:800;color:#111827}
+.kpi.acc .kv{color:#fff}
+.ks{font-size:8px;color:#6b7280;margin-top:1px}
+.kpi.acc .ks{color:rgba(255,255,255,.6)}
+table{width:100%;border-collapse:collapse}
+thead tr{background:#1e40af}
+th{color:#fff;padding:6px 7px;text-align:left;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+th.r{text-align:right}
+tbody tr:nth-child(even){background:#f9fafb}
+tbody tr{border-bottom:1px solid #e5e7eb}
+td{padding:5px 7px;vertical-align:middle}
+.badge{display:inline-block;padding:2px 5px;border-radius:3px;font-size:8px;font-weight:700;white-space:nowrap}
+.b-bond{background:#d1fae5;color:#065f46}
+.b-etf{background:#dbeafe;color:#1d4ed8}
+.desc-main{font-weight:500;font-size:10px;display:block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.desc-isin{font-family:'Courier New',monospace;font-size:8.5px;color:#6b7280;display:block;margin-top:1px}
+.r{text-align:right}
+.yield-hi{color:#065f46;font-weight:700}
+.yield-md{color:#1d4ed8;font-weight:600}
+.yield-lo{color:#92400e}
+tfoot td{padding:7px 7px;font-weight:700;font-size:10.5px;border-top:2px solid #1e40af;background:#eff6ff}
+.foot{margin-top:11px;padding-top:7px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:8px;color:#9ca3af}
+@media print{
+  @page{size:A4 landscape;margin:.9cm 1.2cm}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:0}
+}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div>
+    <div class="hdr-title">💼 Portafoglio Obbligazionario</div>
+    <div class="hdr-sub">${positions.length} posizioni &nbsp;·&nbsp; Dati al ${dateStr}</div>
+  </div>
+  <div class="hdr-meta">
+    Generato il ${now.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}<br>
+    Rendimenti lordi — netto con tassazione 12,5%
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi acc">
+    <div class="kl">Val. di mercato</div>
+    <div class="kv">${fmt(totalMV)}</div>
+    <div class="ks">${positions.length} posizioni</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">Nominale totale</div>
+    <div class="kv">${fmt(totalNom)}</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">Yield lordo pond.</div>
+    <div class="kv" style="color:#065f46">${wtdYield.toFixed(2)}%</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">Yield netto pond.</div>
+    <div class="kv">${netYield.toFixed(2)}%</div>
+    <div class="ks">tassazione 12,5%</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">Cedola annua lorda</div>
+    <div class="kv">${fmt(totCedola)}</div>
+    <div class="ks">${fmt(totCedola / 12)} al mese</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">Duration pond.</div>
+    <div class="kv">${wtdDur != null ? wtdDur.toFixed(1) + ' anni' : '—'}</div>
+  </div>
+</div>
+
+<table>
+  <thead><tr>
+    <th>Tipo</th>
+    <th>Descrizione / ISIN</th>
+    <th>Scadenza</th>
+    <th class="r">Prezzo</th>
+    <th class="r">Yield%</th>
+    <th class="r">Netto%</th>
+    <th class="r">Nominale</th>
+    <th class="r">Val. Mercato</th>
+    <th class="r">Cedola/anno</th>
+    <th class="r">Duration</th>
+    <th class="r">Peso%</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+  <tfoot><tr>
+    <td colspan="6" style="font-size:11px;letter-spacing:.3px">TOTALE PORTAFOGLIO</td>
+    <td class="r">${totalNom.toLocaleString('it-IT')}</td>
+    <td class="r">${fmt(totalMV)}</td>
+    <td class="r">${fmt(totCedola)}</td>
+    <td class="r">${wtdDur != null ? wtdDur.toFixed(1) + ' a' : '—'}</td>
+    <td class="r">100%</td>
+  </tr></tfoot>
+</table>
+
+<div class="foot">
+  <span>Bond Monitor — a scopo informativo, non costituisce consulenza finanziaria o d'investimento</span>
+  <span>Yield netto calcolato con aliquota 12,5% (titoli di stato). Per altri strumenti può variare.</span>
+</div>
+
+<script>window.onload=()=>setTimeout(()=>window.print(),350);<\/script>
+</body>
+</html>`;
+
+    const w = window.open('', '_blank', 'width=1120,height=820');
+    if (!w) { showToast('Abilita i popup per esportare il PDF'); return; }
+    w.document.write(html);
+    w.document.close();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
