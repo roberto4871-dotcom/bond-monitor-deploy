@@ -1829,106 +1829,15 @@ function getBondYield10Y(paese, targetYears = 10, rangeYears = 3) {
   };
 }
 
-// Fetch HICP da Eurostat API (più aggiornato dell'ECB per dati recenti)
-// geo: EA20 = Area Euro, DE/FR/IT/ES/NL/BE/AT/PT/EL = singoli paesi
-// NB: Eurostat usa EL per la Grecia (non GR)
-async function fetchEurostatHICP(geo = 'EA20') {
-  // Mappa Eurostat → ECB per il fallback
-  const ecbCode = geo === 'EA20' ? 'U2' : geo === 'EL' ? 'GR' : geo;
-  try {
-    // prc_hicp_manr = monthly YoY HICP rate of change
-    // PARAMETRO CORRETTO Eurostat: lastTimePeriods (non sinceTimePeriod!)
-    const url = `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=${geo}&coicop=CP00&unit=RCH_A&lastTimePeriods=3`;
-    const resp = await axios.get(url, { timeout: 12000 });
-    const data = resp.data;
-    // JSON Eurostat: dimension.time.category.index → { "2026-02": 0, "2026-03": 1, "2026-04": 2 }
-    const timeIdx = data.dimension?.time?.category?.index || {};
-    const values  = data.value || {};
-    const sorted  = Object.entries(timeIdx).sort((a, b) => +a[1] - +b[1]);
-    if (!sorted.length) throw new Error('no time periods');
-    // Trova il valore più recente non-null
-    for (let i = sorted.length - 1; i >= 0; i--) {
-      const [period, idx] = sorted[i];
-      const val = values[String(idx)];
-      if (val != null) {
-        const prevEntry = i > 0 ? sorted[i - 1] : null;
-        const prevVal   = prevEntry != null ? (values[String(prevEntry[1])] ?? null) : null;
-        console.log(`[Eurostat HICP ${geo}] ${period}: ${val}%`);
-        return {
-          value: +parseFloat(val).toFixed(2),
-          prev:  prevVal != null ? +parseFloat(prevVal).toFixed(2) : null,
-          date:  period,
-        };
-      }
-    }
-    throw new Error('all values null');
-  } catch (e) {
-    console.warn(`[macro] Eurostat HICP ${geo} failed (${e.message}), fallback ECB`);
-    // Fallback: ECB API
-    try {
-      const r = await fetchECBSeries(`ICP/M.${ecbCode}.N.000000.4.ANR`);
-      if (r) console.log(`[ECB HICP ${geo}] fallback: ${r.date}: ${r.value}%`);
-      return r;
-    } catch { return null; }
-  }
-}
-
-// Fetch CPI USA (BLS public API v1 — nessuna registrazione richiesta)
-async function fetchUSCPI() {
-  try {
-    const url = 'https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0';
-    const resp = await axios.get(url, { timeout: 12000 });
-    const series = resp.data?.Results?.series?.[0];
-    if (!series?.data?.length) return null;
-    // I dati arrivano già ordinati: più recente per primo
-    const d = series.data;
-    const last = d[0];
-    // Cerca lo stesso mese dell'anno precedente
-    const prevYear = String(parseInt(last.year) - 1);
-    const prev = d.find(x => x.year === prevYear && x.period === last.period)
-              || d[Math.min(12, d.length - 1)];
-    if (!prev || last.year === prev.year) return null;
-    const yoy = (parseFloat(last.value) / parseFloat(prev.value) - 1) * 100;
-    const month = last.period.replace('M', '').padStart(2, '0');
-    return { value: +yoy.toFixed(2), prev: null, date: `${last.year}-${month}` };
-  } catch (e) {
-    console.warn('[macro] US CPI fetch failed:', e.message);
-    return null;
-  }
-}
-
-// Force-clear della macro cache (es. per debug: GET /api/macro?refresh=1)
-app.get('/api/macro-refresh', (req, res) => {
-  macroCache = null; macroCacheTime = 0;
-  res.json({ ok: true, msg: 'Macro cache cleared' });
-});
-
 app.get('/api/macro', async (req, res) => {
-  if (req.query.refresh) { macroCache = null; macroCacheTime = 0; }
   if (macroCache && Date.now() - macroCacheTime < MACRO_CACHE_TTL) return res.json(macroCache);
   try {
-    // ECB API (gratuita) + Yahoo Finance chart() per US yields + HICP paesi + CPI USA
-    const [ecbRate, us10y, us3m, us30y,
-           hicp, hicpDE, hicpFR, hicpIT, hicpES, hicpNL, hicpBE, hicpAT, hicpPT, hicpGR,
-           usCpi] = await Promise.all([
+    // ECB API (gratuita) + Yahoo Finance chart() per US yields
+    const [ecbRate, us10y, us3m, us30y] = await Promise.all([
       fetchECBSeries('FM/B.U2.EUR.4F.KR.DFR.LEV'),
       fetchYahooIndicator('^TNX'),
       fetchYahooIndicator('^IRX'),
       fetchYahooIndicator('^TYX'),
-      // HICP via Eurostat (più aggiornato di ECB per dati recenti)
-      // NB: Eurostat usa EL per Grecia, non GR
-      fetchEurostatHICP('EA20'),
-      fetchEurostatHICP('DE'),
-      fetchEurostatHICP('FR'),
-      fetchEurostatHICP('IT'),
-      fetchEurostatHICP('ES'),
-      fetchEurostatHICP('NL'),
-      fetchEurostatHICP('BE'),
-      fetchEurostatHICP('AT'),
-      fetchEurostatHICP('PT'),
-      fetchEurostatHICP('EL'),  // EL = Grecia in Eurostat
-      // CPI USA
-      fetchUSCPI(),
     ]);
 
     // BTP 10Y — mediana bond scrappati 7-13Y (robusto su outlier)
@@ -1951,9 +1860,8 @@ app.get('/api/macro', async (req, res) => {
       ? { value: +((ita10y.value - ger10y.value) * 100).toFixed(0), date: ita10y.date }
       : null;
 
-    const data = { ecbRate, hicp, us10y, us3m, us30y, ger10y, ita10y, spreadBtpBund,
-                   hicpDE, hicpFR, hicpIT, hicpES, hicpNL, hicpBE, hicpAT, hicpPT, hicpGR,
-                   usCpi, lastUpdate: new Date().toISOString() };
+    const data = { ecbRate, us10y, us3m, us30y, ger10y, ita10y, spreadBtpBund,
+                   lastUpdate: new Date().toISOString() };
     macroCache = data;
     macroCacheTime = Date.now();
     res.json(data);

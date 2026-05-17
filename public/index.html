@@ -4289,28 +4289,7 @@
       return `<div class="macro-card ${colorClass||''}"><div class="macro-card-label">${label}</div><div class="macro-card-value">${v.toFixed(2)}<span style="font-size:13px;font-weight:400"> ${unit}</span></div><div class="macro-card-change">${chgStr}</div><div class="macro-card-sub">${note||''}${item.date ? ' · ' + item.date : ''}</div></div>`;
     };
 
-    // Card piccola per inflazione per paese
-    const inflCountryCard = (flag, label, item) => {
-      if (!item || item.value == null)
-        return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 11px;min-width:0">
-          <div style="font-size:10px;color:var(--text2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${flag} ${label}</div>
-          <div style="font-size:16px;font-weight:700;color:var(--text2)">N/D</div>
-        </div>`;
-      const v = item.value;
-      const col = v > 4 ? '#ef4444' : v > 3 ? '#f97316' : v > 2 ? '#f59e0b' : '#22c55e';
-      const chg = item.prev != null ? v - item.prev : null;
-      const chgHtml = chg != null
-        ? `<span style="font-size:9px;margin-left:3px;color:${chg > 0 ? '#f87171' : '#4ade80'}">${chg > 0 ? '▲' : '▼'}${Math.abs(chg).toFixed(2)}</span>`
-        : '';
-      return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 11px;min-width:0">
-        <div style="font-size:10px;color:var(--text2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${flag} ${label}</div>
-        <div style="font-size:17px;font-weight:700;color:${col};line-height:1.1">${v.toFixed(2)}<span style="font-size:10px;font-weight:400"> %</span>${chgHtml}</div>
-        <div style="font-size:8.5px;color:var(--text2);margin-top:2px">${item.date || ''}</div>
-      </div>`;
-    };
-
     const rateColor = v => v > 3.5 ? 'mc-amber' : '';
-    const inflColor = v => v > 3 ? 'mc-red' : v > 2 ? 'mc-amber' : 'mc-green';
 
     document.getElementById('macroGrid').innerHTML = `
       <div class="macro-section-title">🏛 Tassi di Riferimento Banche Centrali</div>
@@ -4320,23 +4299,6 @@
       ${card('Bund 10Y — Germania', data.ger10y, '%', '', data.ger10y?.note || 'ECB YC AAA')}
       ${card('Treasury 10Y — USA', data.us10y, '%', '', '^TNX')}
       ${card('Treasury 30Y — USA', data.us30y, '%', '', '^TYX')}
-      <div class="macro-section-title">🌡 Inflazione — Variazione Annua</div>
-      ${card('CPI — USA', data.usCpi, '%', inflColor(data.usCpi?.value||0), 'BLS · anno su anno')}
-      ${card('HICP — Area Euro', data.hicp, '%', inflColor(data.hicp?.value||0), 'ECB · anno su anno')}
-      <div style="grid-column:1/-1">
-        <div style="font-size:10.5px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px">HICP per paese — Area Euro</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:7px;">
-          ${inflCountryCard('🇩🇪','Germania', data.hicpDE)}
-          ${inflCountryCard('🇫🇷','Francia', data.hicpFR)}
-          ${inflCountryCard('🇮🇹','Italia', data.hicpIT)}
-          ${inflCountryCard('🇪🇸','Spagna', data.hicpES)}
-          ${inflCountryCard('🇳🇱','Paesi Bassi', data.hicpNL)}
-          ${inflCountryCard('🇧🇪','Belgio', data.hicpBE)}
-          ${inflCountryCard('🇦🇹','Austria', data.hicpAT)}
-          ${inflCountryCard('🇵🇹','Portogallo', data.hicpPT)}
-          ${inflCountryCard('🇬🇷','Grecia', data.hicpGR)}
-        </div>
-      </div>
     `;
   }
 
