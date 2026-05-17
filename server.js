@@ -1829,6 +1829,43 @@ function getBondYield10Y(paese, targetYears = 10, rangeYears = 3) {
   };
 }
 
+// Fetch HICP da Eurostat API (più aggiornato dell'ECB per dati recenti)
+// geo: EA20 = Area Euro, DE/FR/IT/ES/NL/BE/AT/PT/EL = singoli paesi
+// NB: Eurostat usa EL per la Grecia (non GR)
+async function fetchEurostatHICP(geo = 'EA20') {
+  try {
+    // prc_hicp_manr = HICP monthly rates, annual rate of change (vs stesso mese anno precedente)
+    // unit=RCH_A = rate of change, annual
+    const url = `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=${geo}&coicop=CP00&unit=RCH_A&sinceTimePeriod=2024-01`;
+    const resp = await axios.get(url, { timeout: 12000 });
+    const data = resp.data;
+    // Il JSON Eurostat mappa: dimension.time.category.index → { "2024-01": 0, "2024-02": 1, ... }
+    const timeIdx = data.dimension?.time?.category?.index || {};
+    const values  = data.value || {};
+    // Ordina per indice crescente (più recente = indice più alto)
+    const sorted = Object.entries(timeIdx).sort((a, b) => +a[1] - +b[1]);
+    if (!sorted.length) return null;
+    // Trova il valore più recente non-null
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      const [period, idx] = sorted[i];
+      const val = values[String(idx)];
+      if (val != null) {
+        const prevEntry = i > 0 ? sorted[i - 1] : null;
+        const prevVal   = prevEntry ? (values[String(prevEntry[1])] ?? null) : null;
+        return {
+          value: +parseFloat(val).toFixed(2),
+          prev:  prevVal != null ? +parseFloat(prevVal).toFixed(2) : null,
+          date:  period,
+        };
+      }
+    }
+    return null;
+  } catch (e) {
+    console.warn(`[macro] Eurostat HICP ${geo} failed:`, e.message);
+    return null;
+  }
+}
+
 // Fetch CPI USA (BLS public API v1 — nessuna registrazione richiesta)
 async function fetchUSCPI() {
   try {
@@ -1857,24 +1894,25 @@ app.get('/api/macro', async (req, res) => {
   if (macroCache && Date.now() - macroCacheTime < MACRO_CACHE_TTL) return res.json(macroCache);
   try {
     // ECB API (gratuita) + Yahoo Finance chart() per US yields + HICP paesi + CPI USA
-    const [ecbRate, hicp, us10y, us3m, us30y,
-           hicpDE, hicpFR, hicpIT, hicpES, hicpNL, hicpBE, hicpAT, hicpPT, hicpGR,
+    const [ecbRate, us10y, us3m, us30y,
+           hicp, hicpDE, hicpFR, hicpIT, hicpES, hicpNL, hicpBE, hicpAT, hicpPT, hicpGR,
            usCpi] = await Promise.all([
       fetchECBSeries('FM/B.U2.EUR.4F.KR.DFR.LEV'),
-      fetchECBSeries('ICP/M.U2.N.000000.4.ANR'),
       fetchYahooIndicator('^TNX'),
       fetchYahooIndicator('^IRX'),
       fetchYahooIndicator('^TYX'),
-      // HICP per paese (ECB, variazione annua)
-      fetchECBSeries('ICP/M.DE.N.000000.4.ANR'),
-      fetchECBSeries('ICP/M.FR.N.000000.4.ANR'),
-      fetchECBSeries('ICP/M.IT.N.000000.4.ANR'),
-      fetchECBSeries('ICP/M.ES.N.000000.4.ANR'),
-      fetchECBSeries('ICP/M.NL.N.000000.4.ANR'),
-      fetchECBSeries('ICP/M.BE.N.000000.4.ANR'),
-      fetchECBSeries('ICP/M.AT.N.000000.4.ANR'),
-      fetchECBSeries('ICP/M.PT.N.000000.4.ANR'),
-      fetchECBSeries('ICP/M.GR.N.000000.4.ANR'),
+      // HICP via Eurostat (più aggiornato di ECB per dati recenti)
+      // NB: Eurostat usa EL per Grecia, non GR
+      fetchEurostatHICP('EA20'),
+      fetchEurostatHICP('DE'),
+      fetchEurostatHICP('FR'),
+      fetchEurostatHICP('IT'),
+      fetchEurostatHICP('ES'),
+      fetchEurostatHICP('NL'),
+      fetchEurostatHICP('BE'),
+      fetchEurostatHICP('AT'),
+      fetchEurostatHICP('PT'),
+      fetchEurostatHICP('EL'),  // EL = Grecia in Eurostat
       // CPI USA
       fetchUSCPI(),
     ]);

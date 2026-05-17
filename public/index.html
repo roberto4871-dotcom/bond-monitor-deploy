@@ -7627,8 +7627,9 @@
       })
       .sort((a, b) => a.x - b.x);
 
-    // ── Rimuovi bucket anomali (BTPi / linker): punti che deviamo >0.65%
-    // dall'interpolazione lineare tra i vicini (es. rendimenti reali in mezzo a nominali)
+    // ── Rimuovi bucket anomali (BTPi / linker): punti che deviano >0.65%
+    // dall'interpolazione/estrapolazione dei vicini.
+    // Loop su punti interni prima, poi controlla anche gli estremi.
     let _cleaned = true;
     while (_cleaned && pts.length > 3) {
       _cleaned = false;
@@ -7641,6 +7642,21 @@
           break;
         }
       }
+    }
+    // Controlla anche gli estremi tramite estrapolazione dai due vicini
+    // (es. 30Y BTPi che scende a 2.5% dopo 20Y a 4.5%)
+    while (pts.length >= 3) {
+      const n = pts.length;
+      const slopeEnd = (pts[n-2].y - pts[n-3].y) / (pts[n-2].x - pts[n-3].x);
+      const extrapEnd = pts[n-2].y + slopeEnd * (pts[n-1].x - pts[n-2].x);
+      if (Math.abs(pts[n-1].y - extrapEnd) > 0.65) { pts.pop(); continue; }
+      break;
+    }
+    while (pts.length >= 3) {
+      const slopeStart = (pts[2].y - pts[1].y) / (pts[2].x - pts[1].x);
+      const extrapStart = pts[1].y - slopeStart * (pts[1].x - pts[0].x);
+      if (Math.abs(pts[0].y - extrapStart) > 0.65) { pts.shift(); continue; }
+      break;
     }
 
     if (pts.length < 2) {
