@@ -1833,25 +1833,27 @@ function getBondYield10Y(paese, targetYears = 10, rangeYears = 3) {
 // geo: EA20 = Area Euro, DE/FR/IT/ES/NL/BE/AT/PT/EL = singoli paesi
 // NB: Eurostat usa EL per la Grecia (non GR)
 async function fetchEurostatHICP(geo = 'EA20') {
+  // Mappa Eurostat → ECB per il fallback
+  const ecbCode = geo === 'EA20' ? 'U2' : geo === 'EL' ? 'GR' : geo;
   try {
-    // prc_hicp_manr = HICP monthly rates, annual rate of change (vs stesso mese anno precedente)
-    // unit=RCH_A = rate of change, annual
-    const url = `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=${geo}&coicop=CP00&unit=RCH_A&sinceTimePeriod=2024-01`;
+    // prc_hicp_manr = monthly YoY HICP rate of change
+    // PARAMETRO CORRETTO Eurostat: lastTimePeriods (non sinceTimePeriod!)
+    const url = `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=${geo}&coicop=CP00&unit=RCH_A&lastTimePeriods=3`;
     const resp = await axios.get(url, { timeout: 12000 });
     const data = resp.data;
-    // Il JSON Eurostat mappa: dimension.time.category.index → { "2024-01": 0, "2024-02": 1, ... }
+    // JSON Eurostat: dimension.time.category.index → { "2026-02": 0, "2026-03": 1, "2026-04": 2 }
     const timeIdx = data.dimension?.time?.category?.index || {};
     const values  = data.value || {};
-    // Ordina per indice crescente (più recente = indice più alto)
-    const sorted = Object.entries(timeIdx).sort((a, b) => +a[1] - +b[1]);
-    if (!sorted.length) return null;
+    const sorted  = Object.entries(timeIdx).sort((a, b) => +a[1] - +b[1]);
+    if (!sorted.length) throw new Error('no time periods');
     // Trova il valore più recente non-null
     for (let i = sorted.length - 1; i >= 0; i--) {
       const [period, idx] = sorted[i];
       const val = values[String(idx)];
       if (val != null) {
         const prevEntry = i > 0 ? sorted[i - 1] : null;
-        const prevVal   = prevEntry ? (values[String(prevEntry[1])] ?? null) : null;
+        const prevVal   = prevEntry != null ? (values[String(prevEntry[1])] ?? null) : null;
+        console.log(`[Eurostat HICP ${geo}] ${period}: ${val}%`);
         return {
           value: +parseFloat(val).toFixed(2),
           prev:  prevVal != null ? +parseFloat(prevVal).toFixed(2) : null,
@@ -1859,10 +1861,15 @@ async function fetchEurostatHICP(geo = 'EA20') {
         };
       }
     }
-    return null;
+    throw new Error('all values null');
   } catch (e) {
-    console.warn(`[macro] Eurostat HICP ${geo} failed:`, e.message);
-    return null;
+    console.warn(`[macro] Eurostat HICP ${geo} failed (${e.message}), fallback ECB`);
+    // Fallback: ECB API
+    try {
+      const r = await fetchECBSeries(`ICP/M.${ecbCode}.N.000000.4.ANR`);
+      if (r) console.log(`[ECB HICP ${geo}] fallback: ${r.date}: ${r.value}%`);
+      return r;
+    } catch { return null; }
   }
 }
 
@@ -1890,7 +1897,14 @@ async function fetchUSCPI() {
   }
 }
 
+// Force-clear della macro cache (es. per debug: GET /api/macro?refresh=1)
+app.get('/api/macro-refresh', (req, res) => {
+  macroCache = null; macroCacheTime = 0;
+  res.json({ ok: true, msg: 'Macro cache cleared' });
+});
+
 app.get('/api/macro', async (req, res) => {
+  if (req.query.refresh) { macroCache = null; macroCacheTime = 0; }
   if (macroCache && Date.now() - macroCacheTime < MACRO_CACHE_TTL) return res.json(macroCache);
   try {
     // ECB API (gratuita) + Yahoo Finance chart() per US yields + HICP paesi + CPI USA
