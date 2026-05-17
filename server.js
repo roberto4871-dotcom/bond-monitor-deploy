@@ -1742,7 +1742,15 @@ const MACRO_CACHE_TTL = 30 * 60 * 1000;
 
 async function fetchECBSeries(seriesKey) {
   try {
-    const url = `https://data-api.ecb.europa.eu/service/data/${seriesKey}?lastNObservations=2&format=jsondata`;
+    // Usa startPeriod (24 mesi fa) invece di lastNObservations=2:
+    // con lastNObservations la struttura "dates" contiene TUTTI i periodi storici
+    // e l'indice dell'osservazione punta al posto giusto nella lista completa,
+    // ma alcune serie (es. HICP ANR) possono avere sfasamenti.
+    // Con startPeriod la struttura è 0-based dal periodo richiesto → più affidabile.
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 2);
+    const startPeriod = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const url = `https://data-api.ecb.europa.eu/service/data/${seriesKey}?startPeriod=${startPeriod}&format=jsondata`;
     const resp = await axios.get(url, { timeout: 10000 });
     const dataset = resp.data.dataSets?.[0];
     if (!dataset) return null;

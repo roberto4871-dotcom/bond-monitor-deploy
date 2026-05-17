@@ -7627,6 +7627,22 @@
       })
       .sort((a, b) => a.x - b.x);
 
+    // ── Rimuovi bucket anomali (BTPi / linker): punti che deviamo >0.65%
+    // dall'interpolazione lineare tra i vicini (es. rendimenti reali in mezzo a nominali)
+    let _cleaned = true;
+    while (_cleaned && pts.length > 3) {
+      _cleaned = false;
+      for (let i = 1; i < pts.length - 1; i++) {
+        const frac = (pts[i].x - pts[i-1].x) / (pts[i+1].x - pts[i-1].x);
+        const expected = pts[i-1].y + (pts[i+1].y - pts[i-1].y) * frac;
+        if (Math.abs(pts[i].y - expected) > 0.65) {
+          pts.splice(i, 1);
+          _cleaned = true;
+          break;
+        }
+      }
+    }
+
     if (pts.length < 2) {
       svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Dati non disponibili</text>';
       return;
