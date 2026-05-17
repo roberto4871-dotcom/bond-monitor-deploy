@@ -1307,7 +1307,7 @@ async function refreshETFPricesBackground() {
   console.log('[ETF] Avvio aggiornamento prezzi in background...');
   let successCount = 0;
   try {
-    const CHUNK = 5;
+    const CHUNK = 3;
     for (let i = 0; i < ETF_LIST.length; i += CHUNK) {
       const chunk = ETF_LIST.slice(i, i + CHUNK);
       const settled = await Promise.allSettled(chunk.map(async (etf) => {
@@ -1997,8 +1997,8 @@ process.on('unhandledRejection', (reason) => {
 // Caricamento iniziale
 refreshData().catch(e => console.error('[refreshData init]', e.message));
 
-// Prezzi ETF in background (parte subito, non blocca il server)
-setTimeout(() => refreshETFPricesBackground().catch(e => console.error('[ETF init]', e.message)), 3000);
+// Prezzi ETF in background — aspetta 90s dall'avvio così lo scraping bond iniziale è finito
+setTimeout(() => refreshETFPricesBackground().catch(e => console.error('[ETF init]', e.message)), 90000);
 
 // Auto-refresh ogni 10 minuti
 setInterval(() => refreshData().catch(e => console.error('[refreshData]', e.message)), REFRESH_INTERVAL);
