@@ -1573,8 +1573,6 @@
     'Svezia','Danimarca','Norvegia','Svizzera','Regno Unito','Stati Uniti','Giappone',
     'Canada','Australia','Unione Europea','Sovranazionale'];
   let countdownInterval = null;
-  let fetchFailCount = 0;        // consecutive fetch failures
-  const FETCH_ERR_THRESHOLD = 3; // show error only after this many consecutive failures
 
   // ── New feature state ────────────────────────────────────────────────────
   let _clients = [];
@@ -1621,20 +1619,10 @@
       checkAlerts();
 
     } catch (err) {
-      fetchFailCount++;
-      console.warn(`Fetch fallito (${fetchFailCount}):`, err.message);
-      if (fetchFailCount >= FETCH_ERR_THRESHOLD) {
-        updateStatusBadge(false, lastUpdate, true);   // show error after 3 failures
-      } else {
-        // transient error (deploy restart) — show soft warning, keep old data visible
-        const txt = document.getElementById('statusText');
-        if (txt) txt.textContent = 'Riconnessione…';
-        const dot = document.getElementById('statusDot');
-        if (dot) { dot.style.background = 'var(--amber)'; }
-      }
+      console.warn('Fetch fallito:', err.message);
+      // Errore silenzioso: i dati precedenti rimangono visibili, nessun badge rosso
       return;
     }
-    fetchFailCount = 0; // reset on success
   }
 
   async function manualRefresh() {
@@ -1669,21 +1657,20 @@
   // ─────────────────────────────────────────────
   // STATUS & COUNTDOWN
   // ─────────────────────────────────────────────
-  function updateStatusBadge(isUpdating, updateTime, hasError = false) {
+  function updateStatusBadge(isUpdating, updateTime) {
     const dot = document.getElementById('statusDot');
     const txt = document.getElementById('statusText');
+    if (!dot || !txt) return;
+    // Reset sempre lo stile inline (evita che rosso da errore pregresso rimanga)
+    dot.style.background = '';
     if (isUpdating) {
       dot.className = 'status-dot updating';
       txt.textContent = 'Aggiornamento in corso...';
-    } else if (hasError) {
-      dot.style.background = 'var(--red)';
-      txt.textContent = 'Errore connessione';
     } else if (updateTime) {
       dot.className = 'status-dot';
-      dot.style.background = '';
-      const d = new Date(updateTime);
-      txt.textContent = `Aggiornato: ${d.toLocaleTimeString('it-IT')}`;
+      txt.textContent = `Aggiornato: ${new Date(updateTime).toLocaleTimeString('it-IT')}`;
     } else {
+      dot.className = 'status-dot';
       txt.textContent = 'In attesa...';
     }
   }
