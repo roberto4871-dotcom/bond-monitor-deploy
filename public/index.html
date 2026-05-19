@@ -3160,6 +3160,7 @@
     initTemplateCards();
     _loadClients();
     _loadNotes();
+    _loadWatchlistsFromServer();
     renderBtpYieldCurve();
   }
 
@@ -4321,10 +4322,38 @@
 
   function saveWatchlists() {
     localStorage.setItem('bond_watchlists', JSON.stringify({1:[...watchlists[1]],2:[...watchlists[2]],3:[...watchlists[3]]}));
+    _saveWatchlistsToServer();
   }
 
   function saveWlNames() {
     localStorage.setItem('bond_watchlist_names', JSON.stringify(wlNames));
+    _saveWatchlistsToServer();
+  }
+
+  async function _saveWatchlistsToServer() {
+    try {
+      await fetch('/api/watchlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lists: { 1: [...watchlists[1]], 2: [...watchlists[2]], 3: [...watchlists[3]] },
+          names: wlNames
+        })
+      });
+    } catch(e) { console.warn('_saveWatchlistsToServer failed', e); }
+  }
+
+  async function _loadWatchlistsFromServer() {
+    try {
+      const res = await fetch('/api/watchlists');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.lists) return;
+      [1,2,3].forEach(n => { watchlists[n] = new Set(data.lists[n] || []); });
+      if (data.names) Object.assign(wlNames, data.names);
+      applyWlNames();
+      renderTable(); // aggiorna le stelline nella tabella
+    } catch(e) { console.warn('_loadWatchlistsFromServer failed', e); }
   }
 
   function applyWlNames() {

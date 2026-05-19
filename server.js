@@ -614,6 +614,26 @@ app.post('/api/notes/:isin', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── WATCHLISTS ───────────────────────────────────────────────────────────────
+const WATCHLISTS_FILE = path.join(DATA_DIR, 'watchlists.json');
+function loadWatchlists() {
+  try { return JSON.parse(fs.readFileSync(WATCHLISTS_FILE, 'utf8')); }
+  catch { return { lists: { 1: [], 2: [], 3: [] }, names: { '1': 'Lista 1', '2': 'Lista 2', '3': 'Lista 3' } }; }
+}
+function saveWatchlistsFile(data) {
+  try { fs.writeFileSync(WATCHLISTS_FILE, JSON.stringify(data, null, 2)); } catch(e) {}
+}
+
+app.get('/api/watchlists', (req, res) => {
+  res.json(loadWatchlists());
+});
+
+app.post('/api/watchlists', (req, res) => {
+  const data = req.body || {};
+  saveWatchlistsFile(data);
+  res.json({ ok: true });
+});
+
 // API: versione build — il client lo usa per rilevare deploy e ricaricare automaticamente
 app.get('/api/version', (req, res) => {
   res.json({ build: SERVER_BUILD });
