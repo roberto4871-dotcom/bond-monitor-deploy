@@ -1569,6 +1569,10 @@
   let activeCurrencies = new Set();
   let activeCountries = new Set();
   let showEmAltro   = false;   // chip "EM / Altro" (paesi minori raggruppati)
+  // Watchlist state — dichiarato qui (prima di applyFilters) per evitare TDZ
+  let activeWlFilters = new Set();
+  let watchlists = { 1: new Set(), 2: new Set(), 3: new Set() };
+  let wlNames = { '1': 'Lista 1', '2': 'Lista 2', '3': 'Lista 3' };
 
   // Paesi principali mostrati come chip individuali — il resto va in "EM / Altro"
   const MAJOR_COUNTRIES = ['Italia','Germania','Francia','Spagna','Portogallo','Grecia',
@@ -1860,10 +1864,19 @@
       return true;
     });
 
+    // Filtro watchlist — applicato dopo gli altri filtri
+    if (activeWlFilters.size > 0) {
+      filteredBonds = filteredBonds.filter(b => [...activeWlFilters].some(n => watchlists[n].has(b.isin)));
+    }
+
     sortBonds();
     currentPage = 1;
     renderTable();
     updateStats();
+
+    // Aggiorna Maturity Ladder se visibile
+    const _ladderPanel = document.getElementById('panelLadder');
+    if (_ladderPanel && _ladderPanel.style.display !== 'none') renderLadder();
   }
 
   function resetFilters() {
@@ -4294,14 +4307,17 @@
   }
 
   // ─────────────────────────────────────────────
-  // WATCHLIST
+  // WATCHLIST — init da localStorage
+  // (watchlists, activeWlFilters, wlNames dichiarati in cima allo script)
   // ─────────────────────────────────────────────
-  // Migrazione da vecchia watchlist singola
-  const _oldWl = JSON.parse(localStorage.getItem('bond_watchlist') || '[]');
-  const _wlData = JSON.parse(localStorage.getItem('bond_watchlists') || 'null') || {1:_oldWl,2:[],3:[]};
-  const watchlists = { 1: new Set(_wlData[1]||[]), 2: new Set(_wlData[2]||[]), 3: new Set(_wlData[3]||[]) };
-  const wlNames = JSON.parse(localStorage.getItem('bond_watchlist_names') || '{"1":"Lista 1","2":"Lista 2","3":"Lista 3"}');
-  let activeWlFilters = new Set();
+  (function initWatchlists() {
+    const _oldWl = JSON.parse(localStorage.getItem('bond_watchlist') || '[]');
+    const _wlData = JSON.parse(localStorage.getItem('bond_watchlists') || 'null') || {1:_oldWl,2:[],3:[]};
+    [1,2,3].forEach(n => { watchlists[n] = new Set(_wlData[n] || []); });
+    const _wlNamesStored = JSON.parse(localStorage.getItem('bond_watchlist_names') || '{}');
+    Object.assign(wlNames, _wlNamesStored);
+    applyWlNames();
+  })();
 
   function saveWatchlists() {
     localStorage.setItem('bond_watchlists', JSON.stringify({1:[...watchlists[1]],2:[...watchlists[2]],3:[...watchlists[3]]}));
@@ -4334,23 +4350,7 @@
     if (newName && newName.trim()) { wlNames[num] = newName.trim(); saveWlNames(); applyWlNames(); }
   }
 
-  // Aggiungi filtro watchlist in applyFilters
-  const _origApplyFilters = applyFilters;
-  applyFilters = function() {
-    _origApplyFilters();
-    if (activeWlFilters.size > 0) {
-      filteredBonds = filteredBonds.filter(b => [...activeWlFilters].some(n => watchlists[n].has(b.isin)));
-      sortBonds();
-      currentPage = 1;
-      renderTable();
-      updateStats();
-    }
-    // Aggiorna Maturity Ladder in tempo reale se è visibile
-    const ladderPanel = document.getElementById('panelLadder');
-    if (ladderPanel && ladderPanel.style.display !== 'none') {
-      renderLadder();
-    }
-  };
+  // (watchlist filter ora integrato direttamente in applyFilters)
 
   // ─────────────────────────────────────────────
   // YIELD CURVE
