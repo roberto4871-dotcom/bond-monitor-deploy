@@ -452,8 +452,9 @@ async function refreshData() {
       state.errors.push({ monitor: monitor.name, error: msg });
     }
 
-    // Pausa cortese tra le richieste
+    // Pausa cortese tra le richieste + GC esplicito per liberare memoria cheerio
     await new Promise(r => setTimeout(r, 800));
+    if (global.gc) global.gc();
   }
 
   if (allBonds.length > 0) {
@@ -1346,7 +1347,10 @@ async function refreshETFPricesBackground() {
           if (price != null) successCount++;
         }
       }
-      if (i + CHUNK < ETF_LIST.length) await new Promise(r => setTimeout(r, 800));
+      if (i + CHUNK < ETF_LIST.length) {
+        await new Promise(r => setTimeout(r, 800));
+        if (global.gc) global.gc();
+      }
     }
     // Aggiorna il timestamp SOLO se almeno qualche prezzo è stato trovato
     if (successCount > 0) {
@@ -1398,8 +1402,8 @@ async function refreshETFYieldsBackground() {
   } finally {
     etfYieldLoading = false;
   }
-  // Terzo passaggio: JustETF scraping per i rendimenti mancanti (e storico per tutti)
-  setTimeout(refreshETFJustETFYields, 5000);
+  // JustETF scraping rimosso dal background — i dati vengono caricati
+  // on-demand via /api/etf/:isin quando l'utente apre il dettaglio ETF
 }
 
 // ── JustETF scraping ──────────────────────────────────────────────────────────
@@ -2010,8 +2014,8 @@ process.on('unhandledRejection', (reason) => {
   // Non usciamo
 });
 
-// Caricamento iniziale
-refreshData().catch(e => console.error('[refreshData init]', e.message));
+// Caricamento iniziale — aspetta 10s per lasciare che Node.js completi l'inizializzazione
+setTimeout(() => refreshData().catch(e => console.error('[refreshData init]', e.message)), 10000);
 
 // Prezzi ETF in background — aspetta 90s dall'avvio così lo scraping bond iniziale è finito
 setTimeout(() => refreshETFPricesBackground().catch(e => console.error('[ETF init]', e.message)), 90000);
