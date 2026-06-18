@@ -36,7 +36,7 @@ const MONITORS = [
 
 ];
 
-const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minuti
+const REFRESH_INTERVAL = 20 * 60 * 1000; // 20 minuti
 
 // Mappa prefisso ISIN → paese (solo prefissi non ambigui)
 // XS NON è incluso: Euroclear registra bond di qualsiasi emittente, non implica "sovranazionale"
@@ -1189,7 +1189,7 @@ const etfPriceData = {}; // { isin: { price, changePercent, ... } }
 let etfCacheTime = 0;
 let etfPriceLoading = false;
 let etfYieldLoading = false;
-const ETF_CACHE_TTL = 60 * 60 * 1000;
+const ETF_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 ore
 
 async function fetchETFQuoteViaChart(etf) {
   const candidates = [
@@ -1198,7 +1198,7 @@ async function fetchETFQuoteViaChart(etf) {
     etf.isin   + '.F',
   ].filter(Boolean);
 
-  const period1 = new Date(Date.now() - 370 * 24 * 3600 * 1000); // ~1 anno
+  const period1 = new Date(Date.now() - 30 * 24 * 3600 * 1000); // 30 giorni (prezzo + variazione giornaliera)
 
   for (const sym of candidates) {
     try {
@@ -1211,13 +1211,9 @@ async function fetchETFQuoteViaChart(etf) {
       const change1d      = last.close - prev.close;
       const changePercent = (change1d / prev.close) * 100;
 
-      const yearStart = new Date().getFullYear();
-      const jan1q = quotes.find(q => new Date(q.date).getFullYear() === yearStart);
-      const ytdReturn = jan1q ? (last.close - jan1q.close) / jan1q.close : null;
-
       const prices = quotes.map(q => q.close);
-      const low52w  = Math.min(...prices);
-      const high52w = Math.max(...prices);
+      const low52w  = Math.min(...prices); // range 30gg
+      const high52w = Math.max(...prices); // range 30gg
 
       console.log(`  [ETF] ${sym}: ${last.close.toFixed(2)} ${result.meta?.currency || 'EUR'}`);
       return {
@@ -1226,7 +1222,7 @@ async function fetchETFQuoteViaChart(etf) {
         currency:      result.meta?.currency || 'EUR',
         changePercent,
         change1d,
-        ytdReturn,
+        ytdReturn:     null, // non disponibile con finestra 30gg
         low52w,
         high52w,
         symbol:        sym,
@@ -1409,7 +1405,7 @@ async function refreshETFYieldsBackground() {
 // ── JustETF scraping ──────────────────────────────────────────────────────────
 // Cache: { isin → { ts, currentYield, history: [{year, yieldPct}] } }
 const justETFCache = {};
-const JUST_ETF_TTL = 20 * 60 * 60 * 1000; // 20 ore
+const JUST_ETF_TTL = 48 * 60 * 60 * 1000; // 48 ore
 
 async function fetchJustETFDistributions(isin) {
   const cached = justETFCache[isin];
